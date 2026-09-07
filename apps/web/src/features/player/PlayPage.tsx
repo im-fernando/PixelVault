@@ -6,7 +6,6 @@ import { useGame } from '../library/use-game.js';
 import { ApiRequestError } from '../../lib/api.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
-import { ehDemonstracao } from './emulator-registry.js';
 
 interface Props {
   readonly slug: string;
@@ -80,7 +79,6 @@ export function PlayPage({ slug }: Props) {
         />
       ) : (
         <>
-          {ehDemonstracao(jogo.systemId) && <AvisoDeDemonstracao />}
           <PlayerErrorBoundary>
             <EmulatorPlayer systemId={jogo.systemId} rom={rom} titulo={jogo.title} />
           </PlayerErrorBoundary>
@@ -100,18 +98,6 @@ function fonteDaRom(referencia: HomebrewRom): RomSource {
     fileName: referencia.fileName,
     ...(referencia.sizeBytes === null ? {} : { byteLength: referencia.sizeBytes }),
   });
-}
-
-function AvisoDeDemonstracao() {
-  return (
-    <p className="rounded-lg border border-vault-800 bg-vault-900/60 px-4 py-3 text-xs text-vault-300">
-      <strong className="text-vault-100">Core de demonstração.</strong> O adapter registrado
-      implementa o contrato inteiro — status, eventos, SRAM e save state — mas não desenha quadro
-      nenhum, então a tela fica preta. HUD, atalhos, pausa por aba oculta e controle já funcionam de
-      verdade; a imagem aparece no dia em que o adapter de SNES entrar no registry, sem mudança
-      nesta tela.
-    </p>
-  );
 }
 
 function Recado({ titulo, detalhe }: { readonly titulo: string; readonly detalhe: string }) {
