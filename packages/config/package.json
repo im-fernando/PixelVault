@@ -2,5 +2,22 @@
   "name": "@pixelvault/config",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.base.js",
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./tsconfig/react.json": "./tsconfig/react.json"
+  },
+  "scripts": {
+    "lint": "echo \"(config) sem código a lintar\"",
+    "typecheck": "echo \"(config) sem código a tipar\"",
+    "test": "echo \"(config) sem testes\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "typescript-eslint": "^8.69.0"
+  }
 }
