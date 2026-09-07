@@ -32,8 +32,8 @@ const PERCENTUAL = new Intl.NumberFormat('pt-BR', {
 const VEREDITO: Record<VereditoDePacing, { readonly rotulo: string; readonly cor: string }> = {
   estavel: { rotulo: 'pacing estável', cor: 'text-emerald-400' },
   irregular: { rotulo: 'pacing irregular', cor: 'text-amber-400' },
-  engasgando: { rotulo: 'engasgando', cor: 'text-accent' },
-  'sem-dados': { rotulo: 'medindo…', cor: 'text-vault-700' },
+  engasgando: { rotulo: 'engasgando', cor: 'text-alert' },
+  'sem-dados': { rotulo: 'medindo…', cor: 'text-ink-700' },
 };
 
 interface Props {
@@ -49,22 +49,22 @@ export function DiagnosticsOverlay({ amostra, aoFechar }: Props) {
     <div
       role="region"
       aria-label="Diagnóstico de performance"
-      className="absolute top-3 left-3 z-10 w-64 max-w-[calc(100%-1.5rem)] rounded-lg border border-vault-800 bg-vault-950/90 p-2.5 font-mono text-[10px] leading-relaxed text-vault-300 shadow-lg backdrop-blur"
+      className="absolute top-3 left-3 z-10 w-64 max-w-[calc(100%-1.5rem)] rounded-lg border border-ink-850 bg-ink-950/90 p-2.5 font-mono text-[10px] leading-relaxed text-ink-500 shadow-lg backdrop-blur"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[9px] tracking-widest text-vault-700 uppercase">diagnóstico</span>
+        <span className="text-[9px] tracking-widest text-ink-700 uppercase">diagnóstico</span>
         <button
           type="button"
           onClick={aoFechar}
-          className="text-[9px] text-vault-700 uppercase hover:text-vault-100"
+          className="text-[9px] text-ink-700 uppercase hover:text-label-100"
         >
           {NOME_DO_ATALHO} fecha
         </button>
       </div>
 
       <p className="mt-1.5 flex items-baseline gap-2">
-        <strong className="text-base font-bold text-vault-100">{DECIMAL.format(pacing.fps)}</strong>
-        <span className="text-vault-700">fps apresentados</span>
+        <strong className="text-base font-bold text-label-100">{DECIMAL.format(pacing.fps)}</strong>
+        <span className="text-ink-700">fps apresentados</span>
       </p>
       <p className={`font-semibold ${veredito.cor}`}>{veredito.rotulo}</p>
 
@@ -107,7 +107,7 @@ export function DiagnosticsOverlay({ amostra, aoFechar }: Props) {
         <Linha rotulo="1º quadro" valor={ms(carga.primeiroQuadroMs)} />
         <Linha rotulo="total até jogar" valor={ms(carga.totalMs)} />
         {amostra.recursos.map((recurso) => (
-          <p key={recurso.nome} className="truncate text-[9px] text-vault-700">
+          <p key={recurso.nome} className="truncate text-[9px] text-ink-700">
             {recurso.nome} · {kb(recurso.bytesDecodificados)} · {INTEIRO.format(recurso.duracaoMs)}{' '}
             ms · {recurso.deCache ? 'cache' : 'rede'}
           </p>
@@ -116,7 +116,7 @@ export function DiagnosticsOverlay({ amostra, aoFechar }: Props) {
 
       <Secao>
         {audio.contextos === 0 ? (
-          <p className="text-vault-700">
+          <p className="text-ink-700">
             áudio: nenhum contexto observado. A sonda só enxerga o que nasce depois de o painel
             abrir — recarregue com <code>?diagnostico=1</code> para pegar o boot do core.
           </p>
@@ -132,7 +132,7 @@ export function DiagnosticsOverlay({ amostra, aoFechar }: Props) {
             />
           </>
         )}
-        <p className="text-vault-700">
+        <p className="text-ink-700">
           Estalo e underrun não são medidos aqui: dependem do buffer do core.
         </p>
       </Secao>
@@ -141,7 +141,7 @@ export function DiagnosticsOverlay({ amostra, aoFechar }: Props) {
 }
 
 function Secao({ children }: { readonly children: ReactNode }) {
-  return <div className="mt-2 border-t border-vault-800 pt-1.5">{children}</div>;
+  return <div className="mt-2 border-t border-ink-850 pt-1.5">{children}</div>;
 }
 
 function Linha({
@@ -155,8 +155,8 @@ function Linha({
 }) {
   return (
     <p className="flex justify-between gap-2">
-      <span className="shrink-0 text-vault-700">{rotulo}</span>
-      <span className={`truncate text-right ${destaque ? 'text-accent' : 'text-vault-100'}`}>
+      <span className="shrink-0 text-ink-700">{rotulo}</span>
+      <span className={`truncate text-right ${destaque ? 'text-alert' : 'text-label-100'}`}>
         {valor}
       </span>
     </p>
@@ -201,7 +201,7 @@ function Grafico({
       aria-hidden
       className="mt-1.5 h-7 w-full"
     >
-      <path d={tracos} stroke="currentColor" strokeWidth={0.8} className="text-vault-300" />
+      <path d={tracos} stroke="currentColor" strokeWidth={0.8} className="text-ink-500" />
       <line
         x1={0}
         x2={largura}
@@ -210,7 +210,7 @@ function Grafico({
         stroke="currentColor"
         strokeWidth={0.5}
         strokeDasharray="3 3"
-        className="text-accent/70"
+        className="text-alert/70"
       />
     </svg>
   );

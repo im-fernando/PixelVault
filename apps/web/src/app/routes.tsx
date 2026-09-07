@@ -1,25 +1,35 @@
 import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router';
 import { GameLibrary } from '../features/library/GameLibrary.js';
-import { LocalLibrary } from '../features/library/LocalLibrary.js';
+import { Cabecalho, LocalLibrary } from '../features/library/LocalLibrary.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
 
 function Shell() {
   return (
     <div className="min-h-screen">
-      <header className="border-b border-vault-800">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-4">
-          <Link to="/" className="text-lg font-bold tracking-tight">
-            Pixel<span className="text-accent">Vault</span>
+      {/*
+        A marca é estampada como a faixa de nome de uma etiqueta de cartucho:
+        larga, apertada, caixa alta. É o único lugar da interface onde a
+        tipografia grita — o resto fica quieto, para a prateleira ser o que se
+        vê. Ver docs/design.md.
+      */}
+      <header className="border-b border-ink-850">
+        <div className="mx-auto flex max-w-6xl items-baseline gap-6 px-6 py-5">
+          <Link
+            to="/"
+            className="titulo-estampado text-xl leading-none outline-none focus-visible:underline"
+          >
+            Pixel<span className="text-label-400">Vault</span>
           </Link>
-          <nav className="text-sm text-vault-300">
-            <Link to="/" className="hover:text-vault-100">
-              Biblioteca
+          <nav className="text-sm text-ink-500">
+            <Link to="/" className="hover:text-label-100">
+              Acervo
             </Link>
           </nav>
+          <span className="leitura ml-auto hidden text-ink-700 sm:block">snes · o save fica</span>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-6 py-10">
         <Outlet />
       </main>
     </div>
@@ -34,7 +44,16 @@ const indexRoute = createRoute({
   component: function Biblioteca() {
     return (
       <>
-        <h1 className="mb-6 text-2xl font-bold">Biblioteca</h1>
+        {/*
+          A tese da home, e a razão do produto existir: a pilha do cartucho
+          morre e leva o progresso junto. O PixelVault é o oposto disso.
+        */}
+        <p className="mb-10 max-w-lg text-sm leading-relaxed text-ink-500">
+          Cartucho guarda o save numa pilha, e pilha acaba.{' '}
+          <span className="text-label-100">Aqui não acaba.</span> Seu acervo, jogável no navegador,
+          com o progresso onde você deixou.
+        </p>
+        <Cabecalho titulo="Catálogo público" nota="homebrew · jogável sem conta" />
         <GameLibrary />
         <LocalLibrary />
       </>

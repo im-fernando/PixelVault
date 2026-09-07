@@ -35,13 +35,13 @@ export class PlayerErrorBoundary extends Component<Props, Estado> {
     if (erro === null) return this.props.children;
 
     return (
-      <div className="rounded-xl border border-vault-800 bg-vault-900 p-8 text-center">
-        <h2 className="font-semibold text-accent">O player parou de responder</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-vault-300">{erro.message}</p>
+      <div className="rounded-xl border border-ink-850 bg-ink-900 p-8 text-center">
+        <h2 className="font-semibold text-alert">O player parou de responder</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{erro.message}</p>
         <button
           type="button"
           onClick={() => this.setState({ erro: null })}
-          className="mt-5 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-vault-950 hover:brightness-110"
+          className="mt-5 rounded-md bg-alert px-4 py-2 text-sm font-semibold text-ink-950 hover:brightness-110"
         >
           Recarregar o player
         </button>

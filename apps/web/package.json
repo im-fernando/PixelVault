@@ -4,16 +4,19 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource/silkscreen": "^5.3.0",
+    "@pixelvault/contracts": "workspace:*",
+    "@pixelvault/emulator-runtime": "workspace:*",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.32",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "zod": "^4.5.4",
-    "@pixelvault/contracts": "workspace:*",
-    "@pixelvault/emulator-runtime": "workspace:*"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "fake-indexeddb": "^6.2.5",
+    "@pixelvault/config": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.3",
@@ -21,13 +24,13 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.10.0",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0",
-    "@pixelvault/config": "workspace:*",
-    "eslint": "^10.10.0"
+    "vitest": "^5.0.0"
   },
   "scripts": {
     "dev": "vite",
