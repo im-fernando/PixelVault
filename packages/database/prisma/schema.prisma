@@ -1,0 +1,136 @@
+// Schema do PixelVault.
+//
+// Um schema só, com chaves estrangeiras de verdade. A fronteira entre
+// módulos é imposta no código (dependency-cruiser), não no banco: abrir
+// mão de integridade referencial em troca de uma independência que não
+// vamos usar seria mau negócio. Ver docs/adr/0003.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Consoles suportados. Espelha SystemId em @pixelvault/contracts.
+enum SystemId {
+  snes
+  nes
+  gb
+  gba
+  genesis
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  handle       String   @unique
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  userGames UserGame[]
+  userRoms  UserRom[]
+
+  @@map("users")
+}
+
+model System {
+  id        SystemId @id
+  name      String
+  /// Slug do core de emulação usado por este sistema.
+  coreSlug  String   @map("core_slug")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  games Game[]
+
+  @@map("systems")
+}
+
+/// Catálogo canônico de metadados — o eixo de conquistas, ranking e perfil.
+/// Nunca guarda arquivo de ROM comercial: metadado é redistribuível, ROM não.
+model Game {
+  id          String   @id @default(uuid()) @db.Uuid
+  systemId    SystemId @map("system_id")
+  title       String
+  slug        String   @unique
+  releaseYear Int?     @map("release_year")
+  publisher   String?
+  coverUrl    String?  @map("cover_url")
+  /// Homebrew é jogável por qualquer pessoa, sem login e sem upload.
+  isHomebrew  Boolean  @default(false) @map("is_homebrew")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  system    System     @relation(fields: [systemId], references: [id])
+  roms      GameRom[]
+  userGames UserGame[]
+  userRoms  UserRom[]
+
+  @@index([systemId])
+  @@index([isHomebrew])
+  @@map("games")
+}
+
+/// Hashes conhecidos por jogo. É o que permite o match do BYOR: o usuário
+/// sobe a ROM, casamos o SHA-256 aqui e a capa aparece sozinha.
+model GameRom {
+  id       String  @id @default(uuid()) @db.Uuid
+  gameId   String  @map("game_id") @db.Uuid
+  sha256   String  @unique
+  region   String?
+  revision String?
+  /// Preenchido só para homebrew, que podemos distribuir.
+  storageKey String? @map("storage_key")
+  sizeBytes  Int?    @map("size_bytes")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@map("game_roms")
+}
+
+/// A ROM enviada pelo usuário. Privada dele. `gameId` é nulo enquanto o
+/// hash não casar com nada do catálogo — a biblioteca funciona mesmo sem
+/// reconhecer o jogo.
+model UserRom {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  gameId     String?  @map("game_id") @db.Uuid
+  sha256     String
+  storageKey String   @map("storage_key")
+  sizeBytes  Int      @map("size_bytes")
+  fileName   String   @map("file_name")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, sha256])
+  @@index([userId])
+  @@index([gameId])
+  @@map("user_roms")
+}
+
+/// A relação da pessoa com um jogo do catálogo: favorito, quando jogou por
+/// último, quanto tempo. `totalPlaytimeSeconds` é escrito apenas pelo
+/// servidor, a partir de sessões verificadas. Ver docs/adr/0009.
+model UserGame {
+  userId               String    @map("user_id") @db.Uuid
+  gameId               String    @map("game_id") @db.Uuid
+  isFavorite           Boolean   @default(false) @map("is_favorite")
+  lastPlayedAt         DateTime? @map("last_played_at")
+  totalPlaytimeSeconds Int       @default(0) @map("total_playtime_seconds")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameId])
+  @@index([userId, lastPlayedAt])
+  @@map("user_games")
+}
