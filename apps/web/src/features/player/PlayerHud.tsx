@@ -24,6 +24,8 @@ interface Props {
   readonly controlaVolume: boolean;
   readonly volume: number;
   readonly aoTrocarVolume: (volume: number) => void;
+  /** Nome do controle em uso, ou `null` quando só há teclado. */
+  readonly controle: string | null;
 }
 
 const COM_ROM: readonly EmulatorStatus[] = ['ready', 'running', 'paused'];
@@ -50,6 +52,7 @@ export function PlayerHud({
   controlaVolume,
   volume,
   aoTrocarVolume,
+  controle,
 }: Props) {
   const temRom = COM_ROM.includes(status);
   const rodando = status === 'running';
@@ -148,6 +151,24 @@ export function PlayerHud({
           </>
         )}
 
+        {/*
+          O indicador vive aqui, e não só na legenda abaixo do palco, porque em
+          tela cheia o palco é a tela inteira: é justamente quando a legenda
+          some que saber qual controle o jogo está lendo importa.
+        */}
+        {controle !== null && (
+          <>
+            <Separador />
+            <span
+              title={`Controle ativo: ${controle}`}
+              className="flex items-center gap-1.5 px-2 text-xs text-accent"
+            >
+              <IconeControle />
+              <span className="hidden max-w-32 truncate md:inline">{controle}</span>
+            </span>
+          </>
+        )}
+
         {telaCheia.disponivel && (
           <>
             <Separador />
@@ -220,6 +241,25 @@ function IconePausa() {
   return (
     <svg className={SVG} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
       <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" />
+    </svg>
+  );
+}
+
+function IconeControle() {
+  return (
+    <svg
+      className={SVG}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      aria-hidden
+    >
+      <path
+        d="M5.2 4.5h5.6a3 3 0 0 1 2.9 2.2l1 3.6a1.6 1.6 0 0 1-2.9 1.3l-1-1.4H5.2l-1 1.4a1.6 1.6 0 0 1-2.9-1.3l1-3.6a3 3 0 0 1 2.9-2.2Z"
+        strokeLinejoin="round"
+      />
+      <path d="M4.6 7.2v1.6M3.8 8h1.6M10.6 7.6h.01M12 8.8h.01" strokeLinecap="round" />
     </svg>
   );
 }

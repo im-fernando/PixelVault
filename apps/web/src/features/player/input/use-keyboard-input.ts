@@ -9,7 +9,7 @@ export interface OpcoesDoTeclado {
   readonly ativo: boolean;
   readonly aoMudar: (estado: EstadoDoGamepad) => void;
   /** Atalhos do HUD, por `KeyboardEvent.code`. Valem mesmo com o controle desligado. */
-  readonly atalhos?: Readonly<Record<string, () => void>>;
+  readonly atalhos?: Readonly<Record<string, () => void>> | undefined;
 }
 
 /**

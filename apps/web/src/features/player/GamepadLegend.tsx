@@ -1,8 +1,12 @@
+import { useMemo } from 'react';
+import { rotulosDoControle, type PerfilDoControle } from './input/gamepad-map.js';
 import { LEGENDA_DO_TECLADO, type BotaoDoSnes, type EstadoDoGamepad } from './input/snes-keymap.js';
 
 interface Props {
   readonly estado: EstadoDoGamepad;
   readonly ativo: boolean;
+  /** O controle em uso. `null` é o teclado sozinho — que é o padrão, e é silencioso. */
+  readonly controle: PerfilDoControle | null;
 }
 
 const GRUPOS: readonly { readonly titulo: string; readonly botoes: readonly BotaoDoSnes[] }[] = [
@@ -21,20 +25,33 @@ const POR_BOTAO = new Map(LEGENDA_DO_TECLADO.map((item) => [item.botao, item]));
  * prova visível de que correr e pular funciona, e é onde se descobre que o
  * teclado da máquina não registra aquela combinação — coisa que o teclado faz,
  * não o software, e que sem isto viraria "o emulador travou".
+ *
+ * Com um controle plugado ele vira a mesma prova para o controle, e sem trocar
+ * a legenda do teclado por outra: as duas fontes valem juntas, e mostrar só uma
+ * faria a pessoa acreditar que a outra parou de funcionar.
  */
-export function GamepadLegend({ estado, ativo }: Props) {
+export function GamepadLegend({ estado, ativo, controle }: Props) {
+  const rotulosNoControle = useMemo(
+    () => (controle === null ? null : rotulosDoControle(controle.familia)),
+    [controle],
+  );
+
   return (
     <section
       aria-label="Mapeamento do teclado"
       className={`rounded-xl border border-vault-800 bg-vault-900/60 p-4 transition-opacity ${
-        ativo ? 'opacity-100' : 'opacity-60'
+        ativo || controle !== null ? 'opacity-100' : 'opacity-60'
       }`}
     >
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold text-vault-100">Controle</h2>
-        <p className="text-xs text-vault-700">
-          {ativo ? 'teclado ligado ao console' : 'clique na tela para jogar'}
-        </p>
+        {controle !== null ? (
+          <p className="text-xs text-accent">{controle.nome} ligado ao console</p>
+        ) : (
+          <p className="text-xs text-vault-700">
+            {ativo ? 'teclado ligado ao console' : 'clique na tela para jogar'}
+          </p>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -60,6 +77,11 @@ export function GamepadLegend({ estado, ativo }: Props) {
                     >
                       <span className="text-xs font-semibold">{item.rotulo}</span>
                       <span className="font-mono text-[0.65rem] text-vault-700">{item.tecla}</span>
+                      {rotulosNoControle !== null && (
+                        <span className="font-mono text-[0.65rem] text-accent/80">
+                          {rotulosNoControle[botao]}
+                        </span>
+                      )}
                     </span>
                   </li>
                 );

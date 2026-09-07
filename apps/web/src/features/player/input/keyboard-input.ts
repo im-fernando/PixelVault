@@ -1,7 +1,6 @@
 import {
-  BOTOES_DO_SNES,
   MAPA_PADRAO_DE_TECLADO,
-  gamepadSolto,
+  gamepadCom,
   type BotaoDoSnes,
   type EstadoDoGamepad,
 } from './snes-keymap.js';
@@ -97,10 +96,7 @@ export class EntradaDeTeclado {
   }
 
   estado(): EstadoDoGamepad {
-    if (this.#pressionados.size === 0) return gamepadSolto();
-    return Object.freeze(
-      Object.fromEntries(BOTOES_DO_SNES.map((botao) => [botao, this.#pressionados.has(botao)])),
-    ) as EstadoDoGamepad;
+    return gamepadCom(this.#pressionados);
   }
 
   #botaoDe(evento: EventoDeTecla): BotaoDoSnes | null {
