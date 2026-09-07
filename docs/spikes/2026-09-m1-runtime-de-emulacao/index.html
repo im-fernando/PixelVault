@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>spike — nostalgist sem UI</title>
+<script type="module">
+  import { Nostalgist } from './nostalgist.js';
+
+  // O laço principal do RetroArch em emscripten roda em requestAnimationFrame:
+  // contar as chamadas é contar frames emulados. É a métrica de FPS do spike.
+  window.__frames = 0;
+  const rafOriginal = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) =>
+    rafOriginal((t) => {
+      window.__frames++;
+      return cb(t);
+    });
+
+  window.__boot = async () => {
+    const core = new URL(location.href).searchParams.get('core') || 'snes9x2010';
+    const romBytes = new Uint8Array(await (await fetch('./horizontal-shooter.sfc')).arrayBuffer());
+
+    window.__n = await Nostalgist.launch({
+      // core self-hostado: nada é buscado em CDN de terceiro
+      core: {
+        js: `./cores/${core}_libretro.js`,
+        name: core,
+        wasm: `./cores/${core}_libretro.wasm`,
+      },
+      // a ROM entra como bytes, que é o requisito do BYOR
+      rom: { fileContent: romBytes, fileName: 'horizontal-shooter.sfc' },
+      style: { height: '448px', width: '512px' },
+    });
+  };
+</script>
