@@ -14,3 +14,8 @@ onlyBuiltDependencies:
   - esbuild
   - msgpackr-extract
   - workerd
+
+# typescript-eslint aceita >=4.8.4 <6.1.0. A TS 7 (compilador nativo) ainda
+# nao e suportada pelo ecossistema de lint. Ver docs/adr/0007.
+overrides:
+  typescript: ^6.0.3
