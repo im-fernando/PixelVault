@@ -21,9 +21,11 @@ referencia a antiga.
 | [0012](0012-usar-cloudflare-r2-como-object-storage.md)          | Usar Cloudflare R2 como object storage de produção                 | aceita |
 | [0013](0013-enderecar-roms-pelo-conteudo.md)                    | Endereçar ROMs pelo conteúdo, com contagem de referências          | aceita |
 | [0014](0014-verificar-a-rom-em-quarentena-antes-de-promover.md) | Verificar a ROM em quarentena antes de promover o objeto           | aceita |
+| [0015](0015-audio-do-emulador-no-navegador.md)                  | Manter a saída de áudio do RetroArch e pendurar um barramento nela | aceita |
 
 O código de investigação que sustenta os números da 0008 e da 0011 está em
-[docs/spikes](../spikes/README.md).
+[docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por
+`pnpm --filter @pixelvault/emulator-runtime verify:audio`.
 
 ## Pendentes
 

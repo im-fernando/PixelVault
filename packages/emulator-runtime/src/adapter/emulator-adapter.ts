@@ -1,4 +1,5 @@
 import type { SystemId } from '@pixelvault/contracts';
+import type { EmulatorAudioControl } from './audio.js';
 import type { EmulatorCapabilities } from './capabilities.js';
 import type { EmulatorEvent, EmulatorEventHandler, Unsubscribe } from './events.js';
 import type { RomSource } from './rom-source.js';
@@ -27,6 +28,12 @@ export interface EmulatorAdapter {
   readonly coreVersion: string;
   readonly capabilities: EmulatorCapabilities;
   readonly status: EmulatorStatus;
+  /**
+   * Volume, mudo e política de autoplay. Vale em qualquer status, inclusive
+   * antes de `mount()` e depois de `destroy()`: preferência do usuário não é
+   * estado da máquina.
+   */
+  readonly audio: EmulatorAudioControl;
 
   /** Liga o adapter ao canvas. Sobe o core; ainda sem ROM. */
   mount(canvas: HTMLCanvasElement): Promise<void>;
