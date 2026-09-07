@@ -5,6 +5,7 @@ import type { HomebrewRom } from '@pixelvault/contracts';
 import { useGame } from '../library/use-game.js';
 import { ApiRequestError } from '../../lib/api.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
+import { FichaDeAcervo } from './FichaDeAcervo.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
 
 interface Props {
@@ -53,24 +54,27 @@ export function PlayPage({ slug }: Props) {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <Link to="/" className="text-xs text-ink-700 hover:text-ink-500">
-            ← Biblioteca
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold">{jogo.title}</h1>
-          <p className="text-sm text-ink-700">
-            {[jogo.publisher, jogo.releaseYear, jogo.systemId.toUpperCase()]
-              .filter((parte) => parte !== null && parte !== undefined)
-              .join(' · ')}
-          </p>
-        </div>
-        {jogo.isHomebrew && (
-          <span className="rounded-full border border-ink-850 px-3 py-1 text-xs text-ink-500">
-            homebrew · jogável sem login
-          </span>
-        )}
-      </header>
+      <FichaDeAcervo
+        titulo={jogo.title}
+        systemId={jogo.systemId}
+        campos={[
+          { rotulo: 'console', valor: jogo.systemId.toUpperCase(), maquina: true },
+          { rotulo: 'procedência', valor: jogo.isHomebrew ? 'homebrew · público' : 'sua ROM' },
+          ...(jogo.publisher === null ? [] : [{ rotulo: 'autor', valor: jogo.publisher }]),
+          ...(jogo.releaseYear === null
+            ? []
+            : [{ rotulo: 'ano', valor: String(jogo.releaseYear), maquina: true }]),
+          ...(jogo.homebrewRom === null
+            ? []
+            : [
+                {
+                  rotulo: 'sha-256',
+                  valor: `${jogo.homebrewRom.sha256.slice(0, 12)}…`,
+                  maquina: true,
+                },
+              ]),
+        ]}
+      />
 
       {rom === null ? (
         <Recado
@@ -80,7 +84,12 @@ export function PlayPage({ slug }: Props) {
       ) : (
         <>
           <PlayerErrorBoundary>
-            <EmulatorPlayer systemId={jogo.systemId} rom={rom} titulo={jogo.title} />
+            <EmulatorPlayer
+              systemId={jogo.systemId}
+              rom={rom}
+              titulo={jogo.title}
+              romId={jogo.homebrewRom?.sha256}
+            />
           </PlayerErrorBoundary>
         </>
       )}
