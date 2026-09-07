@@ -1,0 +1,73 @@
+THIRD-PARTY NOTICES
+===================
+
+EUC Thrills - SNES Edition contains third-party components. They are listed
+here in full. Everything not listed here is this project's own work; see
+NOTICE.md for the complete provenance statement.
+
+
+1. PVSnesLib
+   Copyright (C) 2012-2024 Alekmaul
+   https://github.com/alekmaul/pvsneslib
+
+   EUC Thrills was written against, and compiled and linked with, PVSnesLib.
+   The shipped ROM therefore contains PVSnesLib runtime code, including its
+   startup code, its library routines, and its SPC700 sound driver.
+
+   PVSnesLib is distributed under a permissive zlib-style licence, reproduced
+   in full below. Its canonical copy is maintained by the PVSnesLib project at
+   pvsneslib/pvsneslib_license.txt in the repository above.
+
+   The PVSnesLib toolkit and its source code are not redistributed in this
+   package. Nothing in this notice alters the licence that applies to the
+   EUC Thrills project's own work.
+
+     --------------------------------------------------------------------
+       Copyright (C) 2012-2024
+        Alekmaul
+
+       This software is provided 'as-is', without any express or implied
+       warranty.  In no event will the authors be held liable for any
+       damages arising from the use of this software.
+
+       Permission is granted to anyone to use this software for any
+       purpose, including commercial applications, and to alter it and
+       redistribute it freely, subject to the following restrictions:
+
+       1. The origin of this software must not be misrepresented; you
+          must not claim that you wrote the original software. If you use
+          this software in a product, an acknowledgment in the product
+          documentation would be appreciated but is not required.
+       2. Altered source versions must be plainly marked as such, and
+          must not be misrepresented as being the original software.
+       3. This notice may not be removed or altered from any source
+          distribution.
+     --------------------------------------------------------------------
+
+
+2. SNESMod
+   Copyright (C) Mukunda Johnson
+   http://snes.mukunda.com/
+
+   The SPC700 music and sound-effect engine inside PVSnesLib -- and therefore
+   inside this ROM -- is PVSnesLib's port of SNESMod by Mukunda Johnson, with
+   debugging help credited by PVSnesLib to Kung Fu Furby. It reaches this
+   package as part of PVSnesLib and under PVSnesLib's licence above. Named
+   separately here because the code is in the ROM and the author should be
+   named where the ROM is distributed.
+
+
+3. The HUD typeface
+   Copyright (C) 2012-2024 Alekmaul, as part of PVSnesLib (item 1 above)
+
+   The letterforms the game draws its on-screen text with are PVSnesLib's
+   example font (snes-examples/.../pvsneslibfont.bmp), used under the licence
+   in item 1. Five glyphs -- S, l, 1, 5 and z -- were redrawn for this game
+   and are the EUC Thrills project's own work; the remaining ninety-one are
+   Alekmaul's.
+
+
+Build-time tools that are NOT redistributed in this package, and whose
+licences therefore do not travel with it: the 816-tcc compiler, the WLA-DX
+assembler and linker, gfx4snes, smconv, and the Python and Node tooling in
+the project's development tree.

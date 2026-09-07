@@ -4,3 +4,7 @@ dist
 coverage
 pnpm-lock.yaml
 packages/database/generated
+
+# Pacotes de homebrew de terceiros. As licenças exigem que os avisos sejam
+# redistribuídos sem alteração; formatar seria alterá-los. Ver docs/homebrew.md.
+apps/web/public/roms
