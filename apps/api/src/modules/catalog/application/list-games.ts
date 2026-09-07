@@ -6,9 +6,6 @@ import type { GameRepository } from '../domain/game-repository.js';
  * é fino de propósito. Entidade rica neste módulo seria cerimônia pura.
  * Ver docs/adr/0005.
  */
-export async function listGames(
-  repository: GameRepository,
-  query: GameListQuery,
-): Promise<Game[]> {
+export async function listGames(repository: GameRepository, query: GameListQuery): Promise<Game[]> {
   return repository.list(query);
 }
