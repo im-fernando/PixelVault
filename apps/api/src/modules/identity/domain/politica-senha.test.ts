@@ -18,7 +18,9 @@ describe('validarPoliticaDeSenha', () => {
   });
 
   it('aceita senha exatamente no tamanho mínimo', () => {
-    expect(() => validarPoliticaDeSenha('x7k2p9m3q1zz'.slice(0, TAMANHO_MINIMO_SENHA))).not.toThrow();
+    expect(() =>
+      validarPoliticaDeSenha('x7k2p9m3q1zz'.slice(0, TAMANHO_MINIMO_SENHA)),
+    ).not.toThrow();
   });
 
   it('recusa senha curta demais com SENHA_MUITO_CURTA', () => {

@@ -6,12 +6,9 @@ describe('emailSchema', () => {
     expect(emailSchema.safeParse(valor).success).toBe(true);
   });
 
-  it.each(['', 'sem-arroba', '@sem-usuario.com', 'espaco em@exemplo.com'])(
-    'recusa %o',
-    (valor) => {
-      expect(emailSchema.safeParse(valor).success).toBe(false);
-    },
-  );
+  it.each(['', 'sem-arroba', '@sem-usuario.com', 'espaco em@exemplo.com'])('recusa %o', (valor) => {
+    expect(emailSchema.safeParse(valor).success).toBe(false);
+  });
 
   it('recusa e-mail acima de 254 caracteres', () => {
     const local = 'a'.repeat(250);

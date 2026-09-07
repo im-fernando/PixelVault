@@ -11,8 +11,5 @@ import { z } from 'zod';
 export const TAMANHO_MINIMO_SENHA = 12;
 export const TAMANHO_MAXIMO_SENHA = 128;
 
-export const senhaCandidataSchema = z
-  .string()
-  .min(TAMANHO_MINIMO_SENHA)
-  .max(TAMANHO_MAXIMO_SENHA);
+export const senhaCandidataSchema = z.string().min(TAMANHO_MINIMO_SENHA).max(TAMANHO_MAXIMO_SENHA);
 export type SenhaCandidata = z.infer<typeof senhaCandidataSchema>;

@@ -30,14 +30,17 @@ describe('Handle', () => {
     }
   });
 
-  it.each(HANDLES_RESERVADOS)('recusa a palavra reservada "%s" com HANDLE_RESERVADO', (reservado) => {
-    expect.assertions(1);
-    try {
-      Handle.criar(reservado);
-    } catch (erro) {
-      expect((erro as ErroDeIdentidade).codigo).toBe('HANDLE_RESERVADO');
-    }
-  });
+  it.each(HANDLES_RESERVADOS)(
+    'recusa a palavra reservada "%s" com HANDLE_RESERVADO',
+    (reservado) => {
+      expect.assertions(1);
+      try {
+        Handle.criar(reservado);
+      } catch (erro) {
+        expect((erro as ErroDeIdentidade).codigo).toBe('HANDLE_RESERVADO');
+      }
+    },
+  );
 
   it('reserva é case-insensitive', () => {
     expect.assertions(1);
