@@ -30,6 +30,53 @@ pnpm dev
 > projetos na mesma máquina. Se a 5437 também estiver ocupada, mude o mapeamento
 > no `docker-compose.yml` e a `DATABASE_URL` no `.env`.
 
+## Assets de emulação
+
+A emulação roda no cliente, e o core é um binário de 4 MB que **não** fica no
+repositório — ele é baixado no setup e conferido por SHA-256:
+
+```bash
+pnpm emulator:setup             # baixa e confere os assets do core
+pnpm emulator:verify            # só confere o que já está em disco
+pnpm emulator:setup --forcar    # rebaixa mesmo com o hash batendo
+```
+
+Os arquivos vão para `apps/web/public/emulator/<core>/<versão>/`, servidos pelo
+próprio front. **O caminho é versionado de propósito:** save state não é
+portável entre builds de core, e o `coreVersion` do adapter é derivado dessa
+mesma versão. Trocar a versão em `scripts/emulador/manifesto.mjs` invalida o
+save state de todos os usuários — é migração, não atualização de arquivo.
+
+Se o hash não bater, o script falha e não instala nada. Asset de emulação vindo
+de CDN é exatamente onde não se confia cegamente; o hash esperado está no
+manifesto, ao lado da URL de onde o arquivo veio.
+
+O core `snes9x2010` é **não comercial** e o RetroArch em WASM é GPLv3. As duas
+obrigações estão em `scripts/emulador/LICENCAS.md`, copiado para
+`/emulator/LICENCAS.md` pelo setup. Ver
+[ADR 0011](adr/0011-escolha-do-runtime-de-emulacao.md).
+
+Nada de COOP/COEP: o core não usa `SharedArrayBuffer`, então o front não precisa
+ficar isolado por origem cruzada — e iframes e recursos externos continuam
+funcionando.
+
+### Verificar o emulador num navegador de verdade
+
+`pnpm test` não sobe emulador: WebAssembly, WebGL e 4 MB de core não cabem num
+teste de unidade. A prova de que o adapter carrega, roda, salva e restaura mora
+num harness separado, que abre um Chrome e joga um dos homebrews do catálogo:
+
+```bash
+pnpm emulator:setup
+pnpm --filter @pixelvault/emulator-runtime build
+pnpm --filter @pixelvault/emulator-runtime verify:browser
+```
+
+Ele exige um Chrome instalado (`CHROME=/caminho/do/chrome` aponta para outro
+binário) e sai com código 1 se `importState` não voltar ao ponto salvo, se a
+SRAM do Sure Instinct não vier com 8 KB ou se sobrar `AudioContext` aberto
+depois de dez ciclos de criar e destruir.
+
 ## Verificação
 
 ```bash

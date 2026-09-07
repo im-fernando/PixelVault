@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Verificação do SnesEmulatorAdapter</title>
+    <!--
+      O adapter importa `nostalgist` por especificador nu, resolvido pelo
+      bundler no `apps/web`. Aqui não há bundler: o import map aponta para a
+      mesma cópia self-hostada que o `pnpm emulator:setup` instalou.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "nostalgist": "/emulator/nostalgist/0.22.0/nostalgist.js"
+        }
+      }
+    </script>
+  </head>
+  <body style="margin: 0; background: #101018">
+    <div id="palco"></div>
+    <script type="module">
+      import { SnesEmulatorAdapter, romFromUrl } from '/runtime/index.js';
+
+      const eventos = [];
+      const contextosDeAudio = [];
+      const ConstrutorOriginal = window.AudioContext;
+      // O harness conta contextos por fora do adapter: quem verifica não pode
+      // usar o mesmo instrumento que o verificado.
+      window.AudioContext = class extends ConstrutorOriginal {
+        constructor(...argumentos) {
+          super(...argumentos);
+          contextosDeAudio.push(this);
+        }
+      };
+
+      function novoCanvas() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 448;
+        document.getElementById('palco').append(canvas);
+        return canvas;
+      }
+
+      function assinar(adapter) {
+        for (const nome of ['statusChange', 'ready', 'sramChange', 'fps', 'error']) {
+          adapter.on(nome, (payload) => {
+            eventos.push({
+              evento: nome,
+              payload:
+                nome === 'error'
+                  ? { message: payload.error.message, code: payload.error.code }
+                  : payload,
+            });
+          });
+        }
+      }
+
+      const hex = (bytes) =>
+        Array.from(bytes.slice(0, 16))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join(' ');
+
+      // FNV-1a sobre a janela inteira: 16 bytes em hexadecimal não distinguem
+      // duas leituras de 1 KB que diferem no meio.
+      function resumo(bytes) {
+        let hash = 0x811c9dc5;
+        for (const byte of bytes) {
+          hash ^= byte;
+          hash = Math.imul(hash, 0x01000193) >>> 0;
+        }
+        return `${bytes.length}B fnv=${(hash >>> 0).toString(16)} [${hex(bytes)} ...]`;
+      }
+
+      Object.assign(window, {
+        eventos,
+        contextosDeAudio,
+        novoCanvas,
+        hex,
+        resumo,
+        async criarAdapter(romUrl, { comEventos = true } = {}) {
+          const adapter = new SnesEmulatorAdapter({ assetsBaseUrl: '/emulator' });
+          if (comEventos) {
+            assinar(adapter);
+          }
+          await adapter.mount(novoCanvas());
+          await adapter.loadGame(romFromUrl(romUrl, { fileName: romUrl.split('/').pop() }));
+          return adapter;
+        },
+        SnesEmulatorAdapter,
+        romFromUrl,
+        espera: (ms) => new Promise((r) => setTimeout(r, ms)),
+      });
+      window.__pronto = true;
+    </script>
+  </body>
+</html>

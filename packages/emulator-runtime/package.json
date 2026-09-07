@@ -23,14 +23,18 @@
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "verify:browser": "node verificacao/verificar.mjs"
   },
   "dependencies": {
-    "@pixelvault/contracts": "workspace:*"
+    "@pixelvault/contracts": "workspace:*",
+    "nostalgist": "0.22.0"
   },
   "devDependencies": {
     "@pixelvault/config": "workspace:*",
     "eslint": "^10.10.0",
+    "globals": "^17.12.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^6.0.3",
     "vitest": "^5.0.0"
   }
