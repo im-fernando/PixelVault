@@ -11,7 +11,11 @@ coverage/
 
 packages/database/generated/
 
+# Os cores de emulação são baixados no setup — grandes e reproduzíveis.
 apps/web/public/emulator/
+# apps/web/public/roms/ NÃO entra aqui de propósito: o homebrew do catálogo é
+# versionado para que o arquivo e o SHA-256 do seed andem no mesmo commit.
+# Ver docs/homebrew.md.
 playwright-report/
 test-results/
 
