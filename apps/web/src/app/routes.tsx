@@ -1,10 +1,4 @@
-import {
-  createRootRoute,
-  createRoute,
-  createRouter,
-  Link,
-  Outlet,
-} from '@tanstack/react-router';
+import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 
 function Shell() {

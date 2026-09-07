@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Aponta para o serviço postgres do job. Só os testes de integração usam.
+  DATABASE_URL: postgresql://pixelvault:pixelvault@localhost:5432/pixelvault?schema=public
+  SESSION_SECRET: ci-secret-que-nao-protege-nada-mas-passa-na-validacao
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  verificar:
+    name: lint, typecheck, test e build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: pixelvault
+          POSTGRES_PASSWORD: pixelvault
+          POSTGRES_DB: pixelvault
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pixelvault -d pixelvault"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache do Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Aplicar migrations
+        run: pnpm --filter @pixelvault/database exec prisma migrate deploy
+
+      - name: Lint
+        run: pnpm turbo run lint
+
+      # Roda separado do turbo: o dependency-cruiser enxerga o grafo do repo
+      # inteiro, não de um pacote. É o teste que sustenta as fronteiras de
+      # módulo — ver docs/adr/0003.
+      - name: Fronteiras de módulo
+        run: pnpm lint:boundaries
+
+      - name: Typecheck
+        run: pnpm turbo run typecheck
+
+      - name: Testes
+        run: pnpm turbo run test
+
+      - name: Build
+        run: pnpm turbo run build
+
+      - name: Formatação
+        run: pnpm format:check
