@@ -10,11 +10,23 @@ import {
 } from '@pixelvault/emulator-runtime';
 import { temRelogioManual } from './adapter-extras.js';
 
+export interface EstadoDeAudio {
+  readonly volume: number;
+  readonly muted: boolean;
+  readonly blocked: boolean;
+}
+
 export interface ObservadorDaSessao {
   readonly aoMudarStatus?: (status: EmulatorStatus) => void;
   readonly aoFalhar?: (erro: EmulatorError) => void;
   readonly aoMedirFps?: (fps: number) => void;
   readonly aoGravarSram?: (bytes: number) => void;
+  /**
+   * Volume, mudo e bloqueio de autoplay. O bloqueio não é erro: é a política
+   * do navegador funcionando, e a UI precisa poder oferecer o gesto que
+   * destrava em vez de deixar o jogo mudo sem explicação.
+   */
+  readonly aoMudarAudio?: (estado: EstadoDeAudio) => void;
   /** O adapter existe e a ROM está carregada. É quando o HUD ganha capabilities. */
   readonly aoAbrir?: (adapter: EmulatorAdapter) => void;
 }
@@ -139,6 +151,7 @@ export class SessaoDeEmulacao {
       adapter.on('error', ({ error }) => observador.aoFalhar?.(error)),
       adapter.on('fps', ({ fps }) => observador.aoMedirFps?.(fps)),
       adapter.on('sramChange', ({ byteLength }) => observador.aoGravarSram?.(byteLength)),
+      adapter.on('audioChange', (estado) => observador.aoMudarAudio?.(estado)),
     );
   }
 

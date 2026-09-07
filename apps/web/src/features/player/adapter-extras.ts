@@ -4,19 +4,13 @@ import type { BotaoDoSnes } from './input/snes-keymap.js';
 /**
  * Capacidades que o `EmulatorAdapter` ainda não descreve.
  *
- * Volume e estado de botão não estão no contrato: a M1 fecha o ciclo de vida
- * primeiro, e mexer no contrato é trabalho de quem o mantém. Enquanto isso, o
- * player pergunta ao adapter se ele sabe fazer, exatamente como faz com
- * `capabilities` — e, quando não sabe, o controle correspondente **não é
- * desenhado**, em vez de virar botão que não faz nada.
- *
- * Quando o contrato absorver isto, este arquivo desaparece e o player passa a
- * ler de `capabilities`. É o único lugar do front que precisa mudar.
+ * O volume saiu daqui: o contrato passou a expor `adapter.audio`, e o player
+ * usa direto. Restou o estado de botão — e sobre ele há uma ressalva
+ * importante: `setButtonState` não existe em adapter nenhum, então
+ * `suportaEntrada` é sempre falso hoje. O teclado e o controle funcionam
+ * porque o RetroArch escuta os eventos do DOM por conta própria, não porque
+ * nós enviemos algo. Ver a issue #36.
  */
-
-export interface AdapterComVolume {
-  setVolume(volume: number): void;
-}
 
 export interface AdapterComEntrada {
   setButtonState(botao: BotaoDoSnes, pressionado: boolean): void;
@@ -35,12 +29,6 @@ export interface AdapterComRelogioManual {
 
 function temMetodo(adapter: EmulatorAdapter, nome: string): boolean {
   return typeof (adapter as unknown as Record<string, unknown>)[nome] === 'function';
-}
-
-export function suportaVolume(
-  adapter: EmulatorAdapter,
-): adapter is EmulatorAdapter & AdapterComVolume {
-  return temMetodo(adapter, 'setVolume');
 }
 
 export function suportaEntrada(
