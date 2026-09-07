@@ -12,6 +12,7 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: true
   workerd: true
+  argon2: true
 
 # typescript-eslint aceita >=4.8.4 <6.1.0. A TS 7 (compilador nativo) ainda não
 # é suportada pelo ecossistema de lint. Ver docs/adr/0007.

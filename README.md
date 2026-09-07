@@ -73,7 +73,9 @@ emulação e provedores de metadados. O banco não é porta.
 Detalhes em [docs/arquitetura.md](docs/arquitetura.md) e no
 [log de decisões](docs/adr/README.md). O baseline de performance da emulação —
 FPS, frame pacing e tempo de carga, com as condições da medição — está em
-[docs/performance.md](docs/performance.md).
+[docs/performance.md](docs/performance.md). Decisões de segurança que
+dependem de medição na máquina alvo, como o custo do hash de senha, estão em
+[docs/seguranca.md](docs/seguranca.md).
 
 ## Rodando localmente
 
