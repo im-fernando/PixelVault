@@ -2,20 +2,18 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+# Pacotes autorizados a rodar script de instalação. No pnpm 11 a chave é
+# `allowBuilds` — `onlyBuiltDependencies` era o nome antigo e é ignorada em
+# silêncio, o que faz o install falhar com ERR_PNPM_IGNORED_BUILDS.
 allowBuilds:
-  '@prisma/engines': set this to true or false
-  esbuild: set this to true or false
-  prisma: set this to true or false
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  esbuild: true
+  msgpackr-extract: true
+  workerd: true
 
-onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
-  - prisma
-  - esbuild
-  - msgpackr-extract
-  - workerd
-
-# typescript-eslint aceita >=4.8.4 <6.1.0. A TS 7 (compilador nativo) ainda
-# nao e suportada pelo ecossistema de lint. Ver docs/adr/0007.
+# typescript-eslint aceita >=4.8.4 <6.1.0. A TS 7 (compilador nativo) ainda não
+# é suportada pelo ecossistema de lint. Ver docs/adr/0007.
 overrides:
   typescript: ^6.0.3
