@@ -108,10 +108,8 @@ Em concreto:
    mudar de padrão numa atualização de core, a regressão é silenciosa e só
    aparece como estalo.
 5. **Pausa e aba oculta calam pelo ganho, e não suspendendo o `AudioContext`.**
-   O relógio do `RWebAudio` é `performance.now()`, e não `context.currentTime`:
-   suspender congela um e não o outro, e ao voltar o driver agenda no passado
-   tudo o que deveria ter tocado. Isso é exatamente o "áudio adiantado ao
-   voltar da aba" que a issue proíbe.
+   Suspender não cala: medido, o contexto volta a `running` em menos de 50 ms,
+   porque o `RWebAudio` chama `resume()` a cada buffer.
 6. **`resume()` sem gesto do usuário não chega ao navegador.** A subclasse de
    `AudioContext` que já existia para não vazar contexto (ADR 0011) passa a
    filtrar `resume()` enquanto `navigator.userActivation.hasBeenActive` for
@@ -158,6 +156,13 @@ contínua. É o uso em que ele acrescenta alguma coisa.
   concede ativação de usuário sozinho e nunca recusa o autoplay: o freio do
   `resume()` é coberto por teste de unidade, e o console limpo, por contagem no
   harness — mas a recusa em si só se observa num Chrome de tela.
+- **O critério de 10 minutos ainda não fecha neste ambiente.** Duas corridas de
+  600 s com a configuração desta ADR deram **1 e 11 buracos de silêncio**,
+  contra os 30 em 360 s do padrão. O da segunda corrida foi um só, de 48 ms, e
+  o `audio_latency` não o salvaria: o laço principal ficou 164 ms sem rodar, e
+  buffer nenhum de tamanho razoável cobre isso. O que resta é desempenho do
+  laço, não do áudio — e este ambiente (SwiftShader por software, máquina
+  compartilhada) é o pior caso, não o do usuário.
 - **Ninguém ouviu.** Tudo acima é medição de amostras, não escuta. Continuidade
   medida não é o mesmo que "soa bem": timbre, equilíbrio entre os canais e
   velocidade percebida continuam dependendo de um par de ouvidos.
@@ -191,11 +196,22 @@ que é a descontinuidade que estamos tentando eliminar.
 ### Suspender o `AudioContext` ao pausar ou ao esconder a aba
 
 Seria a forma mais completa de calar: o navegador solta o dispositivo de áudio.
-Descartada pelo relógio do `RWebAudio`, que é `performance.now()`. Com o
-contexto suspenso, `context.currentTime` congela e `performance.now()` não —
-o driver passa a agendar no passado, e ao voltar toca de uma vez tudo o que
-deveria ter tocado. É literalmente o defeito que o critério de aceite da issue
-proíbe ("alternar de aba e voltar não deixa o áudio adiantado").
+
+Descartada porque **não cala**, e isto foi medido. Com o emulador rodando, o
+`RWebAudio` chama `context.resume()` a cada buffer; depois de um `suspend()`, o
+contexto está de volta em `running` antes dos 50 ms:
+
+```
+[{"ms":0,"state":"suspended"},{"ms":50,"state":"running"},{"ms":100,"state":"running"}, ...]
+```
+
+Suspender de verdade exigiria segurar também esses `resume()` — e aí entra a
+segunda razão, esta **lida no código do driver e não medida**: o relógio do
+`RWebAudio` é `performance.now()`, e não `context.currentTime`
+(`RWebAudioGetCurrentTime`). Com o contexto parado os dois se afastam, e o
+driver passa a agendar em instantes que não correspondem mais ao relógio de
+áudio. Não vale correr esse risco por um silêncio que a rampa de ganho já
+entrega — e que a medição mostra ser silêncio digital, e não "quase".
 
 ### Pausar a emulação quando a aba fica invisível
 

@@ -17,6 +17,13 @@
  * vizinhas, sem corrida de zeros no meio do som — e que volume, mudo, pausa e
  * aba oculta chegam de fato à saída. Timbre, equilíbrio de canais e "soa como
  * um Super Nintendo" continuam dependendo de um par de ouvidos.
+ *
+ * **O limiar é um buraco, e não uma taxa de buracos.** Um buraco é um estalo.
+ * Com `MINUTOS=1` as corridas passaram; com `MINUTOS=10` — o critério de aceite
+ * da issue — este ambiente (SwiftShader por software, máquina compartilhada)
+ * ainda deixa um buraco ou outro, sempre num instante em que o laço principal
+ * do emulador ficou mais de 100 ms sem rodar. Isso é desempenho do laço, e não
+ * tamanho de buffer: nenhum `audio_latency` razoável cobre uma parada dessas.
  */
 import fs from 'node:fs';
 import http from 'node:http';
@@ -139,7 +146,8 @@ await pagina.waitForTimeout(SEGUNDOS_DE_REGIME * 1000);
 
 const agendamento = await pagina.evaluate(() => window.analisarAgendamento());
 const amostras = await pagina.evaluate(() => window.medir());
-relatar(`2. ${SEGUNDOS_DE_REGIME} s de jogo em regime`, { agendamento, amostras });
+const fps = await pagina.evaluate(() => window.resumoDeFps());
+relatar(`2. ${SEGUNDOS_DE_REGIME} s de jogo em regime`, { agendamento, amostras, fps });
 
 relatar('3. taxa de amostragem: o que sai bate com o que o AudioContext pede', {
   taxaDoContexto: amostras.sampleRate,

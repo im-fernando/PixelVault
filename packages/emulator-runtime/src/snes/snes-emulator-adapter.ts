@@ -805,10 +805,9 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
    * não depende de ninguém.
    *
    * O que este ouvinte deliberadamente **não** faz é suspender o
-   * `AudioContext`. O relógio do `RWebAudio` é `performance.now()`, e não
-   * `context.currentTime`; suspender congela um e não o outro, e ao voltar o
-   * driver agenda no passado tudo o que deveria ter tocado — que é exatamente
-   * o "áudio adiantado ao voltar da aba" que esta issue proíbe.
+   * `AudioContext`, porque suspender não cala: medido, o contexto volta a
+   * `running` em menos de 50 ms, já que o `RWebAudio` chama `resume()` a cada
+   * buffer. Ver ADR 0015.
    */
   #ouvirVisibilidade(): void {
     if (this.#aoMudarVisibilidade !== null || typeof document === 'undefined') {

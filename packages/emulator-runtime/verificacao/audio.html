@@ -178,9 +178,12 @@
       }
 
       const eventos = [];
+      /** Amostras de FPS com o instante do relógio de áudio. */
+      const fps = [];
 
       Object.assign(window, {
         eventos,
+        fps,
         contextos,
         agendamentos,
         novoCanvas,
@@ -190,6 +193,12 @@
 
         async criarAdapter(romUrl, options = {}) {
           const adapter = new SnesEmulatorAdapter({ assetsBaseUrl: '/emulator', ...options });
+          adapter.on('fps', (payload) => {
+            fps.push({
+              t: contextoAtual === null ? 0 : contextoAtual.currentTime,
+              fps: payload.fps,
+            });
+          });
           for (const nome of ['statusChange', 'audioChange', 'error']) {
             adapter.on(nome, (payload) => {
               eventos.push({
@@ -205,7 +214,29 @@
 
         zerarMedicao() {
           agendamentos.length = 0;
+          fps.length = 0;
           medidor?.port.postMessage('zerar');
+        },
+
+        /**
+         * Buraco no áudio quase sempre é o laço do emulador tropeçando, e não o
+         * áudio em si. Sem esta correlação, "8 lacunas em 600 s" não diz se o
+         * problema é o buffer ou a máquina que rodou o teste.
+         */
+        resumoDeFps() {
+          if (fps.length === 0) return { amostras: 0 };
+          const valores = fps.map((x) => x.fps).sort((a, b) => a - b);
+          const abaixoDe55 = fps.filter((x) => x.fps < 55);
+          return {
+            amostras: valores.length,
+            minimo: valores[0],
+            mediana: valores[valores.length >> 1],
+            amostrasAbaixoDe55: abaixoDe55.length,
+            quandoCaiu: abaixoDe55.slice(0, 10).map((x) => ({
+              t: Number(x.t.toFixed(1)),
+              fps: x.fps,
+            })),
+          };
         },
 
         async medir() {
