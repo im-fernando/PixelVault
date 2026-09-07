@@ -73,12 +73,12 @@ Ver [ADR 0003](adr/0003-fronteiras-de-modulo-verificadas-por-lint.md).
 Arquitetura hexagonal **só** onde o mundo externo é instável
 ([ADR 0004](adr/0004-hexagonal-apenas-nas-integracoes-externas.md)):
 
-| Porta               | Adaptadores previstos                       |
-| ------------------- | ------------------------------------------- |
-| Storage             | MinIO (desenvolvimento), R2 (produção)      |
-| Runtime de emulação | a definir no spike da M1                    |
-| Metadados           | IGDB, TheGamesDB, No-Intro                  |
-| RetroAchievements   | se o spike de leitura de memória viabilizar |
+| Porta               | Adaptadores previstos                                                         |
+| ------------------- | ----------------------------------------------------------------------------- |
+| Storage             | MinIO (desenvolvimento), R2 (produção)                                        |
+| Runtime de emulação | Nostalgist.js ([ADR 0011](adr/0011-escolha-do-runtime-de-emulacao.md))        |
+| Metadados           | IGDB, TheGamesDB, No-Intro                                                    |
+| RetroAchievements   | adiado ([ADR 0008](adr/0008-viabilidade-de-conquistas-por-evento-de-jogo.md)) |
 
 O banco **não** é porta.
 
