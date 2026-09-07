@@ -65,11 +65,16 @@ outros projetos, o que é familiaridade real e não deve ser descartado de leve.
 Reduz a superfície de DMCA, porque a notificação passa a ir para o provedor de
 infraestrutura em vez de para a conta do produto.
 
-Foi descartado por causa do custo operacional no ponto errado do projeto:
+Foi descartado pelo custo operacional recorrente, não por limitação técnica.
 Garage com durabilidade séria são três nós replicados em máquinas distintas,
-com monitoramento e backup. Isso é um cluster de armazenamento distribuído para
-manter — num projeto cujo objetivo declarado é aprender desenvolvimento web.
-Nó único seria perder o save dos usuários no primeiro disco que falhar.
+com monitoramento, alarme e rotina de backup testada. Isso é infraestrutura de
+armazenamento distribuído para manter em produção, indefinidamente, e o retorno
+é substituir uma conta pequena por trabalho de operação — num produto cujo
+diferencial está no emulador, na sincronização e na gamificação, não no
+armazenamento.
+
+Nó único não é alternativa: seria perder o save dos usuários no primeiro disco
+que falhar, e o produto promete exatamente o contrário.
 
 Continua sendo a saída natural se a exposição legal se mostrar um problema
 concreto, ou se o custo do R2 deixar de fazer sentido.
