@@ -6,6 +6,7 @@ import {
   type RomSource,
 } from '@pixelvault/emulator-runtime';
 import { PROPORCOES, RESOLUCAO_NATIVA, type ProporcaoDeTela } from './aspect-ratio.js';
+import { ATALHO_DE_DIAGNOSTICO, DiagnosticsOverlay, useDiagnostico } from './debug/index.js';
 import { GamepadLegend } from './GamepadLegend.js';
 import { PlayerHud, type AcoesDoHud } from './PlayerHud.js';
 import type { EstadoDoGamepad } from './input/snes-keymap.js';
@@ -54,6 +55,13 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
   const rodando = status === 'running';
   const teclado = rodando && emulador.abaVisivel && focado;
 
+  const diagnostico = useDiagnostico({
+    status,
+    fpsDoCore: emulador.fps,
+    coreVersion: emulador.coreVersion,
+    lerMarcos: emulador.lerMarcos,
+  });
+
   const aoMudarGamepad = useCallback(
     (estado: EstadoDoGamepad) => comandos.definirGamepad(estado),
     [comandos],
@@ -95,6 +103,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
       Space: acoes.alternarPausa,
       KeyR: acoes.resetar,
       KeyF: telaCheia.alternar,
+      [ATALHO_DE_DIAGNOSTICO]: diagnostico.alternar,
     };
     // Mesma regra do HUD: atalho para o que o core não faz é armadilha.
     if (capabilities.saveState) {
@@ -102,7 +111,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
       mapa['F4'] = acoes.carregarEstado;
     }
     return mapa;
-  }, [acoes, capabilities.saveState, telaCheia]);
+  }, [acoes, capabilities.saveState, telaCheia, diagnostico.alternar]);
 
   // O controle não pede foco: ele não é compartilhado com o navegador nem com o
   // resto da página, então exigir clique na tela seria inventar uma trava que só
@@ -220,6 +229,10 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
           aoJogar={() => comandos.alternarPausa()}
           aoTentarDeNovo={emulador.reiniciar}
         />
+
+        {diagnostico.amostra !== null && (
+          <DiagnosticsOverlay amostra={diagnostico.amostra} aoFechar={diagnostico.alternar} />
+        )}
 
         {aviso !== null && (
           <p
