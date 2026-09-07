@@ -1,5 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router';
 import { GameLibrary } from '../features/library/GameLibrary.js';
+import { LocalLibrary } from '../features/library/LocalLibrary.js';
+import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
 
 function Shell() {
@@ -34,6 +36,7 @@ const indexRoute = createRoute({
       <>
         <h1 className="mb-6 text-2xl font-bold">Biblioteca</h1>
         <GameLibrary />
+        <LocalLibrary />
       </>
     );
   },
@@ -51,7 +54,15 @@ const playRoute = createRoute({
   },
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, playRoute]);
+const meusJogosRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/meus-jogos/$id',
+  component: function MeusJogos() {
+    return <LocalPlayPage id={meusJogosRoute.useParams().id} />;
+  },
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, playRoute, meusJogosRoute]);
 
 export const router = createRouter({ routeTree });
 
