@@ -24,3 +24,7 @@ test-results/
 
 # Worktrees dos agentes
 .claude/worktrees/
+
+# Biblioteca pessoal de ROMs para desenvolvimento. NUNCA versionar:
+# o repositório é público e o PixelVault não distribui ROM comercial.
+apps/web/public/roms-local/
