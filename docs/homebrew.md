@@ -28,11 +28,12 @@ cinco duvidosos.
 
 ## Títulos no catálogo
 
-| Título                     | Autor                       | Licença                                 | Redistribuição permitida por                         | SRAM                    | Arquivo                                                        | SHA-256                                                            |
-| -------------------------- | --------------------------- | --------------------------------------- | ---------------------------------------------------- | ----------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Super Sudoku (v1.1)        | Raphaël Assenat (raphnet)   | MIT                                     | `LICENSE` no repositório do autor                    | não                     | `apps/web/public/roms/super-sudoku/super-sudoku.sfc`           | `2810aa0c4d95ed225c3ac0e669575d20285272b69ec0359a52bfb79628fb0939` |
-| Castle Platformer (v1.04)  | Marcus Rowe (undisbeliever) | MIT (código) + CC0 (arte)               | `LICENSE` dentro do próprio zip de release do autor  | não                     | `apps/web/public/roms/castle-platformer/castle-platformer.sfc` | `8b325cbc3b5eee257b906f11b0a0bced2925c503293e9f242ca0492f23804df8` |
-| EUC Thrills — SNES Edition | Edwin Rodmen (VibezZzCoder) | CC BY-NC-ND 4.0 + permissões adicionais | `PERMISSIONS.md`, escrito pelo detentor dos direitos | **sim — 2 KB, bateria** | `apps/web/public/roms/euc-thrills/euc-thrills.sfc`             | `076c9d236453ad1363bc5f6ca6f7dc3198fbeb9509982087ba85330c52de8503` |
+| Título                     | Autor                           | Licença                                 | Redistribuição permitida por                         | SRAM                    | Arquivo                                                        | SHA-256                                                            |
+| -------------------------- | ------------------------------- | --------------------------------------- | ---------------------------------------------------- | ----------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Super Sudoku (v1.1)        | Raphaël Assenat (raphnet)       | MIT                                     | `LICENSE` no repositório do autor                    | não                     | `apps/web/public/roms/super-sudoku/super-sudoku.sfc`           | `2810aa0c4d95ed225c3ac0e669575d20285272b69ec0359a52bfb79628fb0939` |
+| Castle Platformer (v1.04)  | Marcus Rowe (undisbeliever)     | MIT (código) + CC0 (arte)               | `LICENSE` dentro do próprio zip de release do autor  | não                     | `apps/web/public/roms/castle-platformer/castle-platformer.sfc` | `8b325cbc3b5eee257b906f11b0a0bced2925c503293e9f242ca0492f23804df8` |
+| Sure Instinct (v1.0.2)     | Benjamin Schulte (BennySnesDev) | MIT                                     | `LICENSE.md` na raiz do repositório, sem carve-out   | **sim — 8 KB, bateria** | `apps/web/public/roms/sure-instinct/sure-instinct.sfc`         | `73390b30a441ecc8042038f959b34e981ed8b5a0d9053b4d94d1dcd968a0f0ef` |
+| EUC Thrills — SNES Edition | Edwin Rodmen (VibezZzCoder)     | CC BY-NC-ND 4.0 + permissões adicionais | `PERMISSIONS.md`, escrito pelo detentor dos direitos | **sim — 2 KB, bateria** | `apps/web/public/roms/euc-thrills/euc-thrills.sfc`             | `076c9d236453ad1363bc5f6ca6f7dc3198fbeb9509982087ba85330c52de8503` |
 
 ---
 
@@ -90,6 +91,47 @@ cinco duvidosos.
 - **Capa:** `screenshot.png` do repositório (256×224, captura do próprio jogo),
   coberta pela MIT/CC0 como o resto do projeto.
 
+### Sure Instinct
+
+- **Autor:** Benjamin Schulte (BennySnesDev). O jogo venceu o SNESdev Compo de 2021.
+- **Fonte da licença:** <https://github.com/BenjaminSchulte/SureInstinct> — o
+  autor publicou o código-fonte completo do jogo em 2024.
+- **Arquivo exato:** `SureInstinct NTSC (v1.0.2).sfc`, do pacote publicado pelo
+  autor em <https://bennysnesdev.itch.io/sure-instinct> (upload `4467418`).
+  O binário não está no repositório; o `README.md` do repositório é que aponta
+  para o itch.io como lugar de baixar o jogo, e é isso que liga um ao outro.
+- **Licença:** MIT — `LICENSE.md` na raiz do repositório, `Copyright (c) 2024
+Benjamin Schulte`.
+- **Evidência da permissão:** o `README.md` do repositório termina com:
+
+  > ## License
+  >
+  > This project has been published under MIT license. See LICENSE.md
+
+  e o `LICENSE.md`:
+
+  > Permission is hereby granted, free of charge, to any person obtaining a copy
+  > of this software and associated documentation files (the "Software"), to deal
+  > in the Software without restriction, including without limitation the rights
+  > to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  > copies of the Software
+
+  O ponto que importa: a MIT está na **raiz**, sem cláusula separando código de
+  assets, e o repositório contém `sureinstinct/assets` — arte, música e mapas.
+  É o que falta em quase todo homebrew, e aqui não falta.
+
+- **Ressalva registrada:** o binário do itch.io é de 2021 e a publicação do
+  fonte sob MIT é de 2024, então não dá para provar byte a byte que aquele
+  arquivo saiu exatamente desta árvore. A licença é do autor sobre a obra e ele
+  próprio aponta do repositório para aquele download, então a leitura é direta —
+  mas fica escrito, porque é o tipo de detalhe que some da memória.
+- **Obrigação que assumimos:** manter o aviso de copyright junto do arquivo.
+  `LICENSE.md` e `README.md` do repositório estão copiados ao lado da ROM.
+- **Cabeçalho SNES:** **HiROM**, 512 KB, tipo de cartucho **`$02` (ROM + RAM +
+  bateria)**, `SRAMSIZE $03` = **8 KB de SRAM**. Checksum válido.
+- **Capa:** `sureinstinct/assets/images/logo/image.png` do repositório — é a
+  tela de título do próprio jogo (256×224), coberta pela MIT como o resto.
+
 ### EUC Thrills — SNES Edition
 
 - **Autor:** Edwin Rodmen (VibezZzCoder).
@@ -124,7 +166,8 @@ cinco duvidosos.
     assinatura, área de membros ou "ad-wall que um download gratuito evitaria".
     **Se o PixelVault um dia cobrar por acesso ou colocar o catálogo atrás de
     anúncio, este título sai do ar** — ou pede-se autorização ao autor.
-    Os outros dois títulos (MIT/CC0) não têm essa restrição.
+    Os outros três títulos (MIT/CC0) não têm essa restrição, e é por isso que o
+    ciclo de save não depende deste aqui: ver [SRAM](#sram).
   - **NoDerivatives.** Não publicamos versão modificada. Servimos o arquivo
     byte a byte como veio; o SHA-256 no seed é o mecanismo que denuncia se
     isso mudar.
@@ -148,16 +191,27 @@ A issue #24 pede pelo menos um título que **salve internamente**, porque é ele
 que valida o ciclo de save da M1 e da M4. Homebrew de SNES com bateria é raro:
 a maioria é demo de game jam, sem nada a salvar.
 
-**Temos um: EUC Thrills — SNES Edition.**
+**Temos dois: Sure Instinct e EUC Thrills — SNES Edition.**
 
-E a prova não é a palavra do README. O cabeçalho do próprio arquivo declara:
+E a prova não é a palavra do README. É o cabeçalho de cada arquivo, lido do
+byte. (Em HiROM o cabeçalho fica em `$FFxx` da imagem; em LoROM, em `$7Fxx` —
+os offsets abaixo são os do mapa de memória do cartucho.)
 
-| Campo            | Offset  | Valor | Significado             |
-| ---------------- | ------- | ----- | ----------------------- |
-| Tipo de cartucho | `$FFD6` | `$02` | ROM + RAM + **bateria** |
-| Tamanho da SRAM  | `$FFD8` | `$01` | 2 KB (2048 bytes)       |
+| Jogo          | Mapa  | Tipo de cartucho (`$FFD6`)    | SRAM (`$FFD8`)   |
+| ------------- | ----- | ----------------------------- | ---------------- |
+| Sure Instinct | HiROM | `$02` — ROM + RAM+**bateria** | `$03` = **8 KB** |
+| EUC Thrills   | LoROM | `$02` — ROM + RAM+**bateria** | `$01` = **2 KB** |
 
-O README do jogo descreve o que isso é na prática:
+Os outros dois títulos têm `$00` nos dois campos: não salvam nada.
+
+**Por que dois, e não um.** O primeiro que encontramos foi o EUC Thrills, que é
+justamente o de licença mais restrita da lista — deixar o ciclo de save da M1 e
+da M4 pendurado num título que uma mudança de modelo de negócio derruba seria
+criar uma dependência frágil de graça. Sure Instinct é MIT sem ressalva e tem
+quatro vezes mais SRAM, então ele é o título de referência para o save; o EUC
+Thrills vira o segundo caso, útil para exercitar um tamanho de SRAM diferente.
+
+O README do EUC Thrills descreve bem o que isso é na prática:
 
 > **HI** is a battery save, not a save state — the cartridge writes it itself,
 > so your best run survives closing the app without you having to remember
@@ -167,12 +221,10 @@ Ou seja: o recorde é escrito pelo jogo na SRAM, não é save state do emulador.
 São coisas diferentes e o `saveKindSchema` do contrato já as separa (`sram` x
 `state`) — este título exercita o caminho `sram`.
 
-Os outros dois têm `SRAMSIZE $00` e tipo de cartucho `$00`: não salvam nada.
-
-**Consequência para o planejamento:** hoje o ciclo de save da M1/M4 depende de
-um único título, e é justamente o que tem a licença mais restrita da lista
-(NonCommercial). Se ele precisar sair, ficamos sem homebrew que exercite SRAM
-até achar outro — vale procurar um segundo candidato antes da M4.
+**Cuidado ao ler o cabeçalho de homebrew:** o byte de tipo de cartucho e o de
+tamanho de SRAM nem sempre concordam. Incognity, por exemplo, declara 8 KB de
+SRAM com tipo de cartucho `$00` — os emuladores costumam seguir o byte de
+tamanho. Se um jogo parecer não salvar, olhe os dois antes de concluir.
 
 ## Descartados
 
@@ -189,6 +241,11 @@ Foram avaliados e ficaram de fora. Registrado para ninguém repetir a pesquisa:
 | Super Dodge Ball SNES (`rumbleminze/super-super-dodgeball`)                                      | Repositório MIT, mas é port de um jogo comercial da Technos. A licença do porte não vale nada sobre a obra original.                                                                                                                                                                                                      |
 | CelesteSNES (`iProgramMC/CelesteSNES`)                                                           | Demake de obra comercial. Mesmo problema: MIT sobre código não licencia o conteúdo derivado.                                                                                                                                                                                                                              |
 | Asteroids SNES (`undisbeliever/asteroids`)                                                       | MIT e limpo do lado do código, mas "Asteroids" é marca da Atari. Não vale o risco por um jogo a mais.                                                                                                                                                                                                                     |
+| The Last Super e Keeping SNES Alive! (Dr. Ludos)                                                 | The Last Super tem SRAM de bateria (2 KB) e o autor distribui o fonte, mas não há licença nomeada em lugar nenhum — nem na página do itch.io, nem no README do zip de código. A única licença citada é a da música de terceiros (CC BY-NC-SA). Sem grant, fora.                                                           |
+| Incognity: A Rover Story (cand, SNESdev Compo 2021)                                              | 8 KB de SRAM e save de progresso real — perfil ideal para a M4 — mas a página não declara licença nenhuma, só créditos de assets de terceiros.                                                                                                                                                                            |
+| Super Rambler e What is SNES? (torte00)                                                          | São os únicos jogos de SNES no itch.io que declaram as duas licenças ("Code: MIT / Assets: CC BY-NC-SA 4.0"), então seriam utilizáveis. Ficaram fora só porque não precisamos de mais um título com cláusula NonCommercial — já temos um.                                                                                 |
+| Skipp and Friends                                                                                | O save é por **senha**, não SRAM, então não serviria para o que a issue pede. Além disso foi relançado comercialmente pela Piko Interactive num multicart.                                                                                                                                                                |
+| snescentral.com como fonte                                                                       | O rodapé do site diz "Do not use material on this site without permission." Não serve de procedência.                                                                                                                                                                                                                     |
 | snestris (`MinusKelvin/snestris`)                                                                | GPLv3 e sem binário publicado — mas o problema real é outro: é um Tetris moderno. A licença resolve o copyright do autor e não resolve a marca da The Tetris Company.                                                                                                                                                     |
 | Super Sokonyan (`Acedio/super-sokonyan`), Der Wanderknecht, Carrot Man, Garden Wars, bomberworld | `.sfc` gratuito no itch.io, nenhum arquivo de licença no repositório nem declaração na página. Freeware sem termos.                                                                                                                                                                                                       |
 | `bbbradsmith/SNES_stuff` (rainwarrior)                                                           | ROMs commitadas direto no repositório, nenhuma licença em lugar nenhum.                                                                                                                                                                                                                                                   |
@@ -224,16 +281,20 @@ script. `apps/web/public/roms/` **não** está no `.gitignore` — ao contrário
 
 O porquê:
 
-- **Tamanho não é problema.** Os três somam 917 KB. Um script de download para
+- **Tamanho não é problema.** As quatro ROMs somam 1,4 MB, e o diretório
+  inteiro — com capas e avisos de licença — 1,5 MB. Um script de download para
   economizar isso custaria mais em manutenção do que economiza em repositório.
 - **Reprodutibilidade.** `pnpm db:seed` grava um SHA-256 e o arquivo servido
   precisa bater com ele. Com o arquivo no repositório, os dois andam juntos no
   mesmo commit. Com download por script, o dia em que um autor republicar o
   binário o hash quebra silenciosamente e o catálogo passa a apontar para um
   arquivo que não existe mais.
-- **Fonte pode sumir.** Homebrew vive em repositório pessoal e página de autor.
-  Depender de um `curl` na hora do setup é depender de infraestrutura de
-  terceiros para o projeto subir.
+- **Fonte pode sumir, e nem toda fonte é um `curl`.** Homebrew vive em
+  repositório pessoal e página de autor. O Sure Instinct, por exemplo, só existe
+  em binário no itch.io, atrás de uma URL assinada que expira em ~60 segundos —
+  não há link fixo para colocar num script de setup. Depender disso na hora de
+  subir o projeto seria depender de infraestrutura de terceiros e de um fluxo
+  que pode mudar sem aviso.
 - **A licença exige que os avisos viajem junto.** No caso do EUC Thrills isso é
   condição escrita da permissão. Versionar o pacote inteiro cumpre a obrigação
   por construção; um script que baixasse só o `.sfc` a violaria.
@@ -261,3 +322,20 @@ de download com verificação de hash, ou os arquivos no bucket.
    `packages/database/prisma/seed.ts`.
 7. Documente aqui: fonte, autor, licença, **citação literal** da permissão,
    SRAM e hash.
+
+### Baixar do itch.io
+
+Não existe URL fixa de download no itch.io, mas o fluxo é público e não exige
+login:
+
+1. `GET <página do jogo>` e extraia o `csrf_token` do HTML.
+2. Se o HTML não tiver `data-upload_id` (jogo "name your own price"), faça
+   `POST <página>/download_url` com o `csrf_token`; a resposta traz uma URL de
+   página de download. Abra-a e recolha dali o novo `csrf_token` e os
+   `data-upload_id`.
+3. `POST <página>/file/<upload_id>?source=game_download` com o `csrf_token` e
+   `Accept: application/json` devolve uma URL assinada, **válida por cerca de 60
+   segundos**. Baixe imediatamente.
+
+Repare que o `POST` do passo 3 vai sempre para `<página>/file/...`, e não para
+`<página>/download/<chave>/file/...`. Jogos pagos não devolvem URL nenhuma.

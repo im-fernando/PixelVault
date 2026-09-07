@@ -71,9 +71,25 @@ const HOMEBREWS: Homebrew[] = [
     },
   },
   {
-    // O único da lista com SRAM de bateria (2 KB, tipo de cartucho $02). É ele
-    // que exercita o ciclo de save da M1 e da M4; os outros dois não salvam
-    // nada, então não servem para essa validação.
+    // Salva em 8 KB de SRAM de bateria (HiROM, tipo de cartucho $02) e é MIT
+    // sem ressalva — por isso é o título de referência do ciclo de save.
+    slug: 'sure-instinct',
+    title: 'Sure Instinct',
+    releaseYear: 2021,
+    publisher: 'Benjamin Schulte (BennySnesDev)',
+    temCapa: true,
+    rom: {
+      sha256: '73390b30a441ecc8042038f959b34e981ed8b5a0d9053b4d94d1dcd968a0f0ef',
+      sizeBytes: 524288,
+      region: 'NTSC',
+      revision: 'v1.0.2',
+    },
+  },
+  {
+    // Segundo título com SRAM de bateria (2 KB, tipo de cartucho $02). Manter
+    // dois é de propósito: este tem cláusula NonCommercial, e o ciclo de save
+    // não pode depender de um jogo que uma mudança de modelo de negócio tira
+    // do ar. Ver docs/homebrew.md.
     slug: 'euc-thrills',
     title: 'EUC Thrills — SNES Edition',
     releaseYear: 2026,
