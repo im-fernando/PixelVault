@@ -21,3 +21,6 @@ test-results/
 
 .DS_Store
 *.log
+
+# Worktrees dos agentes
+.claude/worktrees/

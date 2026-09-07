@@ -11,13 +11,16 @@ const prisma = new PrismaClient({
 });
 
 /**
- * De onde o navegador vai buscar arquivo e capa.
+ * Caminho das capas a partir da raiz do site, deliberadamente SEM origem.
  *
  * Os arquivos de homebrew moram em `apps/web/public/roms/`, então quem os
- * serve é o próprio front. `coverUrl` no contrato é URL absoluta, e não
- * caminho relativo — por isso a origem precisa entrar aqui.
+ * serve é o próprio front.
+ *
+ * Gravar `http://localhost:5173/...` na linha do banco faria as capas
+ * quebrarem ao trocar de domínio, e o seed não teria como corrigir. O caminho
+ * relativo resolve contra qualquer domínio que sirva a aplicação.
  */
-const ORIGEM_WEB = process.env['WEB_ORIGIN'] ?? 'http://localhost:5173';
+const CAMINHO_ROMS = '/roms';
 
 type Homebrew = {
   slug: string;
@@ -122,18 +125,26 @@ async function main(): Promise<void> {
     skipDuplicates: true,
   });
 
-  await prisma.game.createMany({
-    data: HOMEBREWS.map((jogo) => ({
+  // upsert, e não createMany+skipDuplicates: com skipDuplicates o seed nunca
+  // consegue CORRIGIR metadado, só inserir na primeira vez. Metadado de
+  // catálogo canônico é exatamente o tipo de coisa que se ajusta depois
+  // (capa nova, ano errado, nome do autor).
+  for (const jogo of HOMEBREWS) {
+    const dados = {
       systemId: SystemId.snes,
       title: jogo.title,
-      slug: jogo.slug,
       releaseYear: jogo.releaseYear,
       publisher: jogo.publisher,
-      coverUrl: jogo.temCapa ? `${ORIGEM_WEB}/roms/${jogo.slug}/capa.png` : null,
+      coverUrl: jogo.temCapa ? `${CAMINHO_ROMS}/${jogo.slug}/capa.png` : null,
       isHomebrew: true,
-    })),
-    skipDuplicates: true,
-  });
+    };
+
+    await prisma.game.upsert({
+      where: { slug: jogo.slug },
+      create: { ...dados, slug: jogo.slug },
+      update: dados,
+    });
+  }
 
   // O id do jogo é gerado pelo banco, então o vínculo com a ROM é feito pelo
   // slug — que é único e estável entre execuções.
