@@ -67,6 +67,14 @@ export interface Emulador {
   readonly abaVisivel: boolean;
   /** Volume, mudo e bloqueio de autoplay, como o adapter os reporta. */
   readonly audio: EstadoDeAudio;
+  /**
+   * O adapter vivo, ou `null` enquanto a sessão não abriu.
+   *
+   * Exposto só para quem precisa se pendurar nos métodos do contrato — hoje o
+   * gerenciador de save, que exige exportSram/importState/captureFrame e o
+   * `on`. Componente de tela NÃO deve tocar nisto: use `comandos`.
+   */
+  readonly adapter: EmulatorAdapter | null;
   readonly comandos: ComandosDoEmulador;
   /** Recomeça do zero. É a ação da tela de erro. */
   readonly reiniciar: () => void;
@@ -303,6 +311,7 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
     pausadoPelaAba,
     abaVisivel,
     audio,
+    adapter,
     comandos,
     reiniciar,
     lerMarcos,

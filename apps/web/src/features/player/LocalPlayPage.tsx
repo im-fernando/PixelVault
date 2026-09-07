@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { romFromUrl, type RomSource } from '@pixelvault/emulator-runtime';
 import { urlDaRomLocal, useRomLocal } from '../library/local-roms.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
+import { FichaDeAcervo } from './FichaDeAcervo.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
 
 interface Props {
@@ -49,19 +50,26 @@ export function LocalPlayPage({ id }: Props) {
 
   return (
     <div className="space-y-5">
-      <header>
-        <Link to="/" className="text-xs text-ink-700 hover:text-ink-500">
-          ← Biblioteca
-        </Link>
-        <h1 className="mt-1 text-2xl font-bold">{rom.title}</h1>
-        <p className="text-sm text-ink-700">
-          {rom.systemId.toUpperCase()} · sua ROM, servida da sua máquina
-          {rom.temHeaderDeCopiador && ' · com header de copiador'}
-        </p>
-      </header>
+      <FichaDeAcervo
+        titulo={rom.title}
+        systemId={rom.systemId}
+        campos={[
+          { rotulo: 'console', valor: rom.systemId.toUpperCase(), maquina: true },
+          { rotulo: 'procedência', valor: 'sua ROM, servida daqui' },
+          { rotulo: 'tamanho', valor: `${(rom.sizeBytes / 1024).toFixed(0)} KB`, maquina: true },
+          {
+            rotulo: 'sha-256',
+            valor: `${rom.sha256.slice(0, 12)}…`,
+            maquina: true,
+          },
+          ...(rom.temHeaderDeCopiador
+            ? [{ rotulo: 'cabeçalho', valor: '512 B de copiador', maquina: true }]
+            : []),
+        ]}
+      />
 
       <PlayerErrorBoundary>
-        <EmulatorPlayer systemId={rom.systemId} rom={fonte} titulo={rom.title} />
+        <EmulatorPlayer systemId={rom.systemId} rom={fonte} titulo={rom.title} romId={rom.sha256} />
       </PlayerErrorBoundary>
     </div>
   );

@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { SystemId } from '@pixelvault/contracts';
-import {
-  isEmulatorError,
-  type EmulatorRegistry,
-  type RomSource,
-} from '@pixelvault/emulator-runtime';
+import { type EmulatorRegistry, type RomSource } from '@pixelvault/emulator-runtime';
 import { PROPORCOES, RESOLUCAO_NATIVA, type ProporcaoDeTela } from './aspect-ratio.js';
 import { ATALHO_DE_DIAGNOSTICO, DiagnosticsOverlay, useDiagnostico } from './debug/index.js';
 import { GamepadLegend } from './GamepadLegend.js';
@@ -12,13 +8,21 @@ import { PlayerHud, type AcoesDoHud } from './PlayerHud.js';
 import type { EstadoDoGamepad } from './input/snes-keymap.js';
 import { useEntradaDoJogador } from './input/use-player-input.js';
 import { useAreaDeExibicao } from './use-display-area.js';
+import { GaleriaDeSlots } from './GaleriaDeSlots.js';
 import { useEmulator } from './use-emulator.js';
+import { useSaves } from './use-saves.js';
 import { useFullscreen } from './use-fullscreen.js';
 
 export interface PropsDoPlayer {
   readonly systemId: SystemId;
   readonly rom: RomSource;
   readonly titulo: string;
+  /**
+   * Identidade da ROM para o armazenamento de save — o SHA-256, que é a mesma
+   * identidade canônica que o catálogo usa. Sem ele não há save persistido:
+   * gravar progresso sob chave que muda entre sessões é perder progresso.
+   */
+  readonly romId?: string | undefined;
   /** Injetável para teste. Em produção, o registry da aplicação. */
   readonly registry?: EmulatorRegistry | undefined;
 }
@@ -34,8 +38,9 @@ const MILISSEGUNDOS_DO_AVISO = 4000;
  * HUD sabem que existe um adapter. É o que permite trocar o runtime inteiro —
  * ou rodar a tela contra o adapter falso — sem tocar em mais nada.
  */
-export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlayer) {
+export function EmulatorPlayer({ systemId, rom, titulo, romId, registry }: PropsDoPlayer) {
   const emulador = useEmulator({ systemId, rom, registry });
+  const saves = useSaves(emulador.adapter, romId ?? null);
   const { status, capabilities, comandos } = emulador;
 
   const palcoRef = useRef<HTMLDivElement | null>(null);
@@ -48,7 +53,6 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
 
   const [focado, setFocado] = useState(false);
   const [hudVisivel, setHudVisivel] = useState(true);
-  const [estadoSalvo, setEstadoSalvo] = useState<Uint8Array | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.8);
 
@@ -67,26 +71,17 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
     [comandos],
   );
 
+  /*
+    O atalho grava sempre no slot A. Quem quer escolher usa a galeria — atalho
+    que pede para escolher slot não é atalho.
+  */
   const salvarEstado = useCallback(() => {
-    comandos
-      .exportarEstado()
-      .then((bytes) => {
-        setEstadoSalvo(bytes);
-        setAviso(`Estado salvo nesta sessão (${bytes.byteLength} bytes).`);
-      })
-      .catch((erro: unknown) => setAviso(mensagemDeFalha(erro)));
-  }, [comandos]);
+    void saves.salvar(0).then(setAviso);
+  }, [saves]);
 
   const carregarEstado = useCallback(() => {
-    if (estadoSalvo === null) {
-      setAviso('Nenhum estado salvo nesta sessão ainda.');
-      return;
-    }
-    comandos
-      .importarEstado(estadoSalvo)
-      .then(() => setAviso('Estado restaurado.'))
-      .catch((erro: unknown) => setAviso(mensagemDeFalha(erro)));
-  }, [comandos, estadoSalvo]);
+    void saves.carregar(0).then(setAviso);
+  }, [saves]);
 
   const acoes = useMemo<AcoesDoHud>(
     () => ({
@@ -248,7 +243,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
           capabilities={capabilities}
           visivel={hudVisivel || !rodando}
           acoes={acoes}
-          temEstadoSalvo={estadoSalvo !== null}
+          temEstadoSalvo={saves.slots.some((slot) => slot.metadata !== null)}
           proporcao={proporcao}
           aoTrocarProporcao={setProporcao}
           escalaInteira={escalaInteira}
@@ -275,8 +270,19 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
             SRAM gravada às {new Date(emulador.ultimaGravacaoDeSram).toLocaleTimeString('pt-BR')}
           </span>
         )}
+        {saves.driver !== null && <span>save: {saves.driver}</span>}
         {!emulador.abaVisivel && <span>aba oculta — emulação pausada</span>}
       </div>
+
+      {capabilities.saveState && romId !== undefined && (
+        <GaleriaDeSlots
+          slots={saves.slots}
+          volatil={saves.volatil}
+          aoSalvar={(slot) => void saves.salvar(slot).then(setAviso)}
+          aoCarregar={(slot) => void saves.carregar(slot).then(setAviso)}
+          aoApagar={(slot) => void saves.apagar(slot).then(setAviso)}
+        />
+      )}
 
       <GamepadLegend estado={gamepad} ativo={teclado} controle={controle} />
     </div>
@@ -383,9 +389,4 @@ function Cobertura({ children }: { readonly children: ReactNode }) {
       {children}
     </div>
   );
-}
-
-function mensagemDeFalha(erro: unknown): string {
-  if (isEmulatorError(erro)) return erro.message;
-  return erro instanceof Error ? erro.message : 'Falha inesperada.';
 }
