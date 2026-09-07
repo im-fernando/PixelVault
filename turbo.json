@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalDependencies": [".env.example", "tsconfig.base.json"],
+  "globalDependencies": [".env.example"],
   "globalEnv": ["NODE_ENV"],
   "tasks": {
     "db:generate": {
@@ -34,5 +34,6 @@
     "db:seed": {
       "cache": false
     }
-  }
+  },
+  "globalPassThroughEnv": ["DATABASE_URL", "SESSION_SECRET"]
 }
