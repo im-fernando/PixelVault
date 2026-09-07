@@ -1,0 +1,16 @@
+# EUC Thrills - SNES Edition
+# Verify with:  shasum -a 256 -c SHA256SUMS.txt
+#
+38762e3777f4ec00a6f769062a7c3f704fb78ce08303ecff88558da4c49cf9ea  LICENSE
+9ee668b3c8f9924422f24a463ccdabaaf5954d528ae0dc28e95c28efce2e4943  NOTICE.md
+684654c07e105392b85a4e7f349e7af4639a67dae019543e1bb007c9ff03a63f  PERMISSIONS.md
+ec2b85fab8f72605e0cb26c61d6834fc2e8281ee94b0c2adf37ea7afc2814621  README.md
+a01dbbcc2d559ed1e732fc6e1e0ea7f8986848203580f8f3d8d3d25407a64579  THIRD_PARTY_NOTICES.txt
+6035b0a8ca6612977a084012f11fb0023c2c66e6be7b6197d635a910d45a989d  euc-thrills-snes-box-front.png
+076c9d236453ad1363bc5f6ca6f7dc3198fbeb9509982087ba85330c52de8503  euc-thrills-snes.sfc
+e441f0ac1ae136ae14bda971376476d49e35ba2a67420fcd924a660d9a8f6c79  media/1-city-plaza.png
+2d370b728bad8e04099ade0fc2dc9647e0372655471fbfe7938f8dafd9d7af60  media/2-park.png
+fc5dc99ba40f82fe3f938c2bf8f7916e2764a36757861d33a179840cf4a3158f  media/3-hillside.png
+4812c15a77d612ca1bbf9708107c590aab1555f89cee8f6d0fd6f0a9c8bcbbd1  media/4-industrial.png
+c63e2cffc351d526d742a542e0bb54fc8ec044c6a8795e77be2a69caa7a1dc63  media/5-underpass.png
+3ef1327e9d87dc0a1e45c94b9d7ed47ca27af494e361cfc7fff151874fd55641  media/6-trailhead.png
