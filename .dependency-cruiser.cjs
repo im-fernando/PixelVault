@@ -41,7 +41,7 @@ module.exports = {
         'domain/ não conhece framework algum — nada de Fastify, Prisma ou logger. ' +
         'Regra de negócio precisa ser testável sem subir nada.',
       from: { path: `${MODULOS}/[^/]+/domain/` },
-      to: { path: 'node_modules/(fastify|@fastify|@prisma/client|pino)' },
+      to: { path: 'node_modules/(fastify|@fastify|@prisma/client|pino)|^packages/database/' },
     },
     {
       name: 'infraestrutura-nao-conhece-http',
@@ -86,25 +86,37 @@ module.exports = {
       to: { circular: true },
     },
     {
-      name: 'sem-dependencia-orfa-de-tipo',
+      name: 'sem-modulo-orfao',
       severity: 'warn',
-      comment: 'Módulo que ninguém importa costuma ser código morto.',
-      from: { orphan: true, pathNot: ['\\.d\\.ts$', '(^|/)(eslint|vite|vitest)\\.config\\.[cm]?[jt]s$'] },
+      comment: 'Arquivo que ninguém importa costuma ser código morto.',
+      from: {
+        orphan: true,
+        pathNot: [
+          '\\.d\\.ts$',
+          '(^|/)(eslint|vite|vitest|prisma)\\.config\\.[cm]?[jt]s$',
+          // Fachadas de módulo ainda vazias, que ganham conteúdo na milestone delas.
+          `${MODULOS}/[^/]+/index\\.ts$`,
+        ],
+      },
       to: {},
     },
   ],
 
   options: {
-    doNotFollow: { path: 'node_modules' },
-    exclude: { path: '(/dist/|/\\.turbo/|/coverage/|/generated/|\\.test\\.ts$)' },
+    // Sem isto o dependency-cruiser ignora `import type`, e um módulo poderia
+    // importar tipos internos de outro sem que a fronteira acusasse nada.
+    tsPreCompilationDeps: true,
+    // doNotFollow, e não exclude: o pacote do workspace continua aparecendo como
+    // nó do grafo (e portanto as regras o enxergam), mas não percorremos o
+    // código compilado dele. Com `exclude`, a aresta some e a regra
+    // `prisma-so-na-infraestrutura` deixa de acusar o vazamento.
+    doNotFollow: { path: '(node_modules|/dist/|/generated/)' },
+    exclude: { path: '(/\\.turbo/|/coverage/|\\.test\\.ts$)' },
     moduleSystems: ['es6', 'cjs'],
     enhancedResolveOptions: {
       extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default', 'types'],
-    },
-    reporterOptions: {
-      text: { highlightFocused: true },
     },
   },
 };
