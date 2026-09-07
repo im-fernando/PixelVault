@@ -111,7 +111,9 @@ module.exports = {
     // código compilado dele. Com `exclude`, a aresta some e a regra
     // `prisma-so-na-infraestrutura` deixa de acusar o vazamento.
     doNotFollow: { path: '(node_modules|/dist/|/generated/)' },
-    exclude: { path: '(/\\.turbo/|/coverage/|\\.test\\.ts$)' },
+    // apps/web/public/ guarda binário baixado (core WASM) e ROM de homebrew.
+    // Não é código do projeto e não deve entrar no grafo de dependências.
+    exclude: { path: '(/\\.turbo/|/coverage/|apps/web/public/|\\.test\\.ts$)' },
     moduleSystems: ['es6', 'cjs'],
     enhancedResolveOptions: {
       extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
