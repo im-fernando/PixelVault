@@ -21,7 +21,10 @@ interface Props {
   readonly escalaInteira: boolean;
   readonly aoAlternarEscalaInteira: () => void;
   readonly telaCheia: TelaCheia;
-  readonly controlaVolume: boolean;
+  readonly mudo: boolean;
+  readonly audioBloqueado: boolean;
+  readonly aoTrocarMudo: (mudo: boolean) => void;
+  readonly aoDestravarAudio: () => void;
   readonly volume: number;
   readonly aoTrocarVolume: (volume: number) => void;
   /** Nome do controle em uso, ou `null` quando só há teclado. */
@@ -49,7 +52,10 @@ export function PlayerHud({
   escalaInteira,
   aoAlternarEscalaInteira,
   telaCheia,
-  controlaVolume,
+  mudo,
+  audioBloqueado,
+  aoTrocarMudo,
+  aoDestravarAudio,
   volume,
   aoTrocarVolume,
   controle,
@@ -133,22 +139,44 @@ export function PlayerHud({
           </button>
         </div>
 
-        {controlaVolume && (
-          <>
-            <Separador />
-            <label className="flex items-center gap-2 px-2 text-vault-300">
-              <span className="sr-only">Volume</span>
-              <IconeVolume />
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(volume * 100)}
-                onChange={(evento) => aoTrocarVolume(Number(evento.target.value) / 100)}
-                className="h-1 w-20 accent-[var(--color-accent)]"
-              />
-            </label>
-          </>
+        <Separador />
+        {audioBloqueado ? (
+          /*
+            O navegador não deixa o áudio começar sem gesto do usuário. Isso
+            não é erro, e deixar o jogo mudo sem explicação seria pior: o botão
+            É o gesto, e `unlock()` roda de dentro do clique porque fora dele o
+            navegador recusa.
+          */
+          <button
+            type="button"
+            onClick={aoDestravarAudio}
+            className="rounded px-2 py-1 text-vault-300 hover:text-vault-100"
+            title="O navegador bloqueou o som até você interagir com a página"
+          >
+            🔇 Ativar som
+          </button>
+        ) : (
+          <label className="flex items-center gap-2 px-2 text-vault-300">
+            <span className="sr-only">Volume</span>
+            <button
+              type="button"
+              onClick={() => aoTrocarMudo(!mudo)}
+              className="hover:text-vault-100"
+              title={mudo ? 'Reativar som' : 'Silenciar'}
+              aria-pressed={mudo}
+            >
+              {mudo ? '🔇' : <IconeVolume />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(volume * 100)}
+              onChange={(evento) => aoTrocarVolume(Number(evento.target.value) / 100)}
+              className="h-1 w-20 accent-[var(--color-accent)]"
+              disabled={mudo}
+            />
+          </label>
         )}
 
         {/*
