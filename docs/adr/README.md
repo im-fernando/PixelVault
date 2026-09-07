@@ -23,6 +23,7 @@ referencia a antiga.
 | [0014](0014-verificar-a-rom-em-quarentena-antes-de-promover.md) | Verificar a ROM em quarentena antes de promover o objeto           | aceita |
 | [0015](0015-audio-do-emulador-no-navegador.md)                  | Manter a saída de áudio do RetroArch e pendurar um barramento nela | aceita |
 | [0016](0016-identidade-visual-arquivo.md)                       | Adotar a direção visual "Arquivo"                                  | aceita |
+| [0017](0017-sessao-em-banco.md)                                 | Usar sessão em banco, com renovação deslizante e cookie assinado   | aceita |
 
 O código de investigação que sustenta os números da 0008 e da 0011 está em
 [docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por
