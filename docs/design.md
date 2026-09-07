@@ -64,8 +64,23 @@ Use as classes `.titulo-estampado` e `.leitura`.
 
 ## O elemento-assinatura: a prateleira
 
-A biblioteca não é grade de capas. É uma **prateleira de cartuchos**, e passar o
-mouse **puxa o cartucho para fora**.
+A biblioteca não é grade de capas — e também não é grade de cartuchos. É uma
+**prateleira**, e a diferença está na estrutura, não no ícone:
+
+- os cartuchos ficam **de lombada**, mostrando só a faixa colorida e o título
+  na vertical, como se procura um jogo numa estante de verdade;
+- ficam **encostados**, sem espaçamento. Espaço entre itens transforma
+  prateleira em grade de cartões;
+- a fileira **sangra até a borda da tela** e continua além dela, porque acervo
+  não termina onde a janela termina;
+- passar o mouse ou dar foco **puxa o cartucho para fora e abre a etiqueta** —
+  é o único momento em que a capa aparece;
+- um **aparador** fecha a fileira. Não é enfeite: é o que faz um acervo pequeno
+  parecer curado em vez de vazio.
+
+A página abre com um **frontispício**, e não com herói de manchete vaga: é a
+etiqueta que vai do lado de fora da caixa de arquivo, com a tese e a contagem
+real do acervo — lida do conteúdo, nunca escrita à mão.
 
 A escolha resolve um problema real antes de ser estética: **homebrew quase nunca
 tem arte de caixa**. O Super Sudoku tem `coverUrl` nulo. Uma grade de capas

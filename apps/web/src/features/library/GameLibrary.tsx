@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import type { Game } from '@pixelvault/contracts';
 import { ApiRequestError } from '../../lib/api.js';
 import { Cartucho } from './Cartucho.js';
+import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
 import { useGames } from './use-games.js';
 
 export function GameLibrary() {
@@ -9,11 +10,11 @@ export function GameLibrary() {
 
   if (isPending) {
     return (
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
-        {Array.from({ length: 8 }, (_, i) => (
-          <li key={i} className="h-64 animate-pulse rounded-[3px_3px_8px_8px] bg-ink-900" />
+      <Prateleira>
+        {Array.from({ length: 12 }, (_, i) => (
+          <div key={i} className="h-[17rem] w-14 shrink-0 animate-pulse bg-ink-900" />
         ))}
-      </ul>
+      </Prateleira>
     );
   }
 
@@ -22,48 +23,54 @@ export function GameLibrary() {
       error instanceof ApiRequestError
         ? `${error.payload.code}: ${error.payload.message}`
         : 'Não foi possível falar com a API.';
-
     return (
-      <Aviso titulo="O acervo não respondeu">
+      <div className="mx-6 border-l-2 border-alert bg-ink-900 p-5">
+        <h3 className="titulo-estampado text-sm text-label-100">O acervo não respondeu</h3>
         <p className="mt-1 text-sm text-ink-500">{detalhe}</p>
         <p className="leitura mt-3 text-ink-700">verifique a API — pnpm dev</p>
-      </Aviso>
+      </div>
     );
   }
 
   if (games.length === 0) {
     return (
-      <Aviso titulo="A prateleira está vazia">
+      <div className="mx-6 border border-dashed border-ink-850 p-8">
+        <h3 className="titulo-estampado text-sm text-label-100">A prateleira está vazia</h3>
         <p className="mt-1 text-sm text-ink-500">
-          Rode <code className="leitura text-label-200">pnpm db:seed</code> para trazer os homebrews
-          do catálogo público.
+          Rode <code className="leitura text-label-200">pnpm db:seed</code> para trazer os
+          homebrews.
         </p>
-      </Aviso>
+      </div>
     );
   }
 
   return (
-    <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
-      {games.map((game) => (
-        <li key={game.id}>
-          <NaPrateleira game={game} />
-        </li>
-      ))}
-    </ul>
+    <section>
+      <EtiquetaDeGaveta
+        nome="Catálogo público"
+        itens={games.length}
+        nota="homebrew · jogável sem conta"
+      />
+      <Prateleira>
+        {games.map((game) => (
+          <NaPrateleira key={game.id} game={game} />
+        ))}
+      </Prateleira>
+    </section>
   );
 }
 
 /**
  * Homebrew sai da prateleira e vai para o console. O resto é ficha de acervo:
- * o metadado é nosso, a ROM é da pessoa. O cartucho diz isso antes do clique,
- * em vez de levar a uma tela que só sabe explicar por que não dá para jogar.
+ * o metadado é nosso, a ROM é da pessoa. O cartucho desbotado diz isso antes
+ * do clique, em vez de levar a uma tela que só sabe explicar por que não dá.
  */
 function NaPrateleira({ game }: { readonly game: Game }) {
   const selo = [game.publisher, game.releaseYear].filter(Boolean).join(' · ') || undefined;
 
   if (!game.isHomebrew) {
     return (
-      <div className="group" title="Precisa da sua ROM">
+      <div className="group" title={`${game.title} — precisa da sua ROM`}>
         <Cartucho
           titulo={game.title}
           systemId={game.systemId}
@@ -84,20 +91,5 @@ function NaPrateleira({ game }: { readonly game: Game }) {
     >
       <Cartucho titulo={game.title} systemId={game.systemId} selo={selo} capaUrl={game.coverUrl} />
     </Link>
-  );
-}
-
-function Aviso({
-  titulo,
-  children,
-}: {
-  readonly titulo: string;
-  readonly children: React.ReactNode;
-}) {
-  return (
-    <div className="border-l-2 border-alert bg-ink-900 p-6">
-      <h2 className="titulo-estampado text-sm text-label-100">{titulo}</h2>
-      {children}
-    </div>
   );
 }
