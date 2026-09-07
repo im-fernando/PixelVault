@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router';
 import { GameLibrary } from '../features/library/GameLibrary.js';
+import { PlayPage } from '../features/player/PlayPage.js';
 
 function Shell() {
   return (
@@ -38,7 +39,19 @@ const indexRoute = createRoute({
   },
 });
 
-const routeTree = rootRoute.addChildren([indexRoute]);
+const playRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/play/$slug',
+  component: function Jogar() {
+    const { slug } = playRoute.useParams();
+    // `key`: trocar de jogo pela URL precisa recriar o player do zero. Sem
+    // isso, o React reaproveitaria o componente e o emulador teria que
+    // adivinhar que a ROM mudou.
+    return <PlayPage key={slug} slug={slug} />;
+  },
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, playRoute]);
 
 export const router = createRouter({ routeTree });
 
