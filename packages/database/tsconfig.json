@@ -1,0 +1,10 @@
+{
+  "extends": "@pixelvault/config/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "noEmit": false
+  },
+  "include": ["src/**/*", "generated/**/*"],
+  "exclude": ["dist", "prisma/seed.ts", "prisma.config.ts"]
+}
