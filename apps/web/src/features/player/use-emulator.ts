@@ -36,6 +36,12 @@ export interface ComandosDoEmulador {
   definirGamepad(estado: EstadoDoGamepad): void;
 }
 
+export interface MarcoDeStatus {
+  readonly status: EmulatorStatus;
+  /** `performance.now()` do instante exato da transição. */
+  readonly instanteMs: number;
+}
+
 export interface Emulador {
   readonly canvasRef: RefObject<HTMLCanvasElement | null>;
   readonly status: EmulatorStatus;
@@ -51,6 +57,20 @@ export interface Emulador {
   readonly comandos: ComandosDoEmulador;
   /** Recomeça do zero. É a ação da tela de erro. */
   readonly reiniciar: () => void;
+  /**
+   * Instante de cada transição de status desta sessão, do `idle` em diante.
+   *
+   * O `status` acima é sempre o **último** de uma rajada: `mount` e `loadGame`
+   * acontecem na mesma cadeia de promessas, e o React funde as atualizações
+   * intermediárias antes de renderizar — quem só olha o estado nunca vê
+   * `mounted` acontecer. Medir quanto durou cada etapa da carga exige o
+   * instante da transição, não o estado que sobrou. Ver `debug/load-timeline.ts`.
+   *
+   * É função, e não estado, de propósito. A lista muda a cada transição e nada
+   * na tela depende dela — quem a lê é o laço de quadros do diagnóstico, que
+   * não pode disparar render a cada leitura.
+   */
+  readonly lerMarcos: () => readonly MarcoDeStatus[];
 }
 
 /** Estados em que faz sentido pedir save state, SRAM ou reset. */
@@ -102,6 +122,7 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
    * nasce contexto WebGL vazado.
    */
   const fila = useRef<Promise<unknown>>(Promise.resolve());
+  const marcosRef = useRef<MarcoDeStatus[]>([]);
 
   const registryEfetivo = registry ?? emulatorRegistry;
   const chaveDaRom = chaveDaFonte(rom);
@@ -116,6 +137,7 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
     setErro(null);
     setFps(null);
     setStatus('idle');
+    marcosRef.current = [{ status: 'idle', instanteMs: performance.now() }];
     pausadoPelaAbaRef.current = false;
     setPausadoPelaAba(false);
 
@@ -128,7 +150,10 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
         canvas,
         iniciarAutomaticamente: abaVisivelAgora(),
         observador: {
-          aoMudarStatus: setStatus,
+          aoMudarStatus: (novo) => {
+            marcosRef.current.push({ status: novo, instanteMs: performance.now() });
+            setStatus(novo);
+          },
           aoFalhar: setErro,
           aoMedirFps: setFps,
           aoGravarSram: () => setUltimaGravacaoDeSram(Date.now()),
@@ -242,6 +267,7 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
   );
 
   const reiniciar = useCallback(() => setGeracao((valor) => valor + 1), []);
+  const lerMarcos = useCallback((): readonly MarcoDeStatus[] => marcosRef.current, []);
 
   return {
     canvasRef,
@@ -256,5 +282,6 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
     controlaVolume: adapter !== null && suportaVolume(adapter),
     comandos,
     reiniciar,
+    lerMarcos,
   };
 }
