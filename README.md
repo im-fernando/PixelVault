@@ -71,7 +71,9 @@ Arquitetura hexagonal só onde há mundo externo instável: storage, runtime de
 emulação e provedores de metadados. O banco não é porta.
 
 Detalhes em [docs/arquitetura.md](docs/arquitetura.md) e no
-[log de decisões](docs/adr/README.md).
+[log de decisões](docs/adr/README.md). O baseline de performance da emulação —
+FPS, frame pacing e tempo de carga, com as condições da medição — está em
+[docs/performance.md](docs/performance.md).
 
 ## Rodando localmente
 
@@ -84,6 +86,7 @@ cd PixelVault
 cp .env.example .env        # os valores padrão já funcionam para desenvolvimento
 docker compose up -d        # PostgreSQL na 5437 e MinIO na 9000
 pnpm install
+pnpm emulator:setup         # baixa o core de emulação (4 MB), conferido por SHA-256
 pnpm db:migrate
 pnpm db:seed
 pnpm dev
