@@ -101,8 +101,44 @@ export const LEGENDA_DO_TECLADO: readonly DescricaoDeBotao[] = Object.freeze(
 /** Estado de todos os botões num instante. Congelado: é leitura, não gaveta. */
 export type EstadoDoGamepad = Readonly<Record<BotaoDoSnes, boolean>>;
 
+const SOLTO: EstadoDoGamepad = Object.freeze(
+  Object.fromEntries(BOTOES_DO_SNES.map((botao) => [botao, false])),
+) as EstadoDoGamepad;
+
 export function gamepadSolto(): EstadoDoGamepad {
+  return SOLTO;
+}
+
+/** O estado a partir do conjunto de botões pressionados. */
+export function gamepadCom(pressionados: ReadonlySet<BotaoDoSnes>): EstadoDoGamepad {
+  if (pressionados.size === 0) return SOLTO;
   return Object.freeze(
-    Object.fromEntries(BOTOES_DO_SNES.map((botao) => [botao, false])),
+    Object.fromEntries(BOTOES_DO_SNES.map((botao) => [botao, pressionados.has(botao)])),
   ) as EstadoDoGamepad;
+}
+
+/**
+ * Compara dois estados botão a botão.
+ *
+ * O controle é lido a cada quadro, e a cada quadro sai um objeto novo mesmo com
+ * ninguém encostando nele. Sem esta comparação, sessenta vezes por segundo o
+ * React renderizaria de novo e o core levaria doze escritas idênticas — só para
+ * dizer que nada mudou.
+ */
+export function estadosIguais(a: EstadoDoGamepad, b: EstadoDoGamepad): boolean {
+  if (a === b) return true;
+  return BOTOES_DO_SNES.every((botao) => a[botao] === b[botao]);
+}
+
+/**
+ * Une duas fontes de entrada no mesmo controle.
+ *
+ * União, e não precedência: com o controle em uma mão e a outra no teclado, o
+ * botão pressionado em qualquer uma das duas vale. Uma fonte que desligasse a
+ * outra transformaria encostar no teclado em soltar o direcional do controle.
+ */
+export function combinarEstados(a: EstadoDoGamepad, b: EstadoDoGamepad): EstadoDoGamepad {
+  if (a === SOLTO) return b;
+  if (b === SOLTO) return a;
+  return gamepadCom(new Set(BOTOES_DO_SNES.filter((botao) => a[botao] || b[botao])));
 }
