@@ -10,10 +10,19 @@ import {
   type EmulatorStatus,
   type RomSource,
 } from '@pixelvault/emulator-runtime';
-import { suportaEntrada, suportaVolume } from './adapter-extras.js';
+import { suportaEntrada } from './adapter-extras.js';
 import type { EstadoDoGamepad } from './input/snes-keymap.js';
 import { emulatorRegistry } from './emulator-registry.js';
-import { SessaoDeEmulacao } from './session.js';
+import { SessaoDeEmulacao, type EstadoDeAudio } from './session.js';
+
+/**
+ * Enquanto o adapter não existe, o áudio é reportado como bloqueado.
+ *
+ * É o palpite seguro: a página acabou de abrir e o navegador ainda não viu
+ * gesto nenhum. Assumir liberado faria a UI esconder o convite para destravar
+ * exatamente no instante em que ele é mais necessário.
+ */
+const AUDIO_INICIAL: EstadoDeAudio = { volume: 1, muted: false, blocked: true };
 
 export interface OpcoesDoEmulador {
   readonly systemId: SystemId;
@@ -33,6 +42,9 @@ export interface ComandosDoEmulador {
   exportarSram(): Promise<Uint8Array>;
   capturarQuadro(): Promise<Blob>;
   definirVolume(volume: number): void;
+  definirMudo(mudo: boolean): void;
+  /** Deve ser chamado de dentro do manipulador do clique. Diz se destravou. */
+  destravarAudio(): Promise<boolean>;
   definirGamepad(estado: EstadoDoGamepad): void;
 }
 
@@ -53,7 +65,8 @@ export interface Emulador {
   /** A pausa veio da aba oculta, não da pessoa. Muda a mensagem na tela. */
   readonly pausadoPelaAba: boolean;
   readonly abaVisivel: boolean;
-  readonly controlaVolume: boolean;
+  /** Volume, mudo e bloqueio de autoplay, como o adapter os reporta. */
+  readonly audio: EstadoDeAudio;
   readonly comandos: ComandosDoEmulador;
   /** Recomeça do zero. É a ação da tela de erro. */
   readonly reiniciar: () => void;
@@ -110,6 +123,9 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
   const [erro, setErro] = useState<EmulatorError | null>(null);
   const [fps, setFps] = useState<number | null>(null);
   const [ultimaGravacaoDeSram, setUltimaGravacaoDeSram] = useState<number | null>(null);
+  // Espelha o que o adapter reporta por `audioChange`. Não é a fonte da
+  // verdade — quem manda é o adapter, e o evento é como ele conta.
+  const [audio, setAudio] = useState<EstadoDeAudio>(AUDIO_INICIAL);
   const [abaVisivel, setAbaVisivel] = useState(abaVisivelAgora);
   const [geracao, setGeracao] = useState(0);
 
@@ -157,6 +173,7 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
           aoFalhar: setErro,
           aoMedirFps: setFps,
           aoGravarSram: () => setUltimaGravacaoDeSram(Date.now()),
+          aoMudarAudio: setAudio,
           aoAbrir: setAdapter,
         },
       });
@@ -252,9 +269,15 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
       exportarSram: async () => exigirAdapter().exportSram(),
       capturarQuadro: async () => exigirAdapter().captureFrame(),
       definirVolume: (volume) => {
-        const atual = adapter;
-        if (atual !== null && suportaVolume(atual)) atual.setVolume(volume);
+        adapter?.audio.setVolume(volume);
       },
+      definirMudo: (mudo) => {
+        adapter?.audio.setMuted(mudo);
+      },
+      // Precisa ser chamado de DENTRO do manipulador do clique: fora de um
+      // gesto do usuário o navegador recusa, e é por isso que o retorno diz
+      // se destravou em vez de resolver calado.
+      destravarAudio: async () => (await adapter?.audio.unlock()) ?? false,
       definirGamepad: (estado) => {
         const atual = adapter;
         if (atual === null || !suportaEntrada(atual)) return;
@@ -279,7 +302,7 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
     ultimaGravacaoDeSram,
     pausadoPelaAba,
     abaVisivel,
-    controlaVolume: adapter !== null && suportaVolume(adapter),
+    audio,
     comandos,
     reiniciar,
     lerMarcos,

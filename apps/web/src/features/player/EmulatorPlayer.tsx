@@ -254,9 +254,12 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
           escalaInteira={escalaInteira}
           aoAlternarEscalaInteira={() => setEscalaInteira((valor) => !valor)}
           telaCheia={telaCheia}
-          controlaVolume={emulador.controlaVolume}
           volume={volume}
           aoTrocarVolume={setVolume}
+          mudo={emulador.audio.muted}
+          audioBloqueado={emulador.audio.blocked}
+          aoTrocarMudo={(mudo) => emulador.comandos.definirMudo(mudo)}
+          aoDestravarAudio={() => void emulador.comandos.destravarAudio()}
           controle={controle?.nome ?? null}
         />
       </div>
