@@ -8,8 +8,8 @@ import {
 import { PROPORCOES, RESOLUCAO_NATIVA, type ProporcaoDeTela } from './aspect-ratio.js';
 import { GamepadLegend } from './GamepadLegend.js';
 import { PlayerHud, type AcoesDoHud } from './PlayerHud.js';
-import { gamepadSolto, type EstadoDoGamepad } from './input/snes-keymap.js';
-import { useKeyboardInput } from './input/use-keyboard-input.js';
+import type { EstadoDoGamepad } from './input/snes-keymap.js';
+import { useEntradaDoJogador } from './input/use-player-input.js';
 import { useAreaDeExibicao } from './use-display-area.js';
 import { useEmulator } from './use-emulator.js';
 import { useFullscreen } from './use-fullscreen.js';
@@ -45,7 +45,6 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
   const [escalaInteira, setEscalaInteira] = useState(false);
   const area = useAreaDeExibicao(areaRef, proporcao, escalaInteira);
 
-  const [gamepad, setGamepad] = useState<EstadoDoGamepad>(gamepadSolto);
   const [focado, setFocado] = useState(false);
   const [hudVisivel, setHudVisivel] = useState(true);
   const [estadoSalvo, setEstadoSalvo] = useState<Uint8Array | null>(null);
@@ -56,10 +55,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
   const teclado = rodando && emulador.abaVisivel && focado;
 
   const aoMudarGamepad = useCallback(
-    (estado: EstadoDoGamepad) => {
-      setGamepad(estado);
-      comandos.definirGamepad(estado);
-    },
+    (estado: EstadoDoGamepad) => comandos.definirGamepad(estado),
     [comandos],
   );
 
@@ -108,7 +104,18 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
     return mapa;
   }, [acoes, capabilities.saveState, telaCheia]);
 
-  useKeyboardInput({ alvo: palcoRef, ativo: teclado, aoMudar: aoMudarGamepad, atalhos });
+  // O controle não pede foco: ele não é compartilhado com o navegador nem com o
+  // resto da página, então exigir clique na tela seria inventar uma trava que só
+  // o teclado precisa ter.
+  const { estado: gamepad, controle } = useEntradaDoJogador({
+    alvo: palcoRef,
+    tecladoAtivo: teclado,
+    controleAtivo: rodando && emulador.abaVisivel,
+    aoMudar: aoMudarGamepad,
+    atalhos,
+    aoConectarControle: (perfil) => setAviso(`Controle conectado: ${perfil.nome}.`),
+    aoDesconectarControle: (perfil) => setAviso(`${perfil.nome} desconectado — o teclado assume.`),
+  });
 
   useEffect(() => {
     comandos.definirVolume(volume);
@@ -237,6 +244,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
           controlaVolume={emulador.controlaVolume}
           volume={volume}
           aoTrocarVolume={setVolume}
+          controle={controle?.nome ?? null}
         />
       </div>
 
@@ -254,7 +262,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
         {!emulador.abaVisivel && <span>aba oculta — emulação pausada</span>}
       </div>
 
-      <GamepadLegend estado={gamepad} ativo={teclado} />
+      <GamepadLegend estado={gamepad} ativo={teclado} controle={controle} />
     </div>
   );
 }
