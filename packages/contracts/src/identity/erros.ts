@@ -15,5 +15,11 @@ export const codigoErroIdentitySchema = z.enum([
   'SENHA_MUITO_LONGA',
   'SENHA_COMUM',
   'NOME_INVALIDO',
+  'TERMOS_NAO_ACEITOS',
+  // Handle em uso é recusa honesta de propósito: o handle é o nome que a
+  // própria pessoa está escolhendo, não a informação sensível "existe conta
+  // com este e-mail". Esconder isso só produziria um cadastro que parece ter
+  // dado certo e não deu.
+  'HANDLE_EM_USO',
 ]);
 export type CodigoErroIdentity = z.infer<typeof codigoErroIdentitySchema>;

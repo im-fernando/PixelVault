@@ -24,13 +24,17 @@ enum SystemId {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  displayName  String   @map("display_name")
-  handle       String   @unique
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  displayName     String   @map("display_name")
+  handle          String   @unique
+  /// Quando a pessoa aceitou os termos de uso. Exigência de LGPD: o
+  /// consentimento precisa ser demonstrável, e quem carimba é o relógio do
+  /// servidor — nunca um timestamp vindo do cliente. Ver issue #45.
+  termsAcceptedAt DateTime @map("terms_accepted_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   userGames UserGame[]
   userRoms  UserRom[]
