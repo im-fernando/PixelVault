@@ -1,6 +1,12 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { apiErrorSchema, gameListQuerySchema, gameSchema, slugSchema } from '@pixelvault/contracts';
+import {
+  apiErrorSchema,
+  gameDetailSchema,
+  gameListQuerySchema,
+  gameSchema,
+  slugSchema,
+} from '@pixelvault/contracts';
 import { getGameBySlug } from '../application/get-game.js';
 import { listGames } from '../application/list-games.js';
 import { prismaGameRepository } from '../infrastructure/prisma-game-repository.js';
@@ -30,9 +36,9 @@ export const catalogRoutes: FastifyPluginAsyncZod = async (app) => {
     {
       schema: {
         tags: ['catalog'],
-        summary: 'Detalhe de um jogo do catálogo',
+        summary: 'Detalhe de um jogo do catálogo, com a ROM quando é homebrew',
         params: z.object({ slug: slugSchema }),
-        response: { 200: gameSchema, 404: apiErrorSchema },
+        response: { 200: gameDetailSchema, 404: apiErrorSchema },
       },
     },
     async (request) => getGameBySlug(repository, request.params.slug),
