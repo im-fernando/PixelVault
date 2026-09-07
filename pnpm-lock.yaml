@@ -229,6 +229,25 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(@types/node@26.4.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
+  packages/emulator-runtime:
+    dependencies:
+      '@pixelvault/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@pixelvault/config':
+        specifier: workspace:*
+        version: link:../config
+      eslint:
+        specifier: ^10.10.0
+        version: 10.10.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.4.1)(vite@8.2.2(@types/node@26.4.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
 packages:
 
   '@babel/helper-string-parser@7.29.7':
