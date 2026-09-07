@@ -7,6 +7,7 @@ import {
   RomInvalidError,
   StateIncompatibleError,
 } from '../adapter/errors.js';
+import { memoryAudioSettingsStore } from '../adapter/audio.js';
 import type { EmulatorStatus } from '../adapter/status.js';
 import { romFromBlob, romFromBytes, romFromUrl } from '../adapter/rom-source.js';
 import { FakeAdapter, type FakeAdapterOptions } from './fake-adapter.js';
@@ -390,5 +391,33 @@ describe('FakeAdapter — quadro e eventos', () => {
     adapter.advanceFrames(1);
 
     expect(ouvinte).not.toHaveBeenCalled();
+  });
+
+  it('volume e mudo valem antes de montar e avisam a UI', () => {
+    const ouvinte = vi.fn();
+    const novo = new FakeAdapter();
+    novo.on('audioChange', ouvinte);
+
+    novo.audio.setVolume(0.3);
+    novo.audio.setMuted(true);
+
+    expect(novo.audio.volume).toBe(0.3);
+    expect(novo.audio.muted).toBe(true);
+    expect(ouvinte).toHaveBeenLastCalledWith({ volume: 0.3, muted: true, blocked: false });
+  });
+
+  it('a preferência sai pelo store e volta num adapter novo', () => {
+    const store = memoryAudioSettingsStore();
+    new FakeAdapter({ audioSettingsStore: store }).audio.setVolume(0.42);
+
+    expect(new FakeAdapter({ audioSettingsStore: store }).audio.volume).toBe(0.42);
+  });
+
+  it('bloqueado pela política de autoplay até destravarem', async () => {
+    const novo = new FakeAdapter({ audioBlocked: true });
+
+    expect(novo.audio.blocked).toBe(true);
+    await expect(novo.audio.unlock()).resolves.toBe(true);
+    expect(novo.audio.blocked).toBe(false);
   });
 });

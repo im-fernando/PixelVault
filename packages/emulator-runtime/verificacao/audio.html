@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Verificação do áudio do SnesEmulatorAdapter</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "nostalgist": "/emulator/nostalgist/0.22.0/nostalgist.js"
+        }
+      }
+    </script>
+  </head>
+  <body style="margin: 0; background: #101018; color: #eee; font: 14px system-ui">
+    <button id="gesto" style="width: 220px; height: 48px">destravar áudio</button>
+    <div id="palco"></div>
+    <script type="module">
+      import { SnesEmulatorAdapter, romFromUrl } from '/runtime/index.js';
+
+      /**
+       * O medidor é um `AudioWorkletNode` do harness, e não do adapter: quem
+       * verifica não pode usar o mesmo instrumento que o verificado. Ele fica
+       * entre o barramento de volume e a saída de verdade, então mede
+       * exatamente o que chegaria ao alto-falante.
+       */
+      const CODIGO_DO_MEDIDOR = `
+        class Medidor extends AudioWorkletProcessor {
+          constructor() {
+            super();
+            this.zerar();
+            this.port.onmessage = (e) => {
+              if (e.data === 'zerar') { this.zerar(); return; }
+              this.port.postMessage({
+                sampleRate,
+                frames: this.frames,
+                segundos: this.frames / sampleRate,
+                blocos: this.blocos,
+                blocosMudos: this.blocosMudos,
+                maiorSaltoEntreAmostras: this.maxDelta,
+                saltos: this.saltos.length,
+                exemplosDeSalto: this.saltos.slice(0, 8),
+                lacunasDeSilencio: this.lacunas.length,
+                exemplosDeLacuna: this.lacunas.slice(0, 8),
+                pico: this.pico,
+                rms: Math.sqrt(this.soma / Math.max(1, this.frames)),
+                amostrasNaoNulas: this.naoNulas,
+                ultimaAmostraNaoNulaS: this.ultimaNaoNula,
+              });
+            };
+          }
+          zerar() {
+            this.frames = 0; this.blocos = 0; this.blocosMudos = 0;
+            this.anterior = 0; this.maxDelta = 0; this.saltos = [];
+            this.zeros = 0; this.lacunas = []; this.tinhaSinal = false;
+            this.pico = 0; this.soma = 0; this.naoNulas = 0;
+            this.ultimaNaoNula = -1;
+          }
+          process(inputs, outputs) {
+            const entrada = inputs[0];
+            const saida = outputs[0];
+            if (entrada && entrada.length > 0) {
+              for (let c = 0; c < saida.length; c += 1) {
+                if (entrada[c]) saida[c].set(entrada[c]);
+              }
+            }
+            const canal = entrada && entrada[0] ? entrada[0] : null;
+            this.blocos += 1;
+            if (!canal || canal.length === 0) { this.blocosMudos += 1; return true; }
+            let mudo = true;
+            for (let i = 0; i < canal.length; i += 1) {
+              const v = canal[i];
+              const t = (this.frames + i) / sampleRate;
+              const a = Math.abs(v);
+              if (v !== 0) {
+                mudo = false;
+                this.naoNulas += 1;
+                this.ultimaNaoNula = t;
+              }
+              const d = Math.abs(v - this.anterior);
+              if (d > this.maxDelta) this.maxDelta = d;
+              // Um degrau desta altura entre amostras vizinhas é o que se ouve
+              // como estalo. Áudio de SNES reamostrado não dá saltos assim.
+              if (d > 0.25) this.saltos.push({ t: Number(t.toFixed(4)), d: Number(d.toFixed(4)) });
+              if (a > this.pico) this.pico = a;
+              this.soma += v * v;
+              if (v === 0) {
+                this.zeros += 1;
+              } else {
+                // Corrida de zeros cercada por som audível é buraco de buffer.
+                if (this.zeros >= 2 && this.tinhaSinal && a > 0.02) {
+                  this.lacunas.push({ t: Number(t.toFixed(4)), amostras: this.zeros });
+                }
+                this.zeros = 0;
+                if (a > 0.02) this.tinhaSinal = true;
+              }
+              this.anterior = v;
+            }
+            if (mudo) this.blocosMudos += 1;
+            this.frames += canal.length;
+            return true;
+          }
+        }
+        registerProcessor('medidor', Medidor);
+      `;
+      const urlDoMedidor = URL.createObjectURL(
+        new Blob([CODIGO_DO_MEDIDOR], { type: 'text/javascript' }),
+      );
+
+      const contextos = [];
+      /** Cada `AudioBufferSourceNode` que o RWebAudio agenda. */
+      const agendamentos = [];
+      let medidor = null;
+      let contextoAtual = null;
+
+      const Base = window.AudioContext;
+      window.AudioContext = class extends Base {
+        constructor(...argumentos) {
+          super(...argumentos);
+          contextos.push(this);
+          contextoAtual = this;
+          instrumentar(this);
+        }
+      };
+
+      function instrumentar(contexto) {
+        const saidaReal = contexto.destination;
+        const entradaDoTap = contexto.createGain();
+        entradaDoTap.connect(saidaReal);
+        // O adapter lê `destination` para pendurar o ganho dele; entregamos o
+        // nosso nó no lugar, e o dele fica antes do medidor.
+        Object.defineProperty(contexto, 'destination', {
+          value: entradaDoTap,
+          configurable: true,
+        });
+
+        contexto.audioWorklet
+          .addModule(urlDoMedidor)
+          .then(() => {
+            const no = new AudioWorkletNode(contexto, 'medidor', {
+              numberOfInputs: 1,
+              numberOfOutputs: 1,
+              outputChannelCount: [2],
+            });
+            entradaDoTap.disconnect();
+            entradaDoTap.connect(no);
+            no.connect(saidaReal);
+            medidor = no;
+          })
+          .catch((erro) => {
+            window.__erroDoMedidor = String(erro);
+          });
+
+        const criarFonte = contexto.createBufferSource.bind(contexto);
+        contexto.createBufferSource = () => {
+          const fonte = criarFonte();
+          const start = fonte.start.bind(fonte);
+          fonte.start = (quando) => {
+            const buffer = fonte.buffer;
+            agendamentos.push({
+              quando,
+              duracao: buffer ? buffer.duration : 0,
+              frames: buffer ? buffer.length : 0,
+              taxa: buffer ? buffer.sampleRate : 0,
+              agora: contexto.currentTime,
+            });
+            return start(quando);
+          };
+          return fonte;
+        };
+      }
+
+      function novoCanvas() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 448;
+        document.getElementById('palco').append(canvas);
+        return canvas;
+      }
+
+      const eventos = [];
+      /** Amostras de FPS com o instante do relógio de áudio. */
+      const fps = [];
+
+      Object.assign(window, {
+        eventos,
+        fps,
+        contextos,
+        agendamentos,
+        novoCanvas,
+        espera: (ms) => new Promise((r) => setTimeout(r, ms)),
+        SnesEmulatorAdapter,
+        romFromUrl,
+
+        async criarAdapter(romUrl, options = {}) {
+          const adapter = new SnesEmulatorAdapter({ assetsBaseUrl: '/emulator', ...options });
+          adapter.on('fps', (payload) => {
+            fps.push({
+              t: contextoAtual === null ? 0 : contextoAtual.currentTime,
+              fps: payload.fps,
+            });
+          });
+          for (const nome of ['statusChange', 'audioChange', 'error']) {
+            adapter.on(nome, (payload) => {
+              eventos.push({
+                evento: nome,
+                payload: nome === 'error' ? { code: payload.error.code } : payload,
+              });
+            });
+          }
+          await adapter.mount(novoCanvas());
+          await adapter.loadGame(romFromUrl(romUrl, { fileName: romUrl.split('/').pop() }));
+          return adapter;
+        },
+
+        zerarMedicao() {
+          agendamentos.length = 0;
+          fps.length = 0;
+          medidor?.port.postMessage('zerar');
+        },
+
+        /**
+         * Buraco no áudio quase sempre é o laço do emulador tropeçando, e não o
+         * áudio em si. Sem esta correlação, "8 lacunas em 600 s" não diz se o
+         * problema é o buffer ou a máquina que rodou o teste.
+         */
+        resumoDeFps() {
+          if (fps.length === 0) return { amostras: 0 };
+          const valores = fps.map((x) => x.fps).sort((a, b) => a - b);
+          const abaixoDe55 = fps.filter((x) => x.fps < 55);
+          return {
+            amostras: valores.length,
+            minimo: valores[0],
+            mediana: valores[valores.length >> 1],
+            amostrasAbaixoDe55: abaixoDe55.length,
+            quandoCaiu: abaixoDe55.slice(0, 10).map((x) => ({
+              t: Number(x.t.toFixed(1)),
+              fps: x.fps,
+            })),
+          };
+        },
+
+        async medir() {
+          if (medidor === null) {
+            return { erro: window.__erroDoMedidor ?? 'o AudioWorklet não subiu' };
+          }
+          return new Promise((resolver) => {
+            medidor.port.onmessage = (e) => resolver(e.data);
+            medidor.port.postMessage('relatorio');
+          });
+        },
+
+        /** Continuidade do que o RWebAudio agendou: buraco entre buffers vizinhos. */
+        analisarAgendamento() {
+          const a = agendamentos;
+          if (a.length < 3) {
+            return { buffers: a.length };
+          }
+          const lacunas = [];
+          const sobreposicoes = [];
+          const margens = [];
+          let frames = 0;
+          for (let i = 0; i < a.length; i += 1) {
+            frames += a[i].frames;
+            if (i === 0) continue;
+            const delta = a[i].quando - (a[i - 1].quando + a[i - 1].duracao);
+            if (delta > 1e-9) lacunas.push(delta);
+            if (delta < -1e-9) sobreposicoes.push(delta);
+            margens.push((a[i].quando - a[i].agora) * 1000);
+          }
+          margens.sort((x, y) => x - y);
+          const span = a.at(-1).quando + a.at(-1).duracao - a[0].quando;
+          return {
+            buffers: a.length,
+            duracaoDoBufferMs: Number(((a[0].duracao ?? 0) * 1000).toFixed(3)),
+            taxaDosBuffers: a[0].taxa,
+            lacunas: lacunas.length,
+            somaDasLacunasMs: Number((lacunas.reduce((s, x) => s + x, 0) * 1000).toFixed(2)),
+            maiorLacunaMs: Number((Math.max(0, ...lacunas) * 1000).toFixed(2)),
+            sobreposicoes: sobreposicoes.length,
+            margemMinMs: Number(margens[0].toFixed(2)),
+            margemMedianaMs: Number(margens[margens.length >> 1].toFixed(2)),
+            margemMaxMs: Number(margens.at(-1).toFixed(2)),
+            // Frames produzidos por segundo de relógio: é a prova de que o
+            // reamostrador do RetroArch está casando 32.040 Hz do SNES com a
+            // taxa do AudioContext, e de que não há deriva acumulando.
+            framesPorSegundo: Number((frames / span).toFixed(2)),
+          };
+        },
+
+        infoDoContexto() {
+          const c = contextoAtual;
+          if (c === null) return null;
+          return {
+            sampleRate: c.sampleRate,
+            state: c.state,
+            baseLatencyMs: Number((c.baseLatency * 1000).toFixed(2)),
+            outputLatencyMs: Number(((c.outputLatency ?? 0) * 1000).toFixed(2)),
+          };
+        },
+
+        contextosAbertos() {
+          return contextos.filter((c) => c.state !== 'closed').length;
+        },
+
+        suspenderContexto() {
+          return contextoAtual === null ? Promise.resolve() : contextoAtual.suspend();
+        },
+
+        /**
+         * `document.visibilityState` não muda em Chrome headless dirigido pelo
+         * Playwright. Sombrear o getter e disparar o evento exercita o ouvinte
+         * do adapter exatamente como o navegador o exercitaria — o que este
+         * atalho **não** prova é o estrangulamento de `requestAnimationFrame`.
+         */
+        fingirVisibilidade(estado) {
+          Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            get: () => estado,
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        },
+      });
+
+      document.getElementById('gesto').addEventListener('click', () => {
+        window.__destravado = window.__adapter?.audio.unlock();
+      });
+      window.__pronto = true;
+    </script>
+  </body>
+</html>

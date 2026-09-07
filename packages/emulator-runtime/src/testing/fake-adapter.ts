@@ -1,4 +1,11 @@
 import type { SystemId } from '@pixelvault/contracts';
+import {
+  DEFAULT_AUDIO_SETTINGS,
+  clampVolume,
+  memoryAudioSettingsStore,
+  type AudioSettingsStore,
+  type EmulatorAudioControl,
+} from '../adapter/audio.js';
 import { defineCapabilities, type EmulatorCapabilities } from '../adapter/capabilities.js';
 import { EmulatorEventEmitter } from '../adapter/emitter.js';
 import type { EmulatorAdapter } from '../adapter/emulator-adapter.js';
@@ -36,6 +43,13 @@ export interface FakeAdapterOptions {
   readonly capabilities?: Partial<EmulatorCapabilities>;
   readonly sramBytes?: number;
   readonly failures?: FakeAdapterFailures;
+  /** Onde volume e mudo ficam. Padrão: memória, que morre junto com o adapter. */
+  readonly audioSettingsStore?: AudioSettingsStore;
+  /**
+   * Começa com o áudio bloqueado pela política de autoplay, para a UI poder
+   * testar a tela de "clique para ouvir" sem um navegador de verdade.
+   */
+  readonly audioBlocked?: boolean;
 }
 
 const CAPACIDADES_PADRAO: Partial<EmulatorCapabilities> = { saveState: true, sram: true };
@@ -60,11 +74,14 @@ export class FakeAdapter implements EmulatorAdapter {
   readonly systemId: SystemId;
   readonly coreVersion: string;
   readonly capabilities: EmulatorCapabilities;
+  readonly audio: EmulatorAudioControl;
 
   readonly #emissor = new EmulatorEventEmitter();
   readonly #bytesDeSram: number;
   readonly #falhas: FakeAdapterFailures;
 
+  readonly #preferenciasDeAudio: AudioSettingsStore;
+  readonly #audio: { volume: number; muted: boolean; blocked: boolean };
   #status: EmulatorStatus = 'idle';
   #canvas: HTMLCanvasElement | null = null;
   #romId: string | null = null;
@@ -77,6 +94,43 @@ export class FakeAdapter implements EmulatorAdapter {
     this.capabilities = defineCapabilities(options.capabilities ?? CAPACIDADES_PADRAO);
     this.#bytesDeSram = options.sramBytes ?? BYTES_DE_SRAM_PADRAO;
     this.#falhas = options.failures ?? {};
+
+    this.#preferenciasDeAudio = options.audioSettingsStore ?? memoryAudioSettingsStore();
+    const guardado = this.#preferenciasDeAudio.load() ?? DEFAULT_AUDIO_SETTINGS;
+    // Um objeto só, capturado no closure: os getters de `audio` precisam ler o
+    // valor de agora, e campo privado não se alcança de dentro do literal.
+    const audio = {
+      volume: clampVolume(guardado.volume),
+      muted: guardado.muted,
+      blocked: options.audioBlocked ?? false,
+    };
+    this.#audio = audio;
+    this.audio = {
+      get volume(): number {
+        return audio.volume;
+      },
+      get muted(): boolean {
+        return audio.muted;
+      },
+      get blocked(): boolean {
+        return audio.blocked;
+      },
+      setVolume: (volume) => {
+        audio.volume = clampVolume(volume);
+        this.#guardarPreferenciaDeAudio();
+      },
+      setMuted: (mudo) => {
+        audio.muted = mudo;
+        this.#guardarPreferenciaDeAudio();
+      },
+      // No falso destravar sempre dá certo: quem quer o caminho da recusa
+      // constrói com `audioBlocked` e simplesmente não chama `unlock`.
+      unlock: () => {
+        audio.blocked = false;
+        this.#emitirAudio();
+        return Promise.resolve(true);
+      },
+    };
   }
 
   get status(): EmulatorStatus {
@@ -96,6 +150,15 @@ export class FakeAdapter implements EmulatorAdapter {
   /** Identidade da ROM carregada, derivada da fonte. `null` antes de `loadGame`. */
   get romId(): string | null {
     return this.#romId;
+  }
+
+  #guardarPreferenciaDeAudio(): void {
+    this.#preferenciasDeAudio.save({ volume: this.#audio.volume, muted: this.#audio.muted });
+    this.#emitirAudio();
+  }
+
+  #emitirAudio(): void {
+    this.#emissor.emit('audioChange', { ...this.#audio });
   }
 
   async mount(canvas: HTMLCanvasElement): Promise<void> {

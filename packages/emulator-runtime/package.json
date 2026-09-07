@@ -24,7 +24,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "verify:browser": "node verificacao/verificar.mjs"
+    "verify:browser": "node verificacao/verificar.mjs",
+    "verify:audio": "node verificacao/verificar-audio.mjs"
   },
   "dependencies": {
     "@pixelvault/contracts": "workspace:*",

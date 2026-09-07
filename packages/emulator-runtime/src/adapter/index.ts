@@ -1,3 +1,4 @@
+export * from './audio.js';
 export * from './capabilities.js';
 export * from './emitter.js';
 export * from './emulator-adapter.js';
