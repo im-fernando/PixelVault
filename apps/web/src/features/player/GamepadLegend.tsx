@@ -39,16 +39,16 @@ export function GamepadLegend({ estado, ativo, controle }: Props) {
   return (
     <section
       aria-label="Mapeamento do teclado"
-      className={`rounded-xl border border-vault-800 bg-vault-900/60 p-4 transition-opacity ${
+      className={`rounded-xl border border-ink-850 bg-ink-900/60 p-4 transition-opacity ${
         ativo || controle !== null ? 'opacity-100' : 'opacity-60'
       }`}
     >
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold text-vault-100">Controle</h2>
+        <h2 className="text-sm font-semibold text-label-100">Controle</h2>
         {controle !== null ? (
-          <p className="text-xs text-accent">{controle.nome} ligado ao console</p>
+          <p className="text-xs text-alert">{controle.nome} ligado ao console</p>
         ) : (
-          <p className="text-xs text-vault-700">
+          <p className="text-xs text-ink-700">
             {ativo ? 'teclado ligado ao console' : 'clique na tela para jogar'}
           </p>
         )}
@@ -57,7 +57,7 @@ export function GamepadLegend({ estado, ativo, controle }: Props) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {GRUPOS.map((grupo) => (
           <div key={grupo.titulo}>
-            <p className="mb-2 text-[0.65rem] tracking-widest text-vault-700 uppercase">
+            <p className="mb-2 text-[0.65rem] tracking-widest text-ink-700 uppercase">
               {grupo.titulo}
             </p>
             <ul className="flex flex-wrap gap-1.5">
@@ -71,14 +71,14 @@ export function GamepadLegend({ estado, ativo, controle }: Props) {
                       data-pressionado={aceso}
                       className={`flex min-w-14 flex-col items-center rounded-md border px-2 py-1 transition-colors ${
                         aceso
-                          ? 'border-accent bg-accent/20 text-vault-100'
-                          : 'border-vault-800 bg-vault-950 text-vault-300'
+                          ? 'border-alert bg-alert/20 text-label-100'
+                          : 'border-ink-850 bg-ink-950 text-ink-500'
                       }`}
                     >
                       <span className="text-xs font-semibold">{item.rotulo}</span>
-                      <span className="font-mono text-[0.65rem] text-vault-700">{item.tecla}</span>
+                      <span className="font-mono text-[0.65rem] text-ink-700">{item.tecla}</span>
                       {rotulosNoControle !== null && (
-                        <span className="font-mono text-[0.65rem] text-accent/80">
+                        <span className="font-mono text-[0.65rem] text-alert/80">
                           {rotulosNoControle[botao]}
                         </span>
                       )}

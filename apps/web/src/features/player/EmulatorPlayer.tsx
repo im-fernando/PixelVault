@@ -197,7 +197,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
         }}
         className={`relative overflow-hidden bg-black outline-none transition-colors ${
           telaCheia.ativa ? 'h-screen w-screen border-0' : 'rounded-xl border'
-        } ${focado ? 'border-accent' : 'border-vault-800'} ${
+        } ${focado ? 'border-alert' : 'border-ink-850'} ${
           rodando && !hudVisivel ? 'cursor-none' : ''
         }`}
       >
@@ -237,7 +237,7 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
         {aviso !== null && (
           <p
             role="status"
-            className="absolute inset-x-0 top-0 mx-auto mt-3 w-fit rounded-full border border-vault-800 bg-vault-950/90 px-3 py-1 text-xs text-vault-100"
+            className="absolute inset-x-0 top-0 mx-auto mt-3 w-fit rounded-full border border-ink-850 bg-ink-950/90 px-3 py-1 text-xs text-label-100"
           >
             {aviso}
           </p>
@@ -264,9 +264,9 @@ export function EmulatorPlayer({ systemId, rom, titulo, registry }: PropsDoPlaye
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-vault-700">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
         <span>
-          Estado: <strong className="text-vault-300">{ROTULO_DO_STATUS[status]}</strong>
+          Estado: <strong className="text-ink-500">{ROTULO_DO_STATUS[status]}</strong>
         </span>
         {emulador.coreVersion !== null && <span>Core: {emulador.coreVersion}</span>}
         {emulador.fps !== null && <span>{emulador.fps} fps</span>}
@@ -320,12 +320,12 @@ function SobreposicaoDeEstado({
   if (erroCode !== null) {
     return (
       <Cobertura>
-        <p className="font-mono text-xs tracking-widest text-accent uppercase">{erroCode}</p>
-        <p className="mt-2 max-w-sm text-sm text-vault-100">{erroMensagem}</p>
+        <p className="font-mono text-xs tracking-widest text-alert uppercase">{erroCode}</p>
+        <p className="mt-2 max-w-sm text-sm text-label-100">{erroMensagem}</p>
         <button
           type="button"
           onClick={aoTentarDeNovo}
-          className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-vault-950 hover:brightness-110"
+          className="mt-4 rounded-md bg-alert px-4 py-2 text-sm font-semibold text-ink-950 hover:brightness-110"
         >
           Tentar de novo
         </button>
@@ -338,9 +338,9 @@ function SobreposicaoDeEstado({
       <Cobertura>
         <span
           aria-hidden
-          className="h-6 w-6 animate-spin rounded-full border-2 border-vault-700 border-t-accent"
+          className="h-6 w-6 animate-spin rounded-full border-2 border-ink-700 border-t-alert"
         />
-        <p className="mt-3 text-sm text-vault-300">
+        <p className="mt-3 text-sm text-ink-500">
           {status === 'loading' ? 'Carregando a ROM…' : 'Subindo o core…'}
         </p>
       </Cobertura>
@@ -353,7 +353,7 @@ function SobreposicaoDeEstado({
         <button
           type="button"
           onClick={aoJogar}
-          className="rounded-full bg-accent px-6 py-3 text-sm font-semibold text-vault-950 hover:brightness-110"
+          className="rounded-full bg-alert px-6 py-3 text-sm font-semibold text-ink-950 hover:brightness-110"
         >
           Jogar
         </button>
@@ -364,8 +364,8 @@ function SobreposicaoDeEstado({
   if (status === 'paused') {
     return (
       <Cobertura>
-        <p className="text-sm font-semibold text-vault-100">Pausado</p>
-        <p className="mt-1 text-xs text-vault-300">
+        <p className="text-sm font-semibold text-label-100">Pausado</p>
+        <p className="mt-1 text-xs text-ink-500">
           {pausadoPelaAba
             ? 'A aba saiu de vista. O tempo de jogo só conta com a aba visível.'
             : 'Espaço para voltar ao jogo.'}
@@ -379,7 +379,7 @@ function SobreposicaoDeEstado({
 
 function Cobertura({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-vault-950/85 text-center">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-950/85 text-center">
       {children}
     </div>
   );

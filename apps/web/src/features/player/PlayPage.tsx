@@ -29,8 +29,8 @@ export function PlayPage({ slug }: Props) {
   if (isPending) {
     return (
       <div className="space-y-4">
-        <div className="h-6 w-48 animate-pulse rounded bg-vault-800" />
-        <div className="aspect-video w-full animate-pulse rounded-xl bg-vault-800" />
+        <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
+        <div className="aspect-video w-full animate-pulse rounded-xl bg-ink-850" />
       </div>
     );
   }
@@ -55,18 +55,18 @@ export function PlayPage({ slug }: Props) {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link to="/" className="text-xs text-vault-700 hover:text-vault-300">
+          <Link to="/" className="text-xs text-ink-700 hover:text-ink-500">
             ← Biblioteca
           </Link>
           <h1 className="mt-1 text-2xl font-bold">{jogo.title}</h1>
-          <p className="text-sm text-vault-700">
+          <p className="text-sm text-ink-700">
             {[jogo.publisher, jogo.releaseYear, jogo.systemId.toUpperCase()]
               .filter((parte) => parte !== null && parte !== undefined)
               .join(' · ')}
           </p>
         </div>
         {jogo.isHomebrew && (
-          <span className="rounded-full border border-vault-800 px-3 py-1 text-xs text-vault-300">
+          <span className="rounded-full border border-ink-850 px-3 py-1 text-xs text-ink-500">
             homebrew · jogável sem login
           </span>
         )}
@@ -102,12 +102,12 @@ function fonteDaRom(referencia: HomebrewRom): RomSource {
 
 function Recado({ titulo, detalhe }: { readonly titulo: string; readonly detalhe: string }) {
   return (
-    <div className="rounded-xl border border-vault-800 bg-vault-900 p-8 text-center">
-      <h2 className="font-semibold text-accent">{titulo}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-vault-300">{detalhe}</p>
+    <div className="rounded-xl border border-ink-850 bg-ink-900 p-8 text-center">
+      <h2 className="font-semibold text-alert">{titulo}</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{detalhe}</p>
       <Link
         to="/"
-        className="mt-5 inline-block rounded-md border border-vault-700 px-4 py-2 text-sm text-vault-100 hover:border-accent"
+        className="mt-5 inline-block rounded-md border border-ink-700 px-4 py-2 text-sm text-label-100 hover:border-alert"
       >
         Voltar para a biblioteca
       </Link>

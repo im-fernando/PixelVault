@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import type { Game } from '@pixelvault/contracts';
 import { ApiRequestError } from '../../lib/api.js';
+import { Cartucho } from './Cartucho.js';
 import { useGames } from './use-games.js';
 
 export function GameLibrary() {
@@ -8,11 +9,11 @@ export function GameLibrary() {
 
   if (isPending) {
     return (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 10 }, (_, i) => (
-          <div key={i} className="aspect-[3/4] animate-pulse rounded-lg bg-vault-800" />
+      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
+        {Array.from({ length: 8 }, (_, i) => (
+          <li key={i} className="h-64 animate-pulse rounded-[3px_3px_8px_8px] bg-ink-900" />
         ))}
-      </div>
+      </ul>
     );
   }
 
@@ -23,32 +24,29 @@ export function GameLibrary() {
         : 'Não foi possível falar com a API.';
 
     return (
-      <div className="rounded-lg border border-vault-700 bg-vault-900 p-6">
-        <h2 className="font-semibold text-accent">Falha ao carregar a biblioteca</h2>
-        <p className="mt-1 text-sm text-vault-300">{detalhe}</p>
-        <p className="mt-3 text-xs text-vault-700">
-          A API está rodando? <code className="text-vault-300">pnpm dev</code>
-        </p>
-      </div>
+      <Aviso titulo="O acervo não respondeu">
+        <p className="mt-1 text-sm text-ink-500">{detalhe}</p>
+        <p className="leitura mt-3 text-ink-700">verifique a API — pnpm dev</p>
+      </Aviso>
     );
   }
 
   if (games.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-vault-700 p-10 text-center">
-        <p className="text-vault-300">O catálogo ainda está vazio.</p>
-        <p className="mt-1 text-sm text-vault-700">
-          Rode <code className="text-vault-300">pnpm db:seed</code> para trazer os homebrews.
+      <Aviso titulo="A prateleira está vazia">
+        <p className="mt-1 text-sm text-ink-500">
+          Rode <code className="leitura text-label-200">pnpm db:seed</code> para trazer os homebrews
+          do catálogo público.
         </p>
-      </div>
+      </Aviso>
     );
   }
 
   return (
-    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+    <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
       {games.map((game) => (
         <li key={game.id}>
-          <CartaoDeJogo game={game} />
+          <NaPrateleira game={game} />
         </li>
       ))}
     </ul>
@@ -56,48 +54,23 @@ export function GameLibrary() {
 }
 
 /**
- * Homebrew abre direto no player; o resto é metadado até a pessoa trazer a
- * própria ROM. O cartão diz isso antes do clique, em vez de levar a uma tela
- * que só sabe explicar por que não dá para jogar.
+ * Homebrew sai da prateleira e vai para o console. O resto é ficha de acervo:
+ * o metadado é nosso, a ROM é da pessoa. O cartucho diz isso antes do clique,
+ * em vez de levar a uma tela que só sabe explicar por que não dá para jogar.
  */
-function CartaoDeJogo({ game }: { readonly game: Game }) {
-  const capa = (
-    <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-vault-800 ring-1 ring-vault-700 transition group-hover:ring-accent">
-      {game.coverUrl ? (
-        <img
-          src={game.coverUrl}
-          alt={game.title}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-      ) : (
-        <div className="flex h-full items-center justify-center p-3 text-center text-xs text-vault-700">
-          sem capa
-        </div>
-      )}
-      {game.isHomebrew && (
-        <span className="absolute inset-x-0 bottom-0 bg-vault-950/85 py-1.5 text-center text-xs font-semibold text-accent opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-          Jogar agora
-        </span>
-      )}
-    </div>
-  );
-
-  const rodape = (
-    <>
-      <p className="mt-2 truncate text-sm font-medium">{game.title}</p>
-      <p className="text-xs text-vault-700 uppercase">
-        {game.systemId}
-        {game.isHomebrew ? ' · homebrew' : ' · precisa da sua ROM'}
-      </p>
-    </>
-  );
+function NaPrateleira({ game }: { readonly game: Game }) {
+  const selo = [game.publisher, game.releaseYear].filter(Boolean).join(' · ') || undefined;
 
   if (!game.isHomebrew) {
     return (
-      <div className="group opacity-70">
-        {capa}
-        {rodape}
+      <div className="group" title="Precisa da sua ROM">
+        <Cartucho
+          titulo={game.title}
+          systemId={game.systemId}
+          selo={selo}
+          capaUrl={game.coverUrl}
+          desbotado
+        />
       </div>
     );
   }
@@ -106,10 +79,25 @@ function CartaoDeJogo({ game }: { readonly game: Game }) {
     <Link
       to="/play/$slug"
       params={{ slug: game.slug }}
-      className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="group block outline-none"
+      aria-label={`Jogar ${game.title}`}
     >
-      {capa}
-      {rodape}
+      <Cartucho titulo={game.title} systemId={game.systemId} selo={selo} capaUrl={game.coverUrl} />
     </Link>
+  );
+}
+
+function Aviso({
+  titulo,
+  children,
+}: {
+  readonly titulo: string;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <div className="border-l-2 border-alert bg-ink-900 p-6">
+      <h2 className="titulo-estampado text-sm text-label-100">{titulo}</h2>
+      {children}
+    </div>
   );
 }

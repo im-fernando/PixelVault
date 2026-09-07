@@ -71,7 +71,7 @@ export function PlayerHud({
         visivel ? 'opacity-100' : 'opacity-0 focus-within:opacity-100'
       }`}
     >
-      <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-vault-800 bg-vault-950/90 p-1.5 shadow-lg backdrop-blur">
+      <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-ink-850 bg-ink-950/90 p-1.5 shadow-lg backdrop-blur">
         <BotaoDoHud
           rotulo={rodando ? 'Pausar' : 'Jogar'}
           atalho="Espaço"
@@ -118,9 +118,7 @@ export function PlayerHud({
               onClick={() => aoTrocarProporcao(valor)}
               aria-pressed={proporcao === valor}
               className={`rounded-md px-2 py-1 font-mono text-xs transition-colors ${
-                proporcao === valor
-                  ? 'bg-accent/20 text-vault-100'
-                  : 'text-vault-300 hover:bg-vault-800'
+                proporcao === valor ? 'bg-alert/20 text-label-100' : 'text-ink-500 hover:bg-ink-850'
               }`}
             >
               {valor}
@@ -132,7 +130,7 @@ export function PlayerHud({
             aria-pressed={escalaInteira}
             title="Escala inteira: cada pixel do console vira o mesmo número de pixels na tela"
             className={`rounded-md px-2 py-1 font-mono text-xs transition-colors ${
-              escalaInteira ? 'bg-accent/20 text-vault-100' : 'text-vault-300 hover:bg-vault-800'
+              escalaInteira ? 'bg-alert/20 text-label-100' : 'text-ink-500 hover:bg-ink-850'
             }`}
           >
             1:N
@@ -150,18 +148,18 @@ export function PlayerHud({
           <button
             type="button"
             onClick={aoDestravarAudio}
-            className="rounded px-2 py-1 text-vault-300 hover:text-vault-100"
+            className="rounded px-2 py-1 text-ink-500 hover:text-label-100"
             title="O navegador bloqueou o som até você interagir com a página"
           >
             🔇 Ativar som
           </button>
         ) : (
-          <label className="flex items-center gap-2 px-2 text-vault-300">
+          <label className="flex items-center gap-2 px-2 text-ink-500">
             <span className="sr-only">Volume</span>
             <button
               type="button"
               onClick={() => aoTrocarMudo(!mudo)}
-              className="hover:text-vault-100"
+              className="hover:text-label-100"
               title={mudo ? 'Reativar som' : 'Silenciar'}
               aria-pressed={mudo}
             >
@@ -173,7 +171,7 @@ export function PlayerHud({
               max={100}
               value={Math.round(volume * 100)}
               onChange={(evento) => aoTrocarVolume(Number(evento.target.value) / 100)}
-              className="h-1 w-20 accent-[var(--color-accent)]"
+              className="h-1 w-20 alert-[var(--color-alert)]"
               disabled={mudo}
             />
           </label>
@@ -189,7 +187,7 @@ export function PlayerHud({
             <Separador />
             <span
               title={`Controle ativo: ${controle}`}
-              className="flex items-center gap-1.5 px-2 text-xs text-accent"
+              className="flex items-center gap-1.5 px-2 text-xs text-alert"
             >
               <IconeControle />
               <span className="hidden max-w-32 truncate md:inline">{controle}</span>
@@ -240,19 +238,19 @@ function BotaoDoHud({
       aria-label={`${rotulo} — atalho ${atalho}`}
       className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
         destaque
-          ? 'bg-accent text-vault-950 hover:brightness-110'
-          : 'text-vault-300 hover:bg-vault-800 hover:text-vault-100'
+          ? 'bg-alert text-ink-950 hover:brightness-110'
+          : 'text-ink-500 hover:bg-ink-850 hover:text-label-100'
       }`}
     >
       {children}
       <span className="hidden sm:inline">{rotulo}</span>
-      <kbd className="hidden font-mono text-[0.6rem] text-vault-700 md:inline">{atalho}</kbd>
+      <kbd className="hidden font-mono text-[0.6rem] text-ink-700 md:inline">{atalho}</kbd>
     </button>
   );
 }
 
 function Separador() {
-  return <span aria-hidden className="mx-0.5 h-5 w-px bg-vault-800" />;
+  return <span aria-hidden className="mx-0.5 h-5 w-px bg-ink-850" />;
 }
 
 const SVG = 'h-4 w-4 shrink-0';

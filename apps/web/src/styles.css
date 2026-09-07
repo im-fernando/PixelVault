@@ -1,17 +1,57 @@
 @import 'tailwindcss';
 
+@import '@fontsource-variable/archivo';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource/silkscreen/400.css';
+
 /*
- * Biblioteca de jogos é produto de tela escura: é onde a capa aparece melhor
- * e é o que a pessoa espera de um lugar para jogar à noite.
+ * PixelVault — direção "Arquivo".
+ *
+ * O produto é um acervo, não um fliperama. A tensão que o desenho persegue é
+ * entre o objeto nostálgico (o cartucho, o papel da etiqueta) e a catalogação
+ * fria (o índice, o hash, o número de acervo). Ver docs/design.md.
+ *
+ * O que NÃO fazemos, e é deliberado: neon synthwave, scanline de CRT por cima
+ * da interface, e fonte de pixel em título. São os três clichês da categoria.
  */
+
 @theme {
-  --color-vault-950: oklch(0.16 0.02 275);
-  --color-vault-900: oklch(0.21 0.025 275);
-  --color-vault-800: oklch(0.27 0.03 275);
-  --color-vault-700: oklch(0.36 0.035 275);
-  --color-vault-300: oklch(0.78 0.03 275);
-  --color-vault-100: oklch(0.93 0.015 275);
-  --color-accent: oklch(0.72 0.19 25);
+  /* ── Tinta de arquivo ────────────────────────────────────────────────────
+     Azul-ardósia profundo, levemente frio. É o interior do cofre: o fundo
+     contra o qual o papel da etiqueta aparece. Não é preto — preto puro achata
+     a etiqueta e é o segundo lugar-comum de interface gerada por IA. */
+  --color-ink-950: oklch(0.17 0.021 245);
+  --color-ink-900: oklch(0.22 0.024 245);
+  --color-ink-850: oklch(0.26 0.026 245);
+  --color-ink-800: oklch(0.31 0.028 245);
+  --color-ink-700: oklch(0.42 0.03 245);
+  --color-ink-500: oklch(0.58 0.026 245);
+
+  /* ── Papel de etiqueta ───────────────────────────────────────────────────
+     O creme impresso da etiqueta do cartucho, e não o creme de fundo de página
+     — é cor de OBJETO, aplicada em superfície pequena. */
+  --color-label-100: oklch(0.94 0.014 85);
+  --color-label-200: oklch(0.88 0.02 82);
+  --color-label-400: oklch(0.72 0.028 78);
+
+  /* ── Os quatro botões do Super Famicom ───────────────────────────────────
+     Cor com significado, nunca decoração: estas quatro marcam os quatro slots
+     de save state. Slot 0 é A, 1 é B, 2 é X, 3 é Y — o mesmo console que a
+     pessoa está emulando. Não use nenhuma delas para outra coisa. */
+  --color-slot-0: oklch(0.62 0.19 25);
+  --color-slot-1: oklch(0.78 0.16 88);
+  --color-slot-2: oklch(0.62 0.15 250);
+  --color-slot-3: oklch(0.66 0.15 150);
+
+  /* ── Estado ──────────────────────────────────────────────────────────────
+     Separado dos slots de propósito: erro não é um slot. */
+  --color-alert: oklch(0.66 0.2 28);
+
+  --font-display: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-sans: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
+  /* Bitmap SÓ para leitura de máquina: fps, hash, byte, versão de core. Nunca
+     em título — pixel como enfeite é o clichê que estamos evitando. */
+  --font-readout: 'Silkscreen', ui-monospace, monospace;
 }
 
 html {
@@ -19,6 +59,35 @@ html {
 }
 
 body {
-  background-color: var(--color-vault-950);
-  color: var(--color-vault-100);
+  background-color: var(--color-ink-950);
+  color: var(--color-label-100);
+  font-family: var(--font-sans);
+}
+
+/* Título estampado, como a faixa de nome numa etiqueta de cartucho: largo,
+   apertado, caixa alta. É onde a personalidade mora. */
+.titulo-estampado {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+/* Leitura de máquina. Números que o computador produziu, não que uma pessoa
+   escreveu. */
+.leitura {
+  font-family: var(--font-readout);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
