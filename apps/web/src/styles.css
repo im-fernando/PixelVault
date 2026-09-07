@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+/*
+ * Biblioteca de jogos é produto de tela escura: é onde a capa aparece melhor
+ * e é o que a pessoa espera de um lugar para jogar à noite.
+ */
+@theme {
+  --color-vault-950: oklch(0.16 0.02 275);
+  --color-vault-900: oklch(0.21 0.025 275);
+  --color-vault-800: oklch(0.27 0.03 275);
+  --color-vault-700: oklch(0.36 0.035 275);
+  --color-vault-300: oklch(0.78 0.03 275);
+  --color-vault-100: oklch(0.93 0.015 275);
+  --color-accent: oklch(0.72 0.19 25);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-vault-950);
+  color: var(--color-vault-100);
+}
