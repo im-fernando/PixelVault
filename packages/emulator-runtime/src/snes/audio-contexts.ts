@@ -1,6 +1,5 @@
 /**
- * Rastreia os `AudioContext` que o RetroArch abre, para que `destroy()` consiga
- * fechá-los.
+ * A única alça que existe sobre o `AudioContext` que o RetroArch abre.
  *
  * **Por que isto é necessário:** o driver de áudio do RetroArch em WASM é o
  * `RWebAudio`, que guarda o contexto numa variável do escopo do módulo do core
@@ -17,9 +16,25 @@
  * Contextos novos vão para o coletor **mais recente**, e não para todos: quem
  * acabou de subir um core é quem criou o contexto. Fechar o contexto de outro
  * adapter seria pior que vazar o próprio.
+ *
+ * A mesma subclasse é onde `resume()` passa a ser filtrado. O `RWebAudio`
+ * chama `resume()` a cada buffer enquanto o contexto não está tocando — cerca
+ * de cem vezes por segundo — e o Chrome loga *"The AudioContext was not
+ * allowed to start"* a cada tentativa recusada. Segurar as tentativas que não
+ * têm chance nenhuma de dar certo é o que esvazia o console. Ver ADR 0015.
  */
 
 type ConstrutorDeAudioContext = typeof AudioContext;
+
+export interface OpcoesDoColetor {
+  /** Chamado com o contexto recém-construído, antes do primeiro buffer. */
+  readonly aoCriar?: (contexto: AudioContext) => void;
+  /**
+   * Enquanto responder `false`, `resume()` não chega ao navegador e resolve
+   * calado. Serve para não insistir no que a política de autoplay já recusou.
+   */
+  readonly podeRetomar?: () => boolean;
+}
 
 export interface ColetorDeAudioContext {
   readonly contextos: readonly AudioContext[];
@@ -27,23 +42,30 @@ export interface ColetorDeAudioContext {
   parar(): void;
 }
 
-const pilha: AudioContext[][] = [];
+interface EntradaDaPilha {
+  readonly contextos: AudioContext[];
+  readonly opcoes: OpcoesDoColetor;
+}
+
+const pilha: EntradaDaPilha[] = [];
+/** Qual coletor criou cada contexto — é o que `resume()` consulta. */
+const donos = new WeakMap<AudioContext, EntradaDaPilha>();
 let original: ConstrutorDeAudioContext | undefined;
 
-export function coletarAudioContexts(): ColetorDeAudioContext {
-  const coletados: AudioContext[] = [];
-  pilha.push(coletados);
+export function coletarAudioContexts(opcoes: OpcoesDoColetor = {}): ColetorDeAudioContext {
+  const entrada: EntradaDaPilha = { contextos: [], opcoes };
+  pilha.push(entrada);
   instalar();
 
   let parado = false;
   return {
-    contextos: coletados,
+    contextos: entrada.contextos,
     parar(): void {
       if (parado) {
         return;
       }
       parado = true;
-      const indice = pilha.indexOf(coletados);
+      const indice = pilha.indexOf(entrada);
       if (indice >= 0) {
         pilha.splice(indice, 1);
       }
@@ -77,7 +99,19 @@ function instalar(): void {
   globalThis.AudioContext = class extends Base {
     constructor(...argumentos: ConstructorParameters<ConstrutorDeAudioContext>) {
       super(...argumentos);
-      pilha.at(-1)?.push(this);
+      const entrada = pilha.at(-1);
+      if (entrada !== undefined) {
+        entrada.contextos.push(this);
+        donos.set(this, entrada);
+        entrada.opcoes.aoCriar?.(this);
+      }
+    }
+
+    override resume(): Promise<void> {
+      if (donos.get(this)?.opcoes.podeRetomar?.() === false) {
+        return Promise.resolve();
+      }
+      return super.resume();
     }
   };
 }

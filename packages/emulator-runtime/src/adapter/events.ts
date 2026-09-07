@@ -28,6 +28,19 @@ export interface EmulatorEventMap {
    * core que não sabe medir simplesmente não emite.
    */
   fps: { readonly fps: number };
+  /**
+   * Volume, mudo ou a permissão do navegador para tocar mudaram.
+   *
+   * `blocked` é a política de autoplay, e não uma falha: enquanto for `true` a
+   * UI precisa dizer ao usuário que basta clicar. Sem este evento, o botão de
+   * volume seria a única tela do player que não sabe o próprio estado depois
+   * de um `unlock()` que veio de um gesto qualquer na página.
+   */
+  audioChange: {
+    readonly volume: number;
+    readonly muted: boolean;
+    readonly blocked: boolean;
+  };
   /** Falha assíncrona, fora de qualquer chamada. Perda de contexto WebGL, core que morreu. */
   error: { readonly error: EmulatorError };
 }

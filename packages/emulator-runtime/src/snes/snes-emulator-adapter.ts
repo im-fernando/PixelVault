@@ -1,5 +1,11 @@
 import type { SystemId } from '@pixelvault/contracts';
 import { Nostalgist } from 'nostalgist';
+import {
+  DEFAULT_AUDIO_SETTINGS,
+  browserAudioSettingsStore,
+  type AudioSettingsStore,
+  type EmulatorAudioControl,
+} from '../adapter/audio.js';
 import { defineCapabilities, type EmulatorCapabilities } from '../adapter/capabilities.js';
 import { EmulatorEventEmitter } from '../adapter/emitter.js';
 import type { EmulatorAdapter } from '../adapter/emulator-adapter.js';
@@ -13,6 +19,7 @@ import {
 import type { EmulatorEvent, EmulatorEventHandler, Unsubscribe } from '../adapter/events.js';
 import type { RomSource } from '../adapter/rom-source.js';
 import { ROM_LOADED_STATUSES, type EmulatorStatus } from '../adapter/status.js';
+import { BarramentoDeAudio, houveGestoDoUsuario } from './audio-bus.js';
 import {
   coletarAudioContexts,
   fecharAudioContexts,
@@ -81,6 +88,20 @@ const QUADROS_ATE_O_ESTADO_ENTRAR = 4;
  * bastante para o save automático e devagar o bastante para não custar nada.
  */
 const INTERVALO_DE_VIGIA_DE_SRAM_MS = 5000;
+/**
+ * Quanto áudio o RetroArch mantém agendado à frente, em milissegundos.
+ *
+ * Medido, e não escolhido por gosto (ADR 0015). Três corridas de 120 s cada,
+ * em Chrome headless, com o mesmo jogo:
+ *
+ * - padrão do RetroArch (64 ms): **30 buracos de silêncio, 2,44 s no total**,
+ *   um deles de 962 ms;
+ * - 96 ms: **zero**, nas três.
+ *
+ * 128 e 160 ms também zeraram, sem nenhum ganho medido a mais, e cada passo
+ * custa ~15 ms de distância entre o que se vê e o que se ouve. Por isso 96.
+ */
+const LATENCIA_DE_AUDIO_MS = 96;
 
 export interface SnesEmulatorAdapterOptions {
   /** Base dos assets self-hostados. Padrão: `/emulator`. Ver a issue #17. */
@@ -92,6 +113,8 @@ export interface SnesEmulatorAdapterOptions {
   readonly respondToGlobalEvents?: boolean;
   /** Sobrescreve configuração do RetroArch. Use com parcimônia. */
   readonly retroarchConfig?: Readonly<Record<string, boolean | number | string>>;
+  /** Onde volume e mudo sobrevivem ao recarregar. Padrão: `localStorage`. */
+  readonly audioSettingsStore?: AudioSettingsStore;
 }
 
 /**
@@ -127,6 +150,7 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
   readonly systemId: SystemId = SISTEMA;
   readonly coreVersion: string = VERSAO_DO_CORE;
   readonly capabilities: EmulatorCapabilities = CAPACIDADES;
+  readonly audio: EmulatorAudioControl;
 
   readonly #emissor = new EmulatorEventEmitter();
   readonly #assets: SnesCoreAssets;
@@ -143,6 +167,9 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
   #sramInicial: Uint8Array | null = null;
 
   #coletorDeAudio: ColetorDeAudioContext | null = null;
+  readonly #barramentoDeAudio: BarramentoDeAudio;
+  readonly #preferenciasDeAudio: AudioSettingsStore;
+  #aoMudarVisibilidade: (() => void) | null = null;
   #aoPerderContexto: ((evento: Event) => void) | null = null;
   #amostradorDeFps: ReturnType<typeof setInterval> | null = null;
   #vigiaDeSram: ReturnType<typeof setInterval> | null = null;
@@ -156,6 +183,35 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
     this.#assets = assetsDoCoreDeSnes(options.assetsBaseUrl ?? BASE_PADRAO_DOS_ASSETS);
     this.#respondToGlobalEvents = options.respondToGlobalEvents ?? false;
     this.#retroarchConfig = options.retroarchConfig ?? {};
+    this.#preferenciasDeAudio = options.audioSettingsStore ?? browserAudioSettingsStore();
+
+    const barramento = new BarramentoDeAudio({
+      settings: this.#preferenciasDeAudio.load() ?? DEFAULT_AUDIO_SETTINGS,
+      aoMudar: (estado) => {
+        this.#emissor.emit('audioChange', estado);
+      },
+    });
+    this.#barramentoDeAudio = barramento;
+    this.audio = {
+      get volume(): number {
+        return barramento.volume;
+      },
+      get muted(): boolean {
+        return barramento.muted;
+      },
+      get blocked(): boolean {
+        return barramento.blocked;
+      },
+      setVolume: (volume) => {
+        barramento.setVolume(volume);
+        this.#guardarPreferenciaDeAudio();
+      },
+      setMuted: (mudo) => {
+        barramento.setMuted(mudo);
+        this.#guardarPreferenciaDeAudio();
+      },
+      unlock: () => barramento.unlock(),
+    };
   }
 
   get status(): EmulatorStatus {
@@ -179,6 +235,7 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
       this.#wasmDoCore = wasm;
       this.#canvas = canvas;
       this.#ouvirPerdaDeContexto(canvas);
+      this.#ouvirVisibilidade();
       this.#mudarStatus('mounted');
     } catch (erro) {
       this.#mudarStatus('idle');
@@ -212,6 +269,7 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
 
   async start(): Promise<void> {
     this.#exigirStatus('start', ['ready']);
+    this.#barramentoDeAudio.permitir('pausa');
     await this.#exigirNostalgist().start();
     this.#mudarStatus('running');
     this.#iniciarMedidores();
@@ -219,6 +277,10 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
 
   pause(): void {
     this.#exigirStatus('pause', ['running']);
+    // O silêncio vai antes: o RetroArch já deixou até ~45 ms de áudio agendado
+    // no futuro, e parar o core não desagenda nada. Sem a rampa, esse rabo
+    // continua tocando depois da pausa e termina num corte seco.
+    this.#barramentoDeAudio.silenciar('pausa');
     this.#exigirNostalgist().pause();
     this.#pararMedidores();
     this.#mudarStatus('paused');
@@ -227,6 +289,7 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
   resume(): void {
     this.#exigirStatus('resume', ['paused']);
     this.#exigirNostalgist().resume();
+    this.#barramentoDeAudio.permitir('pausa');
     this.#mudarStatus('running');
     this.#iniciarMedidores();
   }
@@ -372,6 +435,7 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
     this.#pararMedidores();
     await this.#derrubarMaquina();
     this.#pararDeOuvirPerdaDeContexto();
+    this.#pararDeOuvirVisibilidade();
 
     this.#canvas = null;
     this.#rom = null;
@@ -396,8 +460,14 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
 
     // O coletor entra antes do `prepare` e só sai no `destroy`: o RetroArch
     // abre o `AudioContext` durante o boot do conteúdo, e a única alça que
-    // sobra para fechá-lo depois é o construtor. Ver `audio-contexts.ts`.
-    this.#coletorDeAudio ??= coletarAudioContexts();
+    // sobra para fechá-lo — e para pendurar o volume nele — é o construtor.
+    // Ver `audio-contexts.ts` e `audio-bus.ts`.
+    this.#coletorDeAudio ??= coletarAudioContexts({
+      aoCriar: (contexto) => {
+        this.#barramentoDeAudio.instalar(contexto);
+      },
+      podeRetomar: houveGestoDoUsuario,
+    });
 
     try {
       return await Nostalgist.prepare({
@@ -410,6 +480,16 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
           // Miniatura de save state é trabalho e bytes que não usamos:
           // `captureFrame` já dá a imagem, quando alguém pedir.
           savestate_thumbnail_enable: false,
+          // Áudio (ADR 0015). Os três primeiros já são o padrão do RetroArch e
+          // estão fixados aqui **por serem o que faz o áudio funcionar**: é o
+          // reamostrador que casa os 32.040 Hz do SNES com o `AudioContext`, e
+          // é o controle de taxa que mantém a fila cheia sem acumular atraso.
+          // Se um deles mudar de padrão numa atualização de core, a regressão é
+          // silenciosa e só aparece como estalo.
+          audio_sync: true,
+          audio_rate_control: true,
+          audio_resampler: 'sinc',
+          audio_latency: LATENCIA_DE_AUDIO_MS,
           ...this.#retroarchConfig,
         },
         ...(sram === null ? {} : { sram }),
@@ -422,6 +502,7 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
   async #derrubarMaquina(): Promise<void> {
     const nostalgist = this.#nostalgist;
     this.#nostalgist = null;
+    this.#barramentoDeAudio.desinstalar();
     if (nostalgist !== null) {
       try {
         // `removeCanvas: false`: o canvas é de quem chamou `mount`, e arrancá-lo
@@ -713,6 +794,51 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
     };
     this.#aoPerderContexto = ouvinte;
     canvas.addEventListener('webglcontextlost', ouvinte);
+  }
+
+  /**
+   * Aba invisível não faz barulho.
+   *
+   * O `requestAnimationFrame` do RetroArch é estrangulado quando a aba some, o
+   * que **quase** para o áudio sozinho — mas "quase" aqui é o rabo que já está
+   * agendado, e depende do humor do navegador. A rampa de ganho é imediata e
+   * não depende de ninguém.
+   *
+   * O que este ouvinte deliberadamente **não** faz é suspender o
+   * `AudioContext`. O relógio do `RWebAudio` é `performance.now()`, e não
+   * `context.currentTime`; suspender congela um e não o outro, e ao voltar o
+   * driver agenda no passado tudo o que deveria ter tocado — que é exatamente
+   * o "áudio adiantado ao voltar da aba" que esta issue proíbe.
+   */
+  #ouvirVisibilidade(): void {
+    if (this.#aoMudarVisibilidade !== null || typeof document === 'undefined') {
+      return;
+    }
+    const ouvinte = (): void => {
+      if (document.visibilityState === 'hidden') {
+        this.#barramentoDeAudio.silenciar('aba-oculta');
+      } else {
+        this.#barramentoDeAudio.permitir('aba-oculta');
+      }
+    };
+    this.#aoMudarVisibilidade = ouvinte;
+    document.addEventListener('visibilitychange', ouvinte);
+    ouvinte();
+  }
+
+  #pararDeOuvirVisibilidade(): void {
+    const ouvinte = this.#aoMudarVisibilidade;
+    if (ouvinte !== null && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', ouvinte);
+    }
+    this.#aoMudarVisibilidade = null;
+  }
+
+  #guardarPreferenciaDeAudio(): void {
+    this.#preferenciasDeAudio.save({
+      volume: this.#barramentoDeAudio.volume,
+      muted: this.#barramentoDeAudio.muted,
+    });
   }
 
   #pararDeOuvirPerdaDeContexto(): void {
