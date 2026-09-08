@@ -125,7 +125,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     limites: criarLimitesDeAutenticacao({ segredo: config.SESSION_SECRET }),
     // Console em desenvolvimento e em teste, Resend em produção — decidido
     // por `EMAIL_TRANSPORTE`, com padrão derivado do `NODE_ENV`, do mesmo
-    // jeito que o `Secure` do cookie acima. Ver docs/adr/0020.
+    // jeito que o `Secure` do cookie acima. Ver docs/adr/0021.
     envioDeEmail: criarEnvioDeEmail({
       transporte: config.transporteDeEmail,
       chaveDeApi: config.RESEND_API_KEY,

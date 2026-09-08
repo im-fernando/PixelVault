@@ -53,7 +53,7 @@ export interface OpcoesDeIdentity extends FastifyPluginOptions {
   /**
    * Por onde o e-mail de recuperação sai. Vem da composition root porque a
    * escolha entre console e Resend é de configuração, não deste arquivo.
-   * Ver docs/adr/0020.
+   * Ver docs/adr/0021.
    */
   envioDeEmail: EnvioDeEmail;
   /**

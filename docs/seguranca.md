@@ -488,7 +488,7 @@ isto em produção atrás de qualquer coisa.
 ## Recuperação de senha
 
 Desenhada na #51. O provedor de e-mail e a decisão de não verificar endereço
-no cadastro estão na [ADR 0020](adr/0020-usar-resend-para-email-transacional.md);
+no cadastro estão na [ADR 0021](adr/0021-usar-resend-para-email-transacional.md);
 o que interessa registrar aqui é o desenho do fluxo.
 
 São duas rotas: `POST /api/auth/forgot-password` pede o link e
@@ -657,7 +657,7 @@ existem contra este fluxo.
   `forgot-password`. O token esquecido já não vale (a validade está no
   `WHERE`), então é higiene de tabela e não regra de segurança.
 - **Verificação de e-mail no cadastro** — a conta continua utilizável sem
-  ela, e é decisão registrada na [ADR 0020](adr/0020-usar-resend-para-email-transacional.md),
+  ela, e é decisão registrada na [ADR 0021](adr/0021-usar-resend-para-email-transacional.md),
   com os dois gatilhos que devem reabri-la.
 - **Aviso de "sua senha foi alterada"** — o segundo e-mail transacional é a
   defesa contra redefinição silenciosa por quem já controla a caixa de

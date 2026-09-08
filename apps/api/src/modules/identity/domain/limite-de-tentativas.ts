@@ -65,7 +65,7 @@ const MINUTO = 60_000;
  * requisição que encontra conta manda uma mensagem que custa dinheiro no
  * provedor e, pior, um pedaço da reputação do nosso domínio: caixa de entrada
  * inundada de "esqueci minha senha" que ninguém pediu vira marcação de spam,
- * e marcação de spam derruba a entrega de todo mundo (docs/adr/0020).
+ * e marcação de spam derruba a entrega de todo mundo (docs/adr/0021).
  *
  * O preço da inversão é conhecido e aceito: quem quiser pode negar a
  * recuperação de uma conta escolhida por até meia hora — o teto de bloqueio

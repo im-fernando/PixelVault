@@ -9,7 +9,7 @@ export interface OpcoesDoResend {
 
 /**
  * O adaptador de produção, sobre o SDK oficial do Resend
- * (ver [ADR 0020](../../../../../../docs/adr/0020-usar-resend-para-email-transacional.md)).
+ * (ver [ADR 0021](../../../../../../docs/adr/0021-usar-resend-para-email-transacional.md)).
  *
  * Duas coisas que o SDK faz e este adaptador desfaz:
  *

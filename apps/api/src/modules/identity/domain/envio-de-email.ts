@@ -20,7 +20,7 @@ export interface MensagemDeEmail {
  * [ADR 0004](../../../../../../docs/adr/0004-hexagonal-apenas-nas-integracoes-externas.md):
  * existe mais de um adaptador plausível e os dois estão em uso desde o
  * primeiro dia — o Resend em produção e o console em desenvolvimento (ver
- * docs/adr/0020). Não é o caso do banco, que tem um adaptador só e por isso
+ * docs/adr/0021). Não é o caso do banco, que tem um adaptador só e por isso
  * não virou porta.
  *
  * Um método, e nenhuma noção de "e-mail de recuperação": quem monta a

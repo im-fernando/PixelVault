@@ -19,7 +19,7 @@
  * composition root escolhe por configuração (console ou Resend). Quando o
  * segundo e-mail do produto aparecer noutro módulo, a porta se muda para um
  * lugar compartilhado — hoje isso seria abstração adiantada. Ver
- * docs/adr/0020.
+ * docs/adr/0021.
  *
  * É dono também da autorização, porque é dele a conta e o papel dela. Os
  * outros módulos montam a `Ability` de quem está pedindo com

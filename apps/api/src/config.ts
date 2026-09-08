@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Como o e-mail transacional sai daqui. Ver docs/adr/0020.
+ * Como o e-mail transacional sai daqui. Ver docs/adr/0021.
  *
  * O padrão é derivado do `NODE_ENV` e não da presença da chave: a chave do
  * Resend existe na máquina de desenvolvimento (é de lá que se testa a de
