@@ -4,10 +4,11 @@
  * Declarada no domínio e implementada em `infrastructure/` — o domínio diz o
  * que precisa, a infraestrutura resolve como. Ver docs/adr/0004.
  *
- * Cresce com quem a usa: `buscarPorHash` nasceu com o upload (#71) e
- * `registrar` com a verificação (#72). Listar e apagar chegam com a biblioteca
- * pessoal (#75). Método sem chamador é código morto com aparência de
- * arquitetura.
+ * Cresce com quem a usa: `buscarPorHash` nasceu com o upload (#71),
+ * `registrar` com a verificação (#72), `buscarPorId` com o download
+ * autorizado (#73) e `medirUso` com a cota por conta (#76). Listar e apagar
+ * chegam com a biblioteca pessoal (#75). Método sem chamador é código morto
+ * com aparência de arquitetura.
  *
  * ## Contagem de referências: `COUNT`, não coluna
  *
@@ -33,6 +34,8 @@
  * assinatura.
  */
 
+import type { UsoDaBiblioteca } from './cota.js';
+
 /** O bastante para responder "você já tem esse" e levar o front até a ROM. */
 export interface RomDoUsuario {
   id: string;
@@ -46,6 +49,25 @@ export interface RomDoUsuario {
  * `gameId` nulo é o caso comum, não a exceção: só casa quem tem hash no
  * catálogo, e a biblioteca funciona sem isso (ADR 0006).
  */
+/**
+ * A linha inteira, do jeito que o download precisa dela: o dono para decidir
+ * se pode, a chave para assinar e o resto para o player não ter que perguntar
+ * de novo.
+ *
+ * O `userId` sai daqui e vai direto para a pergunta de autorização — é ele o
+ * dado que transforma "existe uma ROM com este id" em "esta ROM é sua". A
+ * `storageKey` fica no servidor: é endereço de um objeto compartilhado por
+ * conteúdo (ADR 0013), e o cliente nunca a vê.
+ */
+export interface RomDoUsuarioParaDownload {
+  id: string;
+  userId: string;
+  sha256: string;
+  storageKey: string;
+  sizeBytes: number;
+  fileName: string;
+}
+
 export interface NovaRomDoUsuario {
   userId: string;
   sha256: string;
@@ -77,4 +99,39 @@ export interface UserRomRepository {
    * é o `@@unique([userId, sha256])` que existe desde a M0.
    */
   registrar(rom: NovaRomDoUsuario): Promise<RomDoUsuario>;
+
+  /**
+   * A ROM com aquele id, seja de quem for, ou `null`.
+   *
+   * Repare que aqui **não** há `userId`, e a diferença para `buscarPorHash`
+   * não é descuido: são perguntas de naturezas opostas. O hash é dado que o
+   * cliente informa e que descreve conteúdo do mundo — filtrar por dono é o
+   * que impede a consulta de virar oráculo de "esta ROM existe no
+   * PixelVault". O id é opaco, sorteado pelo banco, e não descreve nada: para
+   * saber se ele é seu é preciso primeiro achar a linha e olhar de quem ela é.
+   *
+   * Por isso quem chama tem uma obrigação, e ela está escrita em
+   * `autorizar-download-de-rom.ts`: perguntar a autorização com o `userId`
+   * que voltou daqui e responder 404 quando ela negar — o mesmo 404, byte a
+   * byte, de um id que nunca existiu. Devolver a linha alheia sem essa
+   * checagem seria entregar a ROM de outra pessoa.
+   */
+  buscarPorId(id: string): Promise<RomDoUsuarioParaDownload | null>;
+
+  /**
+   * Quanto a biblioteca daquela pessoa já ocupa, nos dois eixos da cota
+   * (`domain/cota.ts`).
+   *
+   * Os dois números saem de uma agregação sobre `user_roms`, e não de uma
+   * coluna de acumulador em `users` — é o mesmo raciocínio do `COUNT` acima,
+   * com o mesmo desfecho: o dado já existe linha a linha, e um acumulador
+   * seria uma segunda cópia da mesma verdade, capaz de divergir. Divergir
+   * aqui recusaria o upload de quem tem espaço, ou liberaria o de quem não
+   * tem.
+   *
+   * Trazer as linhas para somar em memória também está fora: uma biblioteca
+   * no teto tem mil e quinhentas linhas, e nenhuma delas precisa sair do
+   * banco para responder "quanto isto soma".
+   */
+  medirUso(userId: string): Promise<UsoDaBiblioteca>;
 }

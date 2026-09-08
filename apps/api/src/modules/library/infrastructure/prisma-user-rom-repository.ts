@@ -1,7 +1,9 @@
 import { prisma } from '@pixelvault/database';
+import type { UsoDaBiblioteca } from '../domain/cota.js';
 import type {
   NovaRomDoUsuario,
   RomDoUsuario,
+  RomDoUsuarioParaDownload,
   UserRomRepository,
 } from '../domain/user-rom-repository.js';
 
@@ -36,5 +38,36 @@ export const prismaUserRomRepository: UserRomRepository = {
       update: {},
       select: { id: true, sha256: true },
     });
+  },
+
+  async buscarPorId(id: string): Promise<RomDoUsuarioParaDownload | null> {
+    // O `userId` sai no `select` porque é ele que a autorização compara — sem
+    // ele, quem chama só saberia que a linha existe, que é exatamente a
+    // pergunta errada. A `storageKey` vem junto e para aqui: ela é assinada no
+    // caso de uso e nunca entra na resposta HTTP.
+    return prisma.userRom.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        sha256: true,
+        storageKey: true,
+        sizeBytes: true,
+        fileName: true,
+      },
+    });
+  },
+
+  async medirUso(userId: string): Promise<UsoDaBiblioteca> {
+    // Um `SUM` e um `COUNT` na mesma consulta, sobre o índice de `user_id`:
+    // nenhuma linha sai do banco para o processo. `_sum` vem nulo quando a
+    // pessoa não tem ROM nenhuma — biblioteca vazia é zero, não ausência.
+    const agregado = await prisma.userRom.aggregate({
+      where: { userId },
+      _sum: { sizeBytes: true },
+      _count: { _all: true },
+    });
+
+    return { bytes: agregado._sum.sizeBytes ?? 0, quantidade: agregado._count._all };
   },
 };
