@@ -5,11 +5,12 @@
  * pode importar identity/domain, identity/application ou identity/infrastructure.
  * A regra é verificada no CI pelo dependency-cruiser. Ver docs/adr/0003.
  *
- * Login e sessão ainda não existem (nascem nas issues seguintes da M2): o
- * que o módulo entrega até aqui é o domínio rico exigido pela ADR 0005 e o
- * cadastro de conta.
+ * O módulo é dono das credenciais: cadastro, login e "quem sou eu". O ciclo
+ * de vida da sessão é do módulo `sessions` — aqui só se pede a ele que abra
+ * uma, passando um `userId`. Logout e revogação são a issue #47.
  */
 export { identityRoutes } from './http/routes.js';
+export type { OpcoesDeIdentity } from './http/routes.js';
 export { Email } from './domain/email.js';
 export { ErroDeIdentidade } from './domain/erros.js';
 export { Handle } from './domain/handle.js';

@@ -21,5 +21,10 @@ export const codigoErroIdentitySchema = z.enum([
   // com este e-mail". Esconder isso só produziria um cadastro que parece ter
   // dado certo e não deu.
   'HANDLE_EM_USO',
+  // Um código só para "e-mail não existe" e "senha errada", de propósito.
+  // Ter dois códigos derrotaria o ponto do login indistinguível: o cliente
+  // não pode saber qual dos dois foi, porque quem pergunta pode não ser o
+  // dono da conta. Ver `autenticar-usuario.ts`.
+  'CREDENCIAIS_INVALIDAS',
 ]);
 export type CodigoErroIdentity = z.infer<typeof codigoErroIdentitySchema>;
