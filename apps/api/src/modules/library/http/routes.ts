@@ -3,6 +3,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   apiErrorSchema,
+  romDownloadResponseSchema,
   romUploadCompletedResponseSchema,
   romUploadCompletionSchema,
   romUploadRequestSchema,
@@ -10,10 +11,14 @@ import {
   uuidSchema,
   TAMANHO_MAXIMO_DE_ROM_EM_BYTES,
 } from '@pixelvault/contracts';
-import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
+import {
+  VALIDADE_PADRAO_EM_SEGUNDOS,
+  type ArmazenamentoDeObjetos,
+} from '../../../infrastructure/storage/armazenamento-de-objetos.js';
 import { identificarRomPorHash } from '../../catalog/index.js';
 import { autorizarOuProibido, habilidadesDoUsuario, recurso } from '../../identity/index.js';
 import type { Sessoes } from '../../sessions/index.js';
+import { autorizarDownloadDeRom } from '../application/autorizar-download-de-rom.js';
 import { confirmarEnvioDeRom } from '../application/confirmar-envio-de-rom.js';
 import { solicitarEnvioDeRom } from '../application/solicitar-envio-de-rom.js';
 import { prismaUserRomRepository } from '../infrastructure/prisma-user-rom-repository.js';
@@ -137,6 +142,55 @@ export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app,
         userId,
         request.params.uploadId,
         request.body.fileName,
+      );
+    },
+  );
+
+  /**
+   * `/library/roms/:romId/download`, e não `/library/:romId/download`.
+   *
+   * O `library` já tem uma sub-árvore de substantivo (`/library/uploads`), e
+   * um `:romId` solto no primeiro nível conviveria com ela lendo como se
+   * `uploads` fosse o id de alguma coisa. Com `roms/` no meio, a coleção fica
+   * dita: a biblioteca tem envios e tem ROMs, e a listagem e a remoção da #75
+   * caem sozinhas em `GET /library/roms` e `DELETE /library/roms/:romId`, sem
+   * ninguém precisar renomear nada depois.
+   */
+  app.get(
+    '/library/roms/:romId/download',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['library'],
+        summary: 'Autoriza a leitura de uma ROM da própria biblioteca',
+        description:
+          'Devolve uma URL de GET assinada para os bytes da ROM, válida por ' +
+          `${VALIDADE_PADRAO_EM_SEGUNDOS} segundos. A autorização vem do banco, nunca ` +
+          'da URL (docs/adr/0013): o servidor busca a linha de `user_roms`, confere que ' +
+          'ela é de quem está pedindo e só então assina — o objeto em `roms/<sha256>` é ' +
+          'compartilhado por todo mundo que tem aquele conteúdo, e conhecer o id ou o ' +
+          'hash não dá direito a nada. ROM de outra pessoa e id que nunca existiu ' +
+          'respondem o mesmo 404, byte a byte: um 403 aqui diria "existe, mas não é sua", ' +
+          'e quem varre ids alheios não deve conseguir separar as duas coisas.',
+        params: z.object({ romId: uuidSchema }),
+        response: {
+          200: romDownloadResponseSchema,
+          400: apiErrorSchema,
+          401: apiErrorSchema,
+          404: apiErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const userId = sessoes.usuarioAutenticado(request);
+
+      return autorizarDownloadDeRom(
+        { roms: prismaUserRomRepository, armazenamento },
+        // As habilidades vêm montadas da borda; quem pergunta com a linha na
+        // mão é o caso de uso, porque só depois de buscar existe dono a
+        // comparar.
+        await habilidadesDoUsuario(userId),
+        request.params.romId,
       );
     },
   );
