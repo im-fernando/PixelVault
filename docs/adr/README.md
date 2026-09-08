@@ -27,6 +27,7 @@ referencia a antiga.
 | [0018](0018-autorizacao-com-casl-e-negacao-como-inexistente.md)   | Autorizar com CASL e negar recurso alheio como inexistente         | aceita |
 | [0019](0019-contador-de-tentativas-no-postgresql.md)              | Contar tentativas de autenticação no PostgreSQL                    | aceita |
 | [0020](0020-adotar-o-progresso-local-so-por-escolha-explicita.md) | Adotar o progresso local só por escolha explícita, item a item     | aceita |
+| [0021](0021-usar-resend-para-email-transacional.md)               | Usar Resend para e-mail transacional                               | aceita |
 
 O código de investigação que sustenta os números da 0008 e da 0011 está em
 [docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por
