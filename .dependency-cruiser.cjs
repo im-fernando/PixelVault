@@ -79,6 +79,26 @@ module.exports = {
       to: { path: '^apps/(web|api)/', pathNot: '^apps/$1/' },
     },
     {
+      name: 'sessao-nao-toca-save-local',
+      severity: 'error',
+      comment:
+        'O save local é do aparelho, não da conta: a sessão não pode limpar, migrar ' +
+        'nem adotar save ao entrar, sair ou criar conta. Ver docs/adr/0020. Se a M4 ' +
+        'precisar disto, é esta ADR que muda primeiro — não a regra.',
+      from: { path: '^apps/web/src/features/auth/' },
+      to: { path: '^apps/web/src/features/player/storage/' },
+    },
+    {
+      name: 'save-local-nao-conhece-sessao',
+      severity: 'error',
+      comment:
+        'A porta de save não conhece usuário, e é isso que permite trocá-la por nuvem ' +
+        'na M4 sem reescrever o player. Ver docs/adr/0020 e o comentário de ' +
+        'save-storage.ts.',
+      from: { path: '^apps/web/src/features/player/storage/' },
+      to: { path: '^apps/web/src/features/auth/' },
+    },
+    {
       name: 'sem-ciclos',
       severity: 'error',
       comment: 'Dependência circular é fronteira que já quebrou.',
