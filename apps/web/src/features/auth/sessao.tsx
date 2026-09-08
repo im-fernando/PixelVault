@@ -165,13 +165,9 @@ export function useSair() {
 
   return useMutation({
     mutationFn: () =>
-      apiFetch('/api/auth/logout', logoutResponseSchema, {
-        method: 'POST',
-        // Corpo mínimo, e não ausente: o cliente manda `content-type:
-        // application/json` em tudo, e o Fastify recusa corpo vazio anunciado
-        // como JSON. O logout não lê nada daqui — só precisa ser JSON válido.
-        body: '{}',
-      }),
+      // Sem corpo: o logout não lê nada da requisição, e o `apiFetch` só
+      // anuncia `content-type: application/json` quando há o que anunciar.
+      apiFetch('/api/auth/logout', logoutResponseSchema, { method: 'POST' }),
     onSuccess: async () => {
       await passouASerOutraPessoa(queryClient, null);
     },
