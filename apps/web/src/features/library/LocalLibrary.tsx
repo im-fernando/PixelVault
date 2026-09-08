@@ -7,22 +7,25 @@ import { urlDaLombadaLocal, useRomsLocais, type RomLocal } from './local-roms.js
 import { urlsCandidatasDeLombada } from './nomes-no-libretro.js';
 
 /**
- * Tenta, em ordem, cada URL candidata de lombada no `libretro-thumbnails`, e
+ * Tenta, em ordem, cada URL candidata de capa no `libretro-thumbnails`, e
  * fica com a primeira que o navegador conseguir baixar.
+ *
+ * O `libretro-thumbnails` só cataloga capa frontal da caixa (`Named_Boxarts`),
+ * tela de título e print — não existe foto de lombada em base pública nenhuma.
+ * Por isso a imagem resolvida aqui alimenta `capaUrl` do `Cartucho`, que só
+ * aparece quando o cartucho abre (hover/foco); a lombada fechada continua
+ * sempre com a faixa de cor + título gerado, ver ADR 0016.
  *
  * Sem `HEAD` nem checagem prévia: cada candidata é testada com um `Image()`
  * de verdade — o mesmo carregamento que uma tag `<img>` faria, e sem precisar
  * de CORS, já que é só exibição — só que fora da árvore de DOM, para a
  * prateleira não piscar ícone de imagem quebrada enquanto tenta a próxima.
- * `ativo=false` pula tudo: é o caso de o manifesto já trazer `spineImageUrl`,
- * que tem prioridade e não precisa de busca nenhuma.
  */
-function useLombadaAutomatica(titulo: string, systemId: SystemId, ativo: boolean): string | null {
+function useCapaAutomatica(titulo: string, systemId: SystemId): string | null {
   const [urlResolvida, setUrlResolvida] = useState<string | null>(null);
 
   useEffect(() => {
     setUrlResolvida(null);
-    if (!ativo) return;
 
     let cancelado = false;
 
@@ -46,20 +49,14 @@ function useLombadaAutomatica(titulo: string, systemId: SystemId, ativo: boolean
     return () => {
       cancelado = true;
     };
-  }, [titulo, systemId, ativo]);
+  }, [titulo, systemId]);
 
   return urlResolvida;
 }
 
-/** A lombada de um item: a do manifesto tem prioridade; sem ela, busca automática no libretro. */
-function useLombada(rom: RomLocal): string | null {
-  const doManifesto = urlDaLombadaLocal(rom);
-  const automatica = useLombadaAutomatica(rom.title, rom.systemId, doManifesto === null);
-  return doManifesto ?? automatica;
-}
-
 function ItemDaEstante({ rom }: { readonly rom: RomLocal }) {
-  const lombadaUrl = useLombada(rom);
+  const capaUrl = useCapaAutomatica(rom.title, rom.systemId);
+  const lombadaUrl = urlDaLombadaLocal(rom);
 
   return (
     <Link
@@ -72,6 +69,7 @@ function ItemDaEstante({ rom }: { readonly rom: RomLocal }) {
         titulo={rom.title}
         systemId={rom.systemId}
         selo={`${(rom.sizeBytes / 1024).toFixed(0)} KB`}
+        capaUrl={capaUrl}
         lombadaUrl={lombadaUrl}
       />
     </Link>

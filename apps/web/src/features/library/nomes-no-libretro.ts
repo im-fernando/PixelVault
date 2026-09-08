@@ -11,7 +11,7 @@ import type { SystemId } from '@pixelvault/contracts';
  * `apps/web`. Não existe hoje um pacote compartilhado entre as duas apps para
  * este tipo de coisa, e criar um só para isto seria infraestrutura demais
  * para uma feature de desenvolvimento como a biblioteca pessoal local (ver
- * `LocalLibrary.tsx`) — que, por sinal, nem fala com a API: a lombada dela é
+ * `LocalLibrary.tsx`) — que, por sinal, nem fala com a API: a capa dela é
  * resolvida inteiramente no navegador, direto do `thumbnails.libretro.com`.
  *
  * Se um dia mais alguma coisa precisar atravessar `apps/api` ↔ `apps/web`
@@ -54,7 +54,9 @@ function nomeDeArquivoNoLibretro(nome: string): string {
 }
 
 /**
- * As URLs de lombada a tentar, em ordem, para um jogo da biblioteca local.
+ * As URLs de capa (boxart frontal) a tentar, em ordem, para um jogo da
+ * biblioteca local. O `libretro-thumbnails` não cataloga lombada — só capa
+ * frontal, tela de título e print — daí a pasta `Named_Boxarts` no caminho.
  *
  * Devolve lista vazia para título em branco: não faz sentido pedir
  * `/Named_Boxarts/.png` ao servidor.
