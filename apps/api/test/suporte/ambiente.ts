@@ -62,6 +62,16 @@ for (const [variavel, padrao] of Object.entries(STORAGE_PADRAO)) {
 }
 
 /**
+ * A busca de capa no `libretro-thumbnails` fica desligada na suíte inteira, e
+ * aqui a atribuição é sem `??=` de propósito: nenhum teste pode falar com um
+ * serviço de terceiro, nem que o `.env` da máquina diga o contrário. O
+ * `NODE_ENV=test` já daria este padrão (ver `criar-busca-de-capa.ts`) — isto
+ * é o cinto além do suspensório, porque a falha silenciosa seria a suíte
+ * gastando banda de um serviço mantido por voluntários a cada `pnpm test`.
+ */
+process.env['CAPA_TRANSPORTE'] = 'desligada';
+
+/**
  * A configuração que todo arquivo de integração usa. `NODE_ENV=test` não é
  * detalhe: é ele que escolhe o transporte `console` de e-mail (ver
  * `config.ts`) e o cookie `Secure`.

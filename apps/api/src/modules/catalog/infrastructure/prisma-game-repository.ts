@@ -1,5 +1,6 @@
 import { prisma, type Prisma } from '@pixelvault/database';
 import type { Game, GameDetail, GameListQuery, HomebrewRom } from '@pixelvault/contracts';
+import type { JogoSemCapa } from '../domain/busca-de-capa.js';
 import type { GameRepository, RomDoCatalogo } from '../domain/game-repository.js';
 
 type LinhaJogo = {
@@ -124,5 +125,30 @@ export const prismaGameRepository: GameRepository = {
     });
 
     return linha === null ? null : { gameId: linha.gameId };
+  },
+
+  async jogoSemCapa(gameId: string): Promise<JogoSemCapa | null> {
+    // Os três motivos de "não há o que procurar" estão no `where`, e é ele
+    // quem responde: jogo inexistente, jogo com capa e homebrew (ADR 0016)
+    // saem daqui como a mesma linha ausente. Decidir isso no `where` em vez de
+    // com `if` depois da leitura é o que impede o caso de homebrew de ser
+    // esquecido por quem mexer nisto depois.
+    const linha = await prisma.game.findFirst({
+      where: { id: gameId, coverUrl: null, isHomebrew: false },
+      select: { systemId: true, title: true },
+    });
+
+    return linha === null ? null : { systemId: linha.systemId, title: linha.title };
+  },
+
+  async definirCapa(gameId: string, coverUrl: string): Promise<void> {
+    // `updateMany` porque a condição não é só a chave primária: `coverUrl:
+    // null` faz parte dela. Com `update` o Prisma exigiria um `where` único e
+    // a capa de quem chegou primeiro seria sobrescrita pela de quem chegou
+    // depois. Nenhuma linha afetada é resultado normal, não erro.
+    await prisma.game.updateMany({
+      where: { id: gameId, coverUrl: null },
+      data: { coverUrl },
+    });
   },
 };

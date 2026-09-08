@@ -1,4 +1,5 @@
 import type { Game, GameDetail, GameListQuery } from '@pixelvault/contracts';
+import type { JogoSemCapa } from './busca-de-capa.js';
 
 /**
  * Porta de persistência do catálogo.
@@ -32,4 +33,27 @@ export interface GameRepository {
    * ao catálogo pelo caminho normal.
    */
   identificarRomPorHash(hashes: readonly string[]): Promise<RomDoCatalogo | null>;
+
+  /**
+   * O que é preciso saber para procurar a capa de um jogo — ou `null` quando
+   * não há o que procurar.
+   *
+   * "Não há o que procurar" cobre três casos, e é de propósito que os três
+   * cheguem como a mesma resposta: o jogo não existe, o jogo já tem
+   * `cover_url`, ou o jogo é homebrew. O último não é economia de rede — é a
+   * ADR 0016: homebrew não tem capa comercial em banco nenhum, e a lombada da
+   * estante existe justamente por causa disso. Procurar arte de homebrew no
+   * `libretro-thumbnails` só acharia capa de outro jogo com nome parecido.
+   */
+  jogoSemCapa(gameId: string): Promise<JogoSemCapa | null>;
+
+  /**
+   * Grava a capa encontrada, e só se a coluna ainda estiver vazia.
+   *
+   * A condição está na cláusula do `UPDATE`, e não num `if` antes dele,
+   * porque entre a leitura e a escrita cabe outra requisição fazendo a mesma
+   * busca — duas ROMs do mesmo jogo chegando juntas é o caso comum, não o
+   * exótico. Quem chegar depois não sobrescreve o que já está lá.
+   */
+  definirCapa(gameId: string, coverUrl: string): Promise<void>;
 }

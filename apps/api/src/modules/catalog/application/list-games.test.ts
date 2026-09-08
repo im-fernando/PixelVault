@@ -14,9 +14,13 @@ function repositorioFalso(jogos: GameDetail[]): GameRepository {
     list: async (query: GameListQuery) =>
       jogos.filter((j) => (query.systemId ? j.systemId === query.systemId : true)),
     findBySlug: async (slug: string) => jogos.find((j) => j.slug === slug) ?? null,
-    // Não é o assunto destes testes: quem exercita o match de hash é o
-    // adaptador, contra banco de verdade (`catalogo.integration.test.ts`).
+    // Não é o assunto destes testes: quem exercita o match de hash e a busca
+    // de capa é o adaptador, contra banco de verdade
+    // (`catalogo.integration.test.ts`), e o caso de uso da capa tem suíte
+    // própria (`garantir-capa-do-jogo.test.ts`).
     identificarRomPorHash: async () => null,
+    jogoSemCapa: async () => null,
+    definirCapa: async () => {},
   };
 }
 
