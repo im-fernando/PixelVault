@@ -98,6 +98,20 @@ describe('LIMITES', () => {
     },
   );
 
+  it('inverte a assimetria na recuperação de senha, de propósito', () => {
+    // A exceção à invariante acima, e ela precisa estar escrita para não
+    // parecer esquecimento. Ali o que se limita é adivinhação de credencial;
+    // aqui é gasto — cada requisição que acha conta manda uma mensagem que
+    // custa dinheiro e um pedaço da reputação do domínio. Proteger a caixa de
+    // entrada de quem não pediu nada vale meia hora de espera para quem
+    // esqueceu a senha no pior caso.
+    const { ip, identifier } = LIMITES.forgot_password;
+    expect(identifier.limite).toBeLessThan(ip.limite);
+    // E a janela por e-mail é maior que a do IP: três mensagens por hora para
+    // o mesmo endereço, não três a cada quinze minutos.
+    expect(identifier.janelaMs).toBeGreaterThan(ip.janelaMs);
+  });
+
   it('nunca deixa um bloqueio passar de meia hora', () => {
     for (const porEixo of Object.values(LIMITES)) {
       for (const parametros of Object.values(porEixo)) {

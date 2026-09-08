@@ -38,6 +38,9 @@ function repositorioCom(sessao: SessaoAtiva | null): RepositorioFalso {
     async revogarOutras(): Promise<number> {
       return 0;
     },
+    async revogarTodas(): Promise<number> {
+      return 0;
+    },
     async apagarExpiradas(): Promise<number> {
       return 0;
     },

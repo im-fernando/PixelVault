@@ -12,8 +12,9 @@
  * nenhum deles depender do outro.
  *
  * `Sessoes` é a única coisa que atravessa a fronteira: o `identity` a usa
- * para abrir sessão no login e para derrubar as outras quando alguém troca de
- * senha, sem nunca saber o que é um token ou uma linha de `sessions`.
+ * para abrir sessão no login, para derrubar as outras quando alguém troca de
+ * senha e para derrubar TODAS quando alguém redefine a senha pelo e-mail,
+ * sem nunca saber o que é um token ou uma linha de `sessions`.
  */
 export { criarSessoes } from './http/sessoes.js';
 export type { OpcoesDeSessoes, Sessoes } from './http/sessoes.js';

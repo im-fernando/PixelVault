@@ -66,6 +66,11 @@ export const prismaSessionRepository: SessionRepository = {
     return count;
   },
 
+  async revogarTodas(userId: string): Promise<number> {
+    const { count } = await prisma.session.deleteMany({ where: { userId } });
+    return count;
+  },
+
   async apagarExpiradas(userId: string, agora: Date): Promise<number> {
     // `lte`, não `lt`: o domínio considera vencida a sessão exatamente em
     // `expiresAt` (ver `sessaoExpirou`), e as duas bordas precisam concordar.

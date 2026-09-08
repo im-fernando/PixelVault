@@ -14,6 +14,13 @@
  * rate limit que a composition root pendura nas rotas de credencial. Ver
  * docs/adr/0019 e docs/seguranca.md.
  *
+ * É dono também do e-mail transacional, porque o único que existe hoje é o
+ * de recuperação de senha: `criarEnvioDeEmail` monta o adaptador que a
+ * composition root escolhe por configuração (console ou Resend). Quando o
+ * segundo e-mail do produto aparecer noutro módulo, a porta se muda para um
+ * lugar compartilhado — hoje isso seria abstração adiantada. Ver
+ * docs/adr/0020.
+ *
  * É dono também da autorização, porque é dele a conta e o papel dela. Os
  * outros módulos montam a `Ability` de quem está pedindo com
  * `habilidadesDoUsuario(request.userId)`, perguntam com `recurso(...)` e
@@ -23,6 +30,9 @@
 export { identityRoutes } from './http/routes.js';
 export type { OpcoesDeIdentity } from './http/routes.js';
 export { criarLimitesDeAutenticacao } from './http/limite-de-autenticacao.js';
+export { criarEnvioDeEmail } from './infrastructure/criar-envio-de-email.js';
+export type { OpcoesDeEnvioDeEmail } from './infrastructure/criar-envio-de-email.js';
+export type { EnvioDeEmail, MensagemDeEmail } from './domain/envio-de-email.js';
 export type {
   LimitesDeAutenticacao,
   OpcoesDoLimiteDeAutenticacao,

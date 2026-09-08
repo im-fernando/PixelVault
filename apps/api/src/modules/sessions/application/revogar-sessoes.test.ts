@@ -1,20 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import type { SessaoDoUsuario, SessionRepository } from '../domain/session-repository.js';
 import type { SessaoAtiva } from '../domain/sessao.js';
-import { revogarOutrasSessoes, revogarSessao } from './revogar-sessoes.js';
+import { revogarOutrasSessoes, revogarSessao, revogarTodasAsSessoes } from './revogar-sessoes.js';
 
 interface RepositorioFalso extends SessionRepository {
   revogacoes: { id: string; userId: string }[];
   revogacoesEmMassa: { userId: string; sessaoPreservada: string }[];
+  revogacoesTotais: string[];
 }
 
 /** `donos` é o banco: qual usuário é dono de cada sessão existente. */
 function repositorioCom(donos: Record<string, string>): RepositorioFalso {
   const revogacoes: RepositorioFalso['revogacoes'] = [];
   const revogacoesEmMassa: RepositorioFalso['revogacoesEmMassa'] = [];
+  const revogacoesTotais: RepositorioFalso['revogacoesTotais'] = [];
   return {
     revogacoes,
     revogacoesEmMassa,
+    revogacoesTotais,
     async criar(): Promise<void> {},
     async buscarPorTokenHash(): Promise<SessaoAtiva | null> {
       return null;
@@ -33,6 +36,10 @@ function repositorioCom(donos: Record<string, string>): RepositorioFalso {
       return Object.entries(donos).filter(
         ([id, dono]) => dono === userId && id !== sessaoPreservada,
       ).length;
+    },
+    async revogarTodas(userId: string): Promise<number> {
+      revogacoesTotais.push(userId);
+      return Object.values(donos).filter((dono) => dono === userId).length;
     },
     async apagarExpiradas(): Promise<number> {
       return 0;
@@ -83,5 +90,26 @@ describe('revogarOutrasSessoes', () => {
 
     expect(caidas).toBe(2);
     expect(repositorio.revogacoesEmMassa).toEqual([{ userId: 'usuario-1', sessaoPreservada: 'b' }]);
+  });
+});
+
+describe('revogarTodasAsSessoes', () => {
+  it('não preserva nenhuma sessão, nem a mais recente', async () => {
+    // A diferença para `revogarOutrasSessoes` é o ponto inteiro desta
+    // função: quem redefine a senha pelo e-mail não está logado, então não
+    // existe "sessão atual" a poupar — e poupar qualquer uma manteria dentro
+    // exatamente quem se está tentando expulsar.
+    const repositorio = repositorioCom({
+      a: 'usuario-1',
+      b: 'usuario-1',
+      alheia: 'outro-usuario',
+    });
+
+    const caidas = await revogarTodasAsSessoes({ sessoes: repositorio }, 'usuario-1');
+
+    expect(caidas).toBe(2);
+    expect(repositorio.revogacoesTotais).toEqual(['usuario-1']);
+    // E nada foi pedido pela porta que preserva alguma.
+    expect(repositorio.revogacoesEmMassa).toEqual([]);
   });
 });
