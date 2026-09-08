@@ -17,6 +17,8 @@
  * e um dump de SNES com os 512 bytes na frente jamais casaria pelo hash cru.
  */
 
+import type { SystemId } from '@pixelvault/contracts';
+
 /** O jogo do catálogo que aquele conteúdo é. */
 export interface RomIdentificada {
   gameId: string;
@@ -25,3 +27,30 @@ export interface RomIdentificada {
 export type IdentificarRomNoCatalogo = (
   hashes: readonly string[],
 ) => Promise<RomIdentificada | null>;
+
+/**
+ * A segunda pergunta que a biblioteca faz ao catálogo: "como se chamam estes
+ * jogos, e que capa eles têm?".
+ *
+ * Nasce com a listagem da #75, e o recorte segue o da pergunta anterior: só o
+ * que a etiqueta da estante precisa. Nada de `Game` inteiro — `slug`,
+ * `publisher`, `releaseYear` e `isHomebrew` são vocabulário do catálogo, e
+ * arrastá-los para cá faria a biblioteca conhecer um tipo que ela não usa.
+ *
+ * Recebe e devolve uma lista porque a listagem tem N ROMs reconhecidas e uma
+ * consulta só resolve todas — uma pergunta por linha seria N+1 contra o banco
+ * para desenhar uma prateleira. Jogo que não existir mais simplesmente não
+ * volta: a lista de resposta não promete ter o mesmo tamanho da de entrada, e
+ * quem chama trata a ausência como "sem ficha", que é o mesmo caso de uma ROM
+ * nunca reconhecida.
+ */
+export interface JogoDoCatalogo {
+  gameId: string;
+  title: string;
+  systemId: SystemId;
+  coverUrl: string | null;
+}
+
+export type DescreverJogosDoCatalogo = (
+  gameIds: readonly string[],
+) => Promise<readonly JogoDoCatalogo[]>;

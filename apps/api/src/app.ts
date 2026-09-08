@@ -64,7 +64,18 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   registerErrorHandler(app);
 
   await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(cors, { origin: config.WEB_ORIGIN, credentials: true });
+  // `methods` explícito porque o padrão do @fastify/cors é `GET,HEAD,POST` — os
+  // métodos "simples" do CORS —, e o preflight de qualquer outro volta negado.
+  // Sem isto, `PUT /library/roms/:id/favorite` e `DELETE /library/roms/:id` são
+  // recusados pelo navegador antes de chegarem à API, e o erro aparece só no
+  // console do cliente: no `curl` e no `app.inject()` da suíte tudo passa,
+  // porque nenhum dos dois faz preflight. A lista é a dos verbos que as rotas
+  // deste servidor de fato aceitam.
+  await app.register(cors, {
+    origin: config.WEB_ORIGIN,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
+  });
 
   // Teto genérico da API, por IP, em memória. É higiene contra cliente
   // desgovernado, não defesa de credencial: por isso é folgado, e por isso

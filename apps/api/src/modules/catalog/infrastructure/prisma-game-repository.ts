@@ -1,7 +1,7 @@
 import { prisma, type Prisma } from '@pixelvault/database';
 import type { Game, GameDetail, GameListQuery, HomebrewRom } from '@pixelvault/contracts';
 import type { JogoSemCapa } from '../domain/busca-de-capa.js';
-import type { GameRepository, RomDoCatalogo } from '../domain/game-repository.js';
+import type { FichaDeJogo, GameRepository, RomDoCatalogo } from '../domain/game-repository.js';
 
 type LinhaJogo = {
   id: string;
@@ -125,6 +125,26 @@ export const prismaGameRepository: GameRepository = {
     });
 
     return linha === null ? null : { gameId: linha.gameId };
+  },
+
+  async descreverJogos(gameIds: readonly string[]): Promise<FichaDeJogo[]> {
+    if (gameIds.length === 0) return [];
+
+    // O `Set` porque a mesma pessoa pode ter duas ROMs do mesmo jogo — a
+    // versão americana e a japonesa são conteúdos diferentes, com linhas
+    // diferentes em `user_roms` e o mesmo `game_id`. Repetido dentro de um
+    // `IN` é trabalho que o banco faz à toa, como em `identificarRomPorHash`.
+    const linhas = await prisma.game.findMany({
+      where: { id: { in: [...new Set(gameIds)] } },
+      select: { id: true, title: true, systemId: true, coverUrl: true },
+    });
+
+    return linhas.map((linha) => ({
+      gameId: linha.id,
+      title: linha.title,
+      systemId: linha.systemId,
+      coverUrl: linha.coverUrl,
+    }));
   },
 
   async jogoSemCapa(gameId: string): Promise<JogoSemCapa | null> {

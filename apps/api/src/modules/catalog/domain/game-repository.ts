@@ -16,6 +16,21 @@ export interface RomDoCatalogo {
   gameId: string;
 }
 
+/**
+ * A ficha curta de um jogo, para quem já sabe o `game_id` e só precisa
+ * chamá-lo pelo nome.
+ *
+ * O campo se chama `gameId`, e não `id`, pelo mesmo motivo de `RomDoCatalogo`:
+ * quem lê isto é outro módulo, e lá dentro aquele valor é a chave estrangeira
+ * de `user_roms.game_id`, não "o id" de coisa nenhuma.
+ */
+export interface FichaDeJogo {
+  gameId: string;
+  title: string;
+  systemId: Game['systemId'];
+  coverUrl: string | null;
+}
+
 export interface GameRepository {
   list(query: GameListQuery): Promise<Game[]>;
   findBySlug(slug: string): Promise<GameDetail | null>;
@@ -33,6 +48,20 @@ export interface GameRepository {
    * ao catálogo pelo caminho normal.
    */
   identificarRomPorHash(hashes: readonly string[]): Promise<RomDoCatalogo | null>;
+
+  /**
+   * As fichas curtas de vários jogos de uma vez.
+   *
+   * Existe para a biblioteca pessoal (#75), que precisa do título e da capa de
+   * cada ROM reconhecida para desenhar a estante. Em lote porque o alternativo
+   * é uma consulta por linha listada — N+1 para montar uma prateleira.
+   *
+   * Devolve só o que existe: id que não casa com jogo nenhum some da resposta
+   * em vez de virar buraco na lista. Para quem pergunta, "não achei" e "nunca
+   * foi reconhecida" dão no mesmo — a ROM continua na estante, com o nome do
+   * arquivo.
+   */
+  descreverJogos(gameIds: readonly string[]): Promise<FichaDeJogo[]>;
 
   /**
    * O que é preciso saber para procurar a capa de um jogo — ou `null` quando
