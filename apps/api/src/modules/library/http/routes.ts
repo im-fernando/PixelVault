@@ -4,12 +4,14 @@ import { z } from 'zod';
 import {
   apiErrorSchema,
   romUploadCompletedResponseSchema,
+  romUploadCompletionSchema,
   romUploadRequestSchema,
   romUploadResponseSchema,
   uuidSchema,
   TAMANHO_MAXIMO_DE_ROM_EM_BYTES,
 } from '@pixelvault/contracts';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
+import { identificarRomPorHash } from '../../catalog/index.js';
 import { autorizarOuProibido, habilidadesDoUsuario, recurso } from '../../identity/index.js';
 import type { Sessoes } from '../../sessions/index.js';
 import { confirmarEnvioDeRom } from '../application/confirmar-envio-de-rom.js';
@@ -37,7 +39,7 @@ export interface OpcoesDeLibrary extends FastifyPluginOptions {
  * `/auth/sessions/revoke-others`, `/games`), como manda o CLAUDE.md para nome
  * de API pública. O vocabulário de domínio continua em português onde ele
  * mora: nos identificadores do código e nos `status` das respostas
- * (`envio-autorizado`, `recebido-aguardando-verificacao`).
+ * (`envio-autorizado`, `ja-na-biblioteca`, `na-biblioteca`).
  */
 export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app, opcoes) => {
   const { sessoes, armazenamento } = opcoes;
@@ -101,20 +103,26 @@ export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app,
       preHandler: sessoes.exigirSessao,
       schema: {
         tags: ['library'],
-        summary: 'Avisa que o envio terminou',
+        summary: 'Verifica a ROM na quarentena e a leva para a biblioteca',
         description:
-          'Confirma que o objeto chegou à quarentena de quem está pedindo e responde ' +
-          '`recebido-aguardando-verificacao`. A ROM ainda não é de ninguém: quem lê os ' +
-          'bytes, calcula o SHA-256 de verdade e promove (ou apaga) é a verificação da ' +
-          'issue #72. Envio inexistente e envio de outra pessoa respondem o mesmo 404 — ' +
-          'a chave é montada a partir da sessão, então o segundo caso nem chega a existir.',
+          'Aqui o servidor lê os bytes da quarentena, calcula o SHA-256 dele mesmo e ' +
+          'confere que aquilo é uma ROM do sistema que a extensão promete — tamanho na ' +
+          'faixa do console e cabeçalho no lugar (docs/adr/0014). Passando, o objeto vai ' +
+          'para `roms/<sha256>`; se aquele conteúdo já estiver lá, nada é transferido e ' +
+          'a resposta vem com `deduplicado: true` (docs/adr/0013). O hash informado no ' +
+          'pedido de upload não participa de nada disso. Recusa na verificação é 422 com ' +
+          'o motivo em `details.rom`, e a quarentena é apagada. Envio inexistente e envio ' +
+          'de outra pessoa respondem o mesmo 404 — a chave é montada a partir da sessão, ' +
+          'então o segundo caso nem chega a existir.',
         params: z.object({ uploadId: uuidSchema }),
+        body: romUploadCompletionSchema,
         response: {
           200: romUploadCompletedResponseSchema,
           400: apiErrorSchema,
           401: apiErrorSchema,
           403: apiErrorSchema,
           404: apiErrorSchema,
+          422: apiErrorSchema,
         },
       },
     },
@@ -122,7 +130,14 @@ export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app,
       const userId = sessoes.usuarioAutenticado(request);
       await exigirPoderDeEnviar(userId);
 
-      return confirmarEnvioDeRom({ armazenamento }, userId, request.params.uploadId);
+      return confirmarEnvioDeRom(
+        // O match de hash vem do `catalog` pela fachada dele: `game_roms` é
+        // tabela de outro módulo, e o `library` pergunta em vez de consultar.
+        { armazenamento, roms: prismaUserRomRepository, catalogo: identificarRomPorHash },
+        userId,
+        request.params.uploadId,
+        request.body.fileName,
+      );
     },
   );
 };

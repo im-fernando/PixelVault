@@ -1,5 +1,9 @@
 import { prisma } from '@pixelvault/database';
-import type { RomDoUsuario, UserRomRepository } from '../domain/user-rom-repository.js';
+import type {
+  NovaRomDoUsuario,
+  RomDoUsuario,
+  UserRomRepository,
+} from '../domain/user-rom-repository.js';
 
 export const prismaUserRomRepository: UserRomRepository = {
   async buscarPorHash(userId: string, sha256: string): Promise<RomDoUsuario | null> {
@@ -9,6 +13,27 @@ export const prismaUserRomRepository: UserRomRepository = {
     // e o que não sai não vaza em log de erro.
     return prisma.userRom.findUnique({
       where: { userId_sha256: { userId, sha256 } },
+      select: { id: true, sha256: true },
+    });
+  },
+
+  async registrar(rom: NovaRomDoUsuario): Promise<RomDoUsuario> {
+    // `upsert` com `update` vazio, e não `create` com tratamento de conflito:
+    // concluir duas vezes o envio do mesmo conteúdo devolve a linha que já
+    // existe, sem tocar nela. O que está gravado é o que a pessoa enviou
+    // primeiro — nome de arquivo e `game_id` inclusive —, e sobrescrever isso
+    // por causa de uma retentativa seria trocar o dado bom pelo repetido.
+    return prisma.userRom.upsert({
+      where: { userId_sha256: { userId: rom.userId, sha256: rom.sha256 } },
+      create: {
+        userId: rom.userId,
+        sha256: rom.sha256,
+        storageKey: rom.storageKey,
+        sizeBytes: rom.sizeBytes,
+        fileName: rom.fileName,
+        gameId: rom.gameId,
+      },
+      update: {},
       select: { id: true, sha256: true },
     });
   },

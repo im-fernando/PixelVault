@@ -5,6 +5,7 @@ import { prisma } from '@pixelvault/database';
 import {
   TAMANHO_MAXIMO_DE_ROM_EM_BYTES,
   TIPO_DE_CONTEUDO_DA_ROM,
+  type RomUploadCompletedResponse,
   type RomUploadResponse,
 } from '@pixelvault/contracts';
 import { buildApp } from '../src/app.js';
@@ -12,6 +13,7 @@ import { criarArmazenamentoS3 } from '../src/infrastructure/storage/armazenament
 import { NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
 import { configDeTeste } from './suporte/ambiente.js';
 import { rastroDeTeste } from './suporte/rastro.js';
+import { arquivoZip, naoEUmaRom, romDeSnes } from './suporte/roms-de-teste.js';
 
 /**
  * O upload de ROM da #71, contra PostgreSQL e MinIO de verdade.
@@ -37,9 +39,29 @@ const conta = rastro.identidadeNova('upload');
 const outraConta = rastro.identidadeNova('upload-alheio');
 let contaId: string;
 let outraContaId: string;
+/** O jogo do catálogo que casa com a ROM deste arquivo. */
+let jogoId: string;
 
-/** Um arquivo pequeno, mas plausível: o que interessa é o caminho, não os bytes. */
-const ROM = new Uint8Array(randomBytes(2048));
+/**
+ * A ROM deste arquivo de teste, em duas formas do mesmo jogo.
+ *
+ * Os bytes precisam passar pela verificação de verdade (#72) — arquivo
+ * aleatório é recusado, e com razão —, e precisam ser diferentes a cada
+ * execução: o objeto promovido mora em `roms/<sha256>`, caminho compartilhado
+ * no bucket de desenvolvimento, e conteúdo fixo faria duas rodadas
+ * simultâneas disputarem o mesmo objeto.
+ *
+ * As duas formas carregam o mesmo jogo: `ROM_COM_HEADER` é `ROM` com os 512
+ * bytes de cabeçalho de copiador na frente. Arquivos diferentes, hashes
+ * diferentes, mesmo conteúdo catalogado — é o par que prova o match com e sem
+ * cabeçalho.
+ */
+const MARCADOR = new Uint8Array(randomBytes(32));
+const ROM = romDeSnes({ marcador: MARCADOR });
+const ROM_COM_HEADER = romDeSnes({ marcador: MARCADOR, comCabecalhoDeCopiador: true });
+
+const SHA_DA_ROM = createHash('sha256').update(ROM).digest('hex');
+const SHA_COM_HEADER = createHash('sha256').update(ROM_COM_HEADER).digest('hex');
 
 const armazenamento = criarArmazenamentoS3({
   endpoint: configDeTeste.S3_ENDPOINT,
@@ -90,10 +112,15 @@ async function pedirUpload(
   });
 }
 
-async function concluir(cookie: string | undefined, uploadId: string): Promise<RespostaInjetada> {
+async function concluir(
+  cookie: string | undefined,
+  uploadId: string,
+  fileName = 'jogo.sfc',
+): Promise<RespostaInjetada> {
   return app.inject({
     method: 'POST',
     url: `/api/library/uploads/${uploadId}/complete`,
+    payload: { fileName },
     ...comCookie(cookie),
   });
 }
@@ -102,6 +129,7 @@ async function concluir(cookie: string | undefined, uploadId: string): Promise<R
 async function autorizacaoDeEnvio(
   cookie: string,
   payload: Record<string, unknown> = { sizeBytes: ROM.length },
+  userId?: string,
 ): Promise<Extract<RomUploadResponse, { status: 'envio-autorizado' }>> {
   const resposta = await pedirUpload(cookie, payload);
   expect(resposta.statusCode).toBe(200);
@@ -111,7 +139,39 @@ async function autorizacaoDeEnvio(
     throw new Error(`esperava uma autorização de envio, veio ${corpo.status}`);
   }
 
-  objetosCriados.push(chaveDoEnvio(contaId, corpo.uploadId));
+  objetosCriados.push(chaveDoEnvio(userId ?? contaId, corpo.uploadId));
+  return corpo;
+}
+
+/**
+ * O fluxo inteiro do BYOR numa chamada: pede a URL, envia para o MinIO e
+ * manda verificar. É como o front vai fazer, e é o único jeito de o teste
+ * afirmar alguma coisa sobre o objeto que sobra no bucket no fim.
+ */
+async function enviarEConcluir(
+  cookie: string,
+  userId: string,
+  conteudo: Uint8Array,
+  fileName: string,
+): Promise<RespostaInjetada> {
+  const autorizacao = await autorizacaoDeEnvio(cookie, { sizeBytes: conteudo.length }, userId);
+  expect((await enviar(autorizacao.url, conteudo, autorizacao.contentType)).status).toBe(200);
+
+  return concluir(cookie, autorizacao.uploadId, fileName);
+}
+
+/** O mesmo, já cobrando que a ROM entrou na biblioteca. */
+async function biblioteca(
+  cookie: string,
+  userId: string,
+  conteudo: Uint8Array,
+  fileName: string,
+): Promise<RomUploadCompletedResponse> {
+  const resposta = await enviarEConcluir(cookie, userId, conteudo, fileName);
+  expect(resposta.statusCode).toBe(200);
+
+  const corpo = resposta.json<RomUploadCompletedResponse>();
+  objetosCriados.push(`roms/${corpo.sha256}`);
   return corpo;
 }
 
@@ -143,6 +203,26 @@ beforeAll(async () => {
 
   contaId = (await prisma.user.findUniqueOrThrow({ where: { email: conta.email } })).id;
   outraContaId = (await prisma.user.findUniqueOrThrow({ where: { email: outraConta.email } })).id;
+
+  // O catálogo conhece o jogo pelo hash **sem** o cabeçalho de copiador, que
+  // é como as bases de metadado o catalogam. É o que torna o match com header
+  // uma afirmação de verdade, e não uma coincidência de fixture.
+  await prisma.system.upsert({
+    where: { id: 'snes' },
+    create: { id: 'snes', name: 'Super Nintendo', coreSlug: 'snes9x2010' },
+    update: {},
+  });
+  jogoId = (
+    await prisma.game.create({
+      data: {
+        slug: `zz-teste-upload-${randomUUID().slice(0, 8)}`,
+        title: 'Jogo de teste do upload',
+        systemId: 'snes',
+        roms: { create: { sha256: SHA_DA_ROM, sizeBytes: ROM.length } },
+      },
+      select: { id: true },
+    })
+  ).id;
 }, 60_000);
 
 beforeEach(async () => {
@@ -155,7 +235,9 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await Promise.all(objetosCriados.map((chave) => armazenamento.apagar(chave)));
-  // `user_roms` cai por cascata junto com os usuários.
+  // O jogo sai por último e por id: `game_roms` cai por cascata com ele, e
+  // `user_roms` cai por cascata com os usuários.
+  await prisma.game.deleteMany({ where: { id: jogoId } });
   await rastro.limpar();
 });
 
@@ -282,22 +364,142 @@ describe('a URL assinada, usada de verdade', () => {
 });
 
 describe('POST /api/library/uploads/:uploadId/complete', () => {
-  it('confirma o objeto na quarentena e responde que a verificação ainda vem', async () => {
+  it('verifica, promove para o caminho do conteúdo e casa com o catálogo', async () => {
+    const cookie = await logar(conta);
+
+    const corpo = await biblioteca(cookie, contaId, ROM_COM_HEADER, 'jogo (Brasil).sfc');
+
+    // O hash é o do arquivo como ele foi enviado — com os 512 bytes de
+    // cabeçalho —, e não o que o cliente informou nem o do conteúdo sem
+    // header. Guardar o arquivo como a pessoa mandou é a ADR 0013.
+    expect(corpo.sha256).toBe(SHA_COM_HEADER);
+    expect(corpo.deduplicado).toBe(false);
+    expect(corpo.sizeBytes).toBe(ROM_COM_HEADER.length);
+    // ...mas o jogo é reconhecido pelo hash SEM cabeçalho, que é o que o
+    // catálogo tem. Sem tentar os dois, metade dos dumps de SNES nunca
+    // reconheceria o jogo.
+    expect(corpo.gameId).toBe(jogoId);
+
+    expect(await armazenamento.existe(`roms/${SHA_COM_HEADER}`)).toBe(true);
+    const linha = await prisma.userRom.findUniqueOrThrow({
+      where: { userId_sha256: { userId: contaId, sha256: SHA_COM_HEADER } },
+    });
+    expect(linha).toMatchObject({
+      storageKey: `roms/${SHA_COM_HEADER}`,
+      gameId: jogoId,
+      sizeBytes: ROM_COM_HEADER.length,
+      fileName: 'jogo (Brasil).sfc',
+    });
+  }, 60_000);
+
+  it('dois usuários com o mesmo arquivo dividem um objeto só', async () => {
+    // O critério de aceite da #72, e a economia inteira da ADR 0013: a segunda
+    // pessoa não transfere nada e ganha a referência do mesmo objeto.
+    await biblioteca(await logar(conta), contaId, ROM_COM_HEADER, 'jogo (Brasil).sfc');
+
+    const outroCookie = await logar(outraConta);
+
+    const corpo = await biblioteca(outroCookie, outraContaId, ROM_COM_HEADER, 'meu-jogo.sfc');
+
+    expect(corpo.deduplicado).toBe(true);
+    expect(corpo.sha256).toBe(SHA_COM_HEADER);
+    expect(corpo.gameId).toBe(jogoId);
+
+    const linhas = await prisma.userRom.findMany({
+      where: { sha256: SHA_COM_HEADER, userId: { in: [contaId, outraContaId] } },
+      select: { userId: true, storageKey: true, gameId: true },
+      orderBy: { uploadedAt: 'asc' },
+    });
+    expect(linhas).toHaveLength(2);
+    expect(new Set(linhas.map((l) => l.userId))).toEqual(new Set([contaId, outraContaId]));
+    // Duas referências, um objeto — é literalmente o mesmo `storage_key`.
+    expect(new Set(linhas.map((l) => l.storageKey))).toEqual(new Set([`roms/${SHA_COM_HEADER}`]));
+    expect(new Set(linhas.map((l) => l.gameId))).toEqual(new Set([jogoId]));
+    expect(await armazenamento.existe(`roms/${SHA_COM_HEADER}`)).toBe(true);
+  }, 60_000);
+
+  it('o mesmo jogo sem cabeçalho de copiador é outro objeto, e o mesmo jogo', async () => {
+    // Arquivo diferente, hash diferente, objeto diferente: o servidor não
+    // normaliza nada (ADR 0013). O que amarra os dois é o catálogo.
+    const cookie = await logar(conta);
+
+    const corpo = await biblioteca(cookie, contaId, ROM, 'jogo-sem-header.sfc');
+
+    expect(corpo.sha256).toBe(SHA_DA_ROM);
+    expect(corpo.sha256).not.toBe(SHA_COM_HEADER);
+    expect(corpo.gameId).toBe(jogoId);
+    expect(await armazenamento.existe(`roms/${SHA_DA_ROM}`)).toBe(true);
+    expect(await armazenamento.existe(`roms/${SHA_COM_HEADER}`)).toBe(true);
+  }, 60_000);
+
+  it('enviar de novo o que já se tem devolve a mesma linha, sem duplicar', async () => {
+    const cookie = await logar(conta);
+    const antes = await prisma.userRom.findUniqueOrThrow({
+      where: { userId_sha256: { userId: contaId, sha256: SHA_COM_HEADER } },
+      select: { id: true, fileName: true },
+    });
+
+    const corpo = await biblioteca(cookie, contaId, ROM_COM_HEADER, 'nome-novo.sfc');
+
+    expect(corpo.romId).toBe(antes.id);
+    expect(corpo.deduplicado).toBe(true);
+    // O nome guardado é o do primeiro envio: retentativa não sobrescreve o
+    // que já estava bom.
+    const depois = await prisma.userRom.findUniqueOrThrow({
+      where: { userId_sha256: { userId: contaId, sha256: SHA_COM_HEADER } },
+      select: { fileName: true },
+    });
+    expect(depois.fileName).toBe(antes.fileName);
+    expect(await prisma.userRom.count({ where: { userId: contaId, sha256: SHA_COM_HEADER } })).toBe(
+      1,
+    );
+  }, 60_000);
+
+  it('recusa o que não é ROM, apaga a quarentena e não promove nada', async () => {
+    const cookie = await logar(conta);
+    const lixo = naoEUmaRom();
+    const autorizacao = await autorizacaoDeEnvio(cookie, { sizeBytes: lixo.length });
+    expect((await enviar(autorizacao.url, lixo, autorizacao.contentType)).status).toBe(200);
+    const antes = await prisma.userRom.count({ where: { userId: contaId } });
+
+    const resposta = await concluir(cookie, autorizacao.uploadId, 'nao-e-rom.sfc');
+
+    expect(resposta.statusCode).toBe(422);
+    expect(resposta.json()).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: { rom: ['CONTEUDO_NAO_RECONHECIDO'] },
+    });
+    // Nada promovido, nada na biblioteca — e a quarentena limpa, que é o
+    // último item do escopo da ADR 0014.
+    expect(await prisma.userRom.count({ where: { userId: contaId } })).toBe(antes);
+    expect(await armazenamento.existe(chaveDoEnvio(contaId, autorizacao.uploadId))).toBe(false);
+    expect(
+      await armazenamento.existe(`roms/${createHash('sha256').update(lixo).digest('hex')}`),
+    ).toBe(false);
+  }, 60_000);
+
+  it('recusa ROM compactada com o motivo que a pessoa precisa ler', async () => {
+    const cookie = await logar(conta);
+    const zip = arquivoZip();
+    const autorizacao = await autorizacaoDeEnvio(cookie, { sizeBytes: zip.length });
+    expect((await enviar(autorizacao.url, zip, autorizacao.contentType)).status).toBe(200);
+
+    const resposta = await concluir(cookie, autorizacao.uploadId, 'jogo.sfc');
+
+    expect(resposta.statusCode).toBe(422);
+    expect(resposta.json()).toMatchObject({ details: { rom: ['SISTEMA_DIVERGENTE'] } });
+    expect(await armazenamento.existe(chaveDoEnvio(contaId, autorizacao.uploadId))).toBe(false);
+  }, 60_000);
+
+  it('recusa nome sem extensão de sistema, sem inventar um', async () => {
     const cookie = await logar(conta);
     const autorizacao = await autorizacaoDeEnvio(cookie);
     expect((await enviar(autorizacao.url, ROM, autorizacao.contentType)).status).toBe(200);
-    const romsAntes = await prisma.userRom.count({ where: { userId: contaId } });
 
-    const resposta = await concluir(cookie, autorizacao.uploadId);
+    const resposta = await concluir(cookie, autorizacao.uploadId, 'jogo.zip');
 
-    expect(resposta.statusCode).toBe(200);
-    expect(resposta.json()).toEqual({
-      status: 'recebido-aguardando-verificacao',
-      uploadId: autorizacao.uploadId,
-    });
-    // A ROM ainda não é de ninguém: promover é a #72.
-    expect(await prisma.userRom.count({ where: { userId: contaId } })).toBe(romsAntes);
-    expect(await armazenamento.existe(chaveDoEnvio(contaId, autorizacao.uploadId))).toBe(true);
+    expect(resposta.statusCode).toBe(422);
+    expect(resposta.json()).toMatchObject({ details: { rom: ['EXTENSAO_NAO_RECONHECIDA'] } });
   }, 60_000);
 
   it('responde 404 para envio que nunca chegou', async () => {
