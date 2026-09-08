@@ -1,19 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config as loadEnv } from 'dotenv';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
 import { LIMITES } from '../src/modules/identity/domain/limite-de-tentativas.js';
 import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
 import { NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
-
-loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
-
-const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
+import { configDeTeste } from './suporte/ambiente.js';
+import { rastroDeTeste } from './suporte/rastro.js';
 
 /**
  * Integração de verdade: PostgreSQL real, Argon2id real, app inteiro por
@@ -33,20 +27,15 @@ const IP_B = '203.0.113.12';
 const IP_C = '203.0.113.13';
 
 const SENHA = 'cavalo-bateria-grampo';
-const emailsCriados: string[] = [];
 
-function identidadeNova(prefixo: string): { email: string; handle: string } {
-  const sufixo = randomUUID().slice(0, 8);
-  const email = `teste-${prefixo}-${sufixo}@exemplo.test`;
-  emailsCriados.push(email);
-  return { email, handle: `teste-${prefixo}-${sufixo}` };
-}
+/**
+ * Identidades novas a cada execução, e as chaves que este arquivo suja no
+ * contador — zeradas entre cenários. Ver test/suporte/rastro.ts.
+ */
+const rastro = rastroDeTeste(IP_CADASTRO, IP_A, IP_B, IP_C);
 
-const alvo = identidadeNova('alvo');
-const vizinha = identidadeNova('vizinha');
-
-/** As chaves que este arquivo suja e precisa limpar entre cenários. */
-const chavesDoArquivo: string[] = [IP_CADASTRO, IP_A, IP_B, IP_C, alvo.email, vizinha.email];
+const alvo = rastro.identidadeNova('alvo');
+const vizinha = rastro.identidadeNova('vizinha');
 
 let app: FastifyInstance;
 
@@ -65,26 +54,18 @@ async function logar(
 type RespostaInjetada = Awaited<ReturnType<typeof logar>>;
 
 /**
- * Zera o contador das chaves deste arquivo. Como a tabela guarda HMAC e não
- * o valor em claro, o teste calcula a mesma chave que a aplicação calcularia
- * — o que, de quebra, deixa explícito que não há e-mail nem IP legível ali.
+ * Como a tabela guarda HMAC e não o valor em claro, o teste calcula a mesma
+ * chave que a aplicação calcularia — o que, de quebra, deixa explícito que
+ * não há e-mail nem IP legível ali.
  */
-async function limparContador(valores: string[]): Promise<void> {
-  await prisma.authAttempt.deleteMany({
-    where: {
-      keyHash: { in: valores.map((valor) => chaveDeTentativa(config.SESSION_SECRET, valor)) },
-    },
-  });
-}
-
 async function tentativasGravadas(valor: string): Promise<number> {
   return prisma.authAttempt.count({
-    where: { keyHash: chaveDeTentativa(config.SESSION_SECRET, valor) },
+    where: { keyHash: chaveDeTentativa(configDeTeste.SESSION_SECRET, valor) },
   });
 }
 
 beforeAll(async () => {
-  const criador = await buildApp(config);
+  const criador = await buildApp(configDeTeste);
   for (const conta of [alvo, vizinha]) {
     const resposta = await criador.inject({
       method: 'POST',
@@ -102,21 +83,19 @@ beforeAll(async () => {
     where: { email: { in: [alvo.email, vizinha.email] } },
     select: { id: true },
   });
-  chavesDoArquivo.push(...contas.map((conta) => conta.id));
+  rastro.registrarChave(...contas.map((conta) => conta.id));
 }, 60_000);
 
 beforeEach(async () => {
-  app = await buildApp(config);
-  await limparContador(chavesDoArquivo);
+  app = await buildApp(configDeTeste);
+  await rastro.limparContador();
   return async () => {
     await app.close();
   };
 });
 
 afterAll(async () => {
-  await limparContador(chavesDoArquivo);
-  await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
-  await prisma.$disconnect();
+  await rastro.limpar();
 });
 
 describe('rate limit do login por IP', () => {
@@ -227,7 +206,9 @@ describe('o contador não guarda o que não deve', () => {
     const linhas = await prisma.authAttempt.findMany({
       where: {
         keyHash: {
-          in: [IP_A, alvo.email].map((valor) => chaveDeTentativa(config.SESSION_SECRET, valor)),
+          in: [IP_A, alvo.email].map((valor) =>
+            chaveDeTentativa(configDeTeste.SESSION_SECRET, valor),
+          ),
         },
       },
     });

@@ -1,19 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config as loadEnv } from 'dotenv';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import type { SessionListResponse, SessionSummary } from '@pixelvault/contracts';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
-import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
 import { NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
-
-loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
-
-const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
+import { configDeTeste } from './suporte/ambiente.js';
+import { rastroDeTeste } from './suporte/rastro.js';
 
 /**
  * Integração de verdade: PostgreSQL real, app Fastify inteiro por `inject()`,
@@ -33,17 +26,12 @@ const SENHA = 'cavalo-bateria-grampo';
  * do outro. Faixa reservada para documentação (RFC 5737).
  */
 const IP_DO_ARQUIVO = '198.51.100.30';
-const emailsCriados: string[] = [];
 
-function identidadeNova(prefixo: string): { email: string; handle: string } {
-  const sufixo = randomUUID().slice(0, 8);
-  const email = `teste-${prefixo}-${sufixo}@exemplo.test`;
-  emailsCriados.push(email);
-  return { email, handle: `teste-${prefixo}-${sufixo}` };
-}
+/** Identidades novas a cada execução e a limpeza delas. Ver test/suporte/rastro.ts. */
+const rastro = rastroDeTeste(IP_DO_ARQUIVO);
 
-const conta = identidadeNova('sessoes');
-const outraConta = identidadeNova('sessoes-alheia');
+const conta = rastro.identidadeNova('sessoes');
+const outraConta = rastro.identidadeNova('sessoes-alheia');
 let contaId: string;
 let outraContaId: string;
 
@@ -75,19 +63,6 @@ function comCookie(cookie?: string): {
     remoteAddress: IP_DO_ARQUIVO,
     ...(cookie === undefined ? {} : { cookies: { [NOME_DO_COOKIE_DE_SESSAO]: cookie } }),
   };
-}
-
-/** A tabela guarda HMAC, então o teste calcula a mesma chave da aplicação. */
-async function limparContador(): Promise<void> {
-  await prisma.authAttempt.deleteMany({
-    where: {
-      keyHash: {
-        in: [IP_DO_ARQUIVO, conta.email, outraConta.email].map((valor) =>
-          chaveDeTentativa(config.SESSION_SECRET, valor),
-        ),
-      },
-    },
-  });
 }
 
 /** Abre uma sessão nova e devolve o cookie dela — um "dispositivo". */
@@ -160,9 +135,9 @@ beforeAll(async () => {
   // Antes de cadastrar: o contador de cadastro por IP é compartilhado e
   // sobrevive à execução anterior, então rodar a suíte duas vezes seguidas
   // esbarraria nele.
-  await limparContador();
+  await rastro.limparContador();
 
-  const criador = await buildApp(config);
+  const criador = await buildApp(configDeTeste);
   await criarConta(criador, conta);
   await criarConta(criador, outraConta);
   await criador.close();
@@ -172,20 +147,18 @@ beforeAll(async () => {
 }, 60_000);
 
 beforeEach(async () => {
-  app = await buildApp(config);
+  app = await buildApp(configDeTeste);
   // Cada cenário conta sessões; sobra do anterior estragaria a contagem.
   await prisma.session.deleteMany({ where: { userId: { in: [contaId, outraContaId] } } });
-  await limparContador();
+  await rastro.limparContador();
   return async () => {
     await app.close();
   };
 });
 
 afterAll(async () => {
-  await limparContador();
   // As sessões vão junto: a FK de `sessions` é `onDelete: Cascade`.
-  await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
-  await prisma.$disconnect();
+  await rastro.limpar();
 });
 
 describe('POST /api/auth/logout', () => {
