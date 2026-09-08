@@ -48,9 +48,10 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  userGames UserGame[]
-  userRoms  UserRom[]
-  sessions  Session[]
+  userGames           UserGame[]
+  userRoms            UserRom[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -71,6 +72,32 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+/// Token de redefinição de senha. Tabela própria, e não uma linha em
+/// `sessions`, porque os dois conceitos são opostos: uma sessão autentica
+/// quem JÁ provou saber a senha; este token É a prova, e vale uma vez só.
+/// Reaproveitar a tabela faria um token de e-mail valer como cookie de
+/// sessão — e a limpeza de um passaria a mexer no outro.
+///
+/// `tokenHash` é o SHA-256 do token que foi para o e-mail; o valor em claro
+/// não existe em lugar nenhum do servidor depois do envio. Mesmo raciocínio
+/// do `token_hash` de `sessions` (docs/adr/0017): um dump desta tabela não
+/// pode virar redefinição de senha alheia.
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Invalidar todos os tokens de uma conta depois de uma redefinição.
+  @@index([userId])
+  /// Poda preguiçosa por idade, que não passa por conta nenhuma.
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model System {
@@ -186,6 +213,7 @@ enum AuthAttemptScope {
   login
   register
   change_password
+  forgot_password
 }
 
 /// Tentativa de autenticação — uma linha por requisição que chega a uma rota

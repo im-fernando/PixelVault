@@ -63,6 +63,17 @@ export interface SessionRepository {
   /** Apaga todas as sessões do usuário menos uma. Devolve quantas caíram. */
   revogarOutras(userId: string, sessaoPreservada: string): Promise<number>;
   /**
+   * Apaga TODAS as sessões do usuário, sem exceção. Devolve quantas caíram.
+   *
+   * Método próprio, e não `revogarOutras(userId, '')`: passar um id que não
+   * existe para "preserve este" produziria o mesmo `DELETE`, e é justamente
+   * essa a coincidência perigosa — um dia o id vazio vira o id de alguém, ou
+   * alguém lê a chamada e acha que é engano. As duas operações têm
+   * autorizações diferentes (uma exige sessão, a outra acontece sem
+   * nenhuma), então têm nomes diferentes.
+   */
+  revogarTodas(userId: string): Promise<number>;
+  /**
    * Limpeza preguiçosa: apaga as sessões já vencidas deste usuário. Ver
    * `application/listar-sessoes.ts` para o porquê de não haver cron.
    */

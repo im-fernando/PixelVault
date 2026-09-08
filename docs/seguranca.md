@@ -485,12 +485,182 @@ mundo junto e o eixo deixa de significar o que promete. O mesmo cuidado vale
 para o `ipTruncated` das sessões. Ligar `trustProxy` faz parte de colocar
 isto em produção atrás de qualquer coisa.
 
+## Recuperação de senha
+
+Desenhada na #51. O provedor de e-mail e a decisão de não verificar endereço
+no cadastro estão na [ADR 0021](adr/0021-usar-resend-para-email-transacional.md);
+o que interessa registrar aqui é o desenho do fluxo.
+
+São duas rotas: `POST /api/auth/forgot-password` pede o link e
+`POST /api/auth/reset-password` troca a senha com ele.
+
+### O token
+
+32 bytes aleatórios (`randomBytes`) em base64url, exatamente como o token de
+sessão — e pelo mesmo motivo: ele não carrega informação nenhuma, não tem
+estrutura para adivinhar, e quem o tem, tem a conta. Aqui a comparação é ainda
+mais direta que na sessão: **este token é a prova de identidade**. Quem acerta
+um entra numa conta sem nunca ter sabido a senha dela.
+
+O banco guarda apenas o **SHA-256** dele, em `password_reset_tokens`. SHA-256
+e não Argon2 pela mesma razão da sessão (256 bits aleatórios não têm
+dicionário a atacar); hasheado e não em claro pela razão que a issue nomeia:
+um dump da tabela não pode virar redefinição de senha alheia. Depois do envio,
+o valor em claro existe num lugar só do mundo — a caixa de entrada de quem
+pediu.
+
+Tabela própria, e não uma linha em `sessions`: uma sessão autentica quem já
+provou saber a senha; este token _é_ a prova, e vale uma vez só. Reaproveitar
+a tabela faria um token de e-mail valer como cookie.
+
+### Validade: 30 minutos
+
+O prazo é uma janela de sequestro de conta. Quem tiver o link nesse intervalo
+— porque leu por cima do ombro, porque a caixa está aberta numa máquina
+compartilhada, porque um encaminhamento automático o copiou — vira dono da
+conta. Um dia inteiro, que é o padrão de muito produto por aí, transforma um
+descuido de manhã num problema de noite.
+
+Curto demais, por outro lado, castiga quem se comporta normalmente: o e-mail
+leva alguns segundos (às vezes minutos), e muita gente pede a redefinição no
+computador para abrir o link no celular. Quinze minutos deixaria essa pessoa
+de fora com frequência, e cada expiração vira um e-mail novo — mais custo e
+mais chance de o filtro de spam concluir o óbvio.
+
+Trinta minutos é o meio. A constante está no **contrato**
+(`VALIDADE_DO_TOKEN_DE_RECUPERACAO_MS`) e não escondida no servidor, porque a
+tela de confirmação diz esse prazo para a pessoa — e as duas não podem
+discordar.
+
+### Uso único de verdade
+
+Gastar o token é **um comando só**:
+`DELETE ... WHERE token_hash = $1 AND expires_at > $2 RETURNING user_id`. Ler,
+validar e apagar em três passos deixaria duas requisições simultâneas com o
+mesmo token passarem juntas pela validação, e o "uma vez só" viraria "uma vez
+só, quase sempre". Com o `DELETE`, o PostgreSQL trava a linha e exatamente uma
+das duas leva o `RETURNING`.
+
+O mesmo comando resolve os três "não vale": inexistente, já gasto e vencido
+são zero linhas afetadas, indistinguíveis por construção — e não por
+disciplina de quem escreve a rota. O contrato tem um código só para os três
+(`TOKEN_INVALIDO`), porque separá-los diria a quem tem um token roubado se
+vale a pena insistir, e diria ao dono da conta que alguém gastou o link dele
+antes do clique.
+
+### A ordem dos passos, que é onde mora a segurança
+
+1. **Política de senha.** Roda antes de o token ser gasto, por gentileza: quem
+   escolheu uma senha fraca precisa poder tentar de novo no mesmo link, sem
+   pedir outro e-mail para consertar a própria digitação.
+2. **Gastar o token.**
+3. **Só então o Argon2id.** O hash custa ~330 ms, e esta é uma rota aberta,
+   sem sessão. Se ele viesse antes da validação do token, qualquer pessoa
+   queimaria CPU do servidor mandando token lixo. Pagando-o só depois de um
+   token válido, o custo fica atrás de 256 bits que ninguém adivinha — e é por
+   isso que `reset-password` **não** precisa de contador próprio de
+   tentativas, ficando sob o teto genérico da API.
+4. **Invalidar os outros tokens da conta** e **revogar todas as sessões**.
+
+### Todas as sessões, sem exceção
+
+`reset-password` derruba **todas** as sessões da conta. É o oposto da troca de
+senha autenticada, que preserva a que fez a troca — e a diferença não é
+inconsistência: lá quem pediu está logado e acabou de provar que sabe a senha
+atual; aqui quem pediu não está logado, não há "sessão atual" a preservar, e o
+caso que motiva o fluxo é justamente o de expulsar quem está dentro
+indevidamente. Uma sessão sobrevivente aqui manteria dentro exatamente quem se
+está tentando expulsar.
+
+A operação é do módulo `sessions` (`revogarTodasAsSessoes`), com método
+próprio em vez de `revogarOutras` com um id inventado: as duas têm
+autorizações diferentes — uma exige cookie, a outra acontece sem nenhum — e
+merecem nomes diferentes.
+
+### Resposta indistinguível, inclusive no relógio
+
+`forgot-password` responde **202 com o mesmo corpo**, exista a conta ou não.
+As três peças, como no cadastro (#45) e no login (#46):
+
+1. **Não há `SELECT` por e-mail.** A existência da conta é decidida dentro do
+   banco, no mesmo comando que grava o token
+   (`INSERT ... SELECT ... WHERE u.email = $1`). Um `SELECT` isolado colocaria
+   a informação "esta conta existe" numa variável, e variável assim mais cedo
+   ou mais tarde vira `if`.
+2. **Sem retorno antecipado.** Nem para e-mail malformado: a normalização
+   aceita qualquer texto e o banco responde "nenhuma linha", que é o mesmo
+   caminho de um e-mail válido sem conta. Recusar cedo criaria um terceiro
+   tempo de resposta.
+3. **O envio não é esperado.** O e-mail sai por fora da requisição. Se a rota
+   esperasse o provedor responder (centenas de milissegundos de rede), o
+   caminho "existe conta" ficaria visivelmente mais lento que o outro, e um
+   cronômetro desfaria os itens 1 e 2 — o mesmo ataque que o
+   `HASH_DESCARTAVEL` do login existe para impedir.
+
+Aqui **não** dá para igualar os dois lados pagando o custo nos dois, como o
+login faz com o hash descartável: mandar e-mail para um endereço sem conta só
+para gastar o mesmo tempo transformaria a API num disparador de mensagem para
+qualquer endereço que alguém digitasse. O preço da escolha é que falha de
+entrega vira log do servidor, nunca resposta de erro — o que se quer de
+qualquer forma, já que "não consegui mandar" só é dizível para quem tem conta.
+
+O e-mail em si também não conta nada: não trata a pessoa pelo nome nem cita o
+handle, porque quem lê pode não ser o dono da conta.
+
+### Rate limit: o único escopo em que a assimetria se inverte
+
+| escopo               | eixo          | limite | janela | bloqueio inicial | teto do bloqueio |
+| -------------------- | ------------- | ------ | ------ | ---------------- | ---------------- |
+| recuperação de senha | IP            | 5      | 15 min | 5 min            | 30 min           |
+| recuperação de senha | identificador | 3      | 60 min | 15 min           | 30 min           |
+
+Nos outros escopos públicos o teto por identificador é **maior** que o do IP,
+para o limite por conta não virar arma contra o dono dela. Aqui é o contrário,
+de propósito: o que se limita não é adivinhação de credencial, é **gasto**.
+Cada requisição que encontra conta manda uma mensagem que custa dinheiro no
+provedor e um pedaço da reputação do nosso domínio — caixa de entrada inundada
+de "esqueci minha senha" que ninguém pediu vira marcação de spam, e marcação
+de spam derruba a entrega de todo mundo.
+
+O preço é conhecido e aceito: quem quiser pode negar a recuperação de uma
+conta escolhida por até meia hora (o teto de bloqueio de todos os escopos).
+Isso é um aborrecimento — a pessoa espera, ou entra normalmente se lembrar da
+senha — enquanto a caixa de entrada bombardeada e a reputação queimada não têm
+volta. E aqui não existe o dano que a assimetria protege no login: este
+contador não derruba sessão nem impede ninguém de entrar.
+
+Três por hora é folgado para o comportamento honesto: o link vale 30 minutos,
+então um segundo pedido dentro da mesma hora já é raro, e um terceiro
+raríssimo.
+
+O contador **nunca esquece no sucesso**, como o do cadastro e pelo mesmo
+motivo: não existe sucesso observável para contar. Se ele zerasse quando a
+conta existe, o próprio cabeçalho `ratelimit-remaining` viraria o oráculo que
+o resto do fluxo evita — bastaria comparar a resposta de dois e-mails.
+
+### O link do e-mail
+
+Montado a partir de `WEB_ORIGIN`, que é configuração, **nunca** do cabeçalho
+`Host` ou `X-Forwarded-Host` da requisição. Montá-lo a partir de um cabeçalho
+deixaria qualquer pessoa escolher para onde aponta o link de redefinição de
+outra — envenenamento de link de redefinição, dos ataques mais baratos que
+existem contra este fluxo.
+
 ## O que falta
 
 - **Poda das sessões de quem nunca mais volta** — ver acima: a limpeza
   preguiçosa não alcança quem nunca mais aparece.
 - **Poda das tentativas de quem nunca mais volta** — mesma forma e mesmo
   limite: a poda de `auth_attempts` é preguiçosa (ADR 0019).
-- **Recuperação de senha** (#51) — é o caminho de quem não sabe a senha, e
-  ele nasce precisando do mesmo cuidado de rate limit e de resposta
-  indistinguível que o login tem aqui.
+- **Poda dos tokens de redefinição de quem nunca mais volta** — a de
+  `password_reset_tokens` é preguiçosa igual, pendurada no próprio
+  `forgot-password`. O token esquecido já não vale (a validade está no
+  `WHERE`), então é higiene de tabela e não regra de segurança.
+- **Verificação de e-mail no cadastro** — a conta continua utilizável sem
+  ela, e é decisão registrada na [ADR 0021](adr/0021-usar-resend-para-email-transacional.md),
+  com os dois gatilhos que devem reabri-la.
+- **Aviso de "sua senha foi alterada"** — o segundo e-mail transacional é a
+  defesa contra redefinição silenciosa por quem já controla a caixa de
+  entrada. Ele só faz sentido depois da verificação de e-mail (mandá-lo para
+  endereço não verificado é exatamente o que queima reputação de domínio),
+  então os dois andam juntos, na mesma issue futura.

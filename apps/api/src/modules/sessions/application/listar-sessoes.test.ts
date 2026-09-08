@@ -27,6 +27,9 @@ function repositorioCom(sessoes: SessaoDoUsuario[]): RepositorioFalso {
     async revogarOutras(): Promise<number> {
       return 0;
     },
+    async revogarTodas(): Promise<number> {
+      return 0;
+    },
     async apagarExpiradas(userId: string, agora: Date): Promise<number> {
       podas.push({ userId, agora });
       return 0;

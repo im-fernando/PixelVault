@@ -44,3 +44,29 @@ export async function revogarOutrasSessoes(
 ): Promise<number> {
   return deps.sessoes.revogarOutras(userId, sessaoPreservada);
 }
+
+/**
+ * Derruba TODAS as sessões da conta. Devolve quantas caíram.
+ *
+ * Existe para um caso só, e é o que justifica ela não ter "sessão
+ * preservada": a redefinição de senha pelo link do e-mail (#51). Ali não há
+ * sessão atual a poupar — a pessoa não está logada, e é exatamente por não
+ * conseguir entrar que ela chegou até aqui. Chamar `revogarOutrasSessoes`
+ * com um id inventado daria o mesmo `DELETE` e seria mentira no nome.
+ *
+ * Recebe `userId` solto em vez de sair de uma requisição autenticada porque
+ * quem autoriza esta operação não é um cookie: é o token de uso único que o
+ * `identity` acabou de gastar. O módulo `sessions` continua sem saber o que
+ * é uma senha — para ele, é uma string opaca pedindo que tudo caia.
+ *
+ * E é o comportamento que a pessoa espera: quem redefine a senha
+ * desconfiando de invasão precisa que o invasor caia junto. Uma sessão
+ * sobrevivente aqui manteria dentro exatamente quem se está tentando
+ * expulsar.
+ */
+export async function revogarTodasAsSessoes(
+  deps: DependenciasDeRevogacao,
+  userId: string,
+): Promise<number> {
+  return deps.sessoes.revogarTodas(userId);
+}

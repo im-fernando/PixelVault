@@ -16,7 +16,11 @@ import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
 import { RateLimitedError } from './infrastructure/errors.js';
 import { catalogRoutes } from './modules/catalog/index.js';
-import { criarLimitesDeAutenticacao, identityRoutes } from './modules/identity/index.js';
+import {
+  criarEnvioDeEmail,
+  criarLimitesDeAutenticacao,
+  identityRoutes,
+} from './modules/identity/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
 /**
@@ -119,6 +123,17 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     // não são superfície de adivinhação de credencial — quem chega nelas já
     // provou quem é. Ver docs/seguranca.md.
     limites: criarLimitesDeAutenticacao({ segredo: config.SESSION_SECRET }),
+    // Console em desenvolvimento e em teste, Resend em produção — decidido
+    // por `EMAIL_TRANSPORTE`, com padrão derivado do `NODE_ENV`, do mesmo
+    // jeito que o `Secure` do cookie acima. Ver docs/adr/0021.
+    envioDeEmail: criarEnvioDeEmail({
+      transporte: config.transporteDeEmail,
+      chaveDeApi: config.RESEND_API_KEY,
+      remetente: config.EMAIL_REMETENTE,
+    }),
+    // O link do e-mail é montado a partir daqui, nunca do `Host` da
+    // requisição — ver `domain/email-de-recuperacao.ts`.
+    origemDoFront: config.WEB_ORIGIN,
   });
   // As rotas de sessão são do módulo `sessions`, ainda que a URL comece com
   // `/auth`: quem lista e revoga sessão é o dono do ciclo de vida dela.

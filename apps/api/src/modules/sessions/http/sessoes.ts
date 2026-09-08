@@ -3,7 +3,11 @@ import { UnauthenticatedError } from '../../../infrastructure/errors.js';
 import { abrirSessao } from '../application/abrir-sessao.js';
 import { listarSessoes, type SessaoListada } from '../application/listar-sessoes.js';
 import { resolverSessao } from '../application/resolver-sessao.js';
-import { revogarOutrasSessoes, revogarSessao } from '../application/revogar-sessoes.js';
+import {
+  revogarOutrasSessoes,
+  revogarSessao,
+  revogarTodasAsSessoes,
+} from '../application/revogar-sessoes.js';
 import { prismaSessionRepository } from '../infrastructure/prisma-session-repository.js';
 import { gerarTokenDeSessao, hashDoToken } from '../infrastructure/token-de-sessao.js';
 import {
@@ -79,6 +83,17 @@ export interface Sessoes {
    * de senha do `identity` chamam.
    */
   revogarOutras(request: FastifyRequest): Promise<number>;
+  /**
+   * Derruba TODAS as sessões de uma conta, sem preservar nenhuma. Devolve
+   * quantas caíram.
+   *
+   * É a única operação desta interface que recebe um `userId` em vez de uma
+   * requisição, e a assimetria é o ponto: quem a chama é a redefinição de
+   * senha por e-mail do `identity`, num pedido que não tem sessão nenhuma —
+   * a autorização foi o token de uso único que o outro módulo já gastou.
+   * Ver `application/revogar-sessoes.ts`.
+   */
+  revogarTodasDoUsuario(userId: string): Promise<number>;
 }
 
 /**
@@ -216,6 +231,10 @@ export function criarSessoes(opcoes: OpcoesDeSessoes): Sessoes {
         usuarioAutenticado(request),
         sessaoAutenticada(request),
       );
+    },
+
+    async revogarTodasDoUsuario(userId: string): Promise<number> {
+      return revogarTodasAsSessoes({ sessoes: prismaSessionRepository }, userId);
     },
   };
 }

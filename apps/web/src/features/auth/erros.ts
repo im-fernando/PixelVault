@@ -38,6 +38,7 @@ export const REGRA_DO_CAMPO: Readonly<Record<string, string>> = {
   password: `Pelo menos ${TAMANHO_MINIMO_SENHA} caracteres. Comprimento vale mais que símbolo.`,
   displayName: `Como você quer ser chamado. Até ${TAMANHO_MAXIMO_DISPLAY_NAME} caracteres.`,
   termsAccepted: 'É preciso aceitar os termos para criar a conta.',
+  token: 'O link de redefinição está incompleto. Abra-o de novo pelo e-mail.',
 };
 
 /**
@@ -65,6 +66,8 @@ const MENSAGEM_POR_CODIGO: Readonly<
   NOME_INVALIDO: 'Nome de exibição inválido.',
   TERMOS_NAO_ACEITOS: 'É preciso aceitar os termos para criar a conta.',
   SENHA_ATUAL_INCORRETA: 'A senha atual não confere.',
+  TOKEN_INVALIDO:
+    'Este link não vale mais — ou já foi usado, ou passou dos 30 minutos. Peça outro.',
 };
 
 /**

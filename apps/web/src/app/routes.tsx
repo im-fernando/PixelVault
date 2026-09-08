@@ -3,6 +3,8 @@ import { CadastroPage } from '../features/auth/CadastroPage.js';
 import { ConfiguracoesPage } from '../features/auth/ConfiguracoesPage.js';
 import { ContaNoCabecalho } from '../features/auth/ContaNoCabecalho.js';
 import { LoginPage } from '../features/auth/LoginPage.js';
+import { RecuperarSenhaPage } from '../features/auth/RecuperarSenhaPage.js';
+import { RedefinirSenhaPage } from '../features/auth/RedefinirSenhaPage.js';
 import { exigirSessao, retornoSeguro } from '../features/auth/rota-protegida.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
@@ -123,11 +125,34 @@ const cadastroRoute = createRoute({
   },
 });
 
+const recuperarSenhaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/recuperar-senha',
+  component: RecuperarSenhaPage,
+});
+
 /**
- * `/login`, `/cadastro` e `/configuracoes` são exatamente três dos handles
- * que o contrato reserva (ver `HANDLES_RESERVADOS`): ninguém pode se
- * cadastrar com esses nomes, então a rota de perfil `/u/:handle` da M6 não
- * vai colidir com nenhuma delas.
+ * O destino do link do e-mail. O token vem na busca da URL, e é só isso que
+ * esta rota aceita de lá: qualquer outro parâmetro é descartado, e um token
+ * que não seja texto vira `undefined` — a tela trata os dois casos como
+ * "link inválido, peça outro", que é a única instrução útil.
+ */
+const redefinirSenhaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/redefinir-senha',
+  validateSearch: (busca: Record<string, unknown>): { token?: string | undefined } => ({
+    token: typeof busca['token'] === 'string' ? busca['token'] : undefined,
+  }),
+  component: function Redefinir() {
+    return <RedefinirSenhaPage token={redefinirSenhaRoute.useSearch().token} />;
+  },
+});
+
+/**
+ * Todo caminho de primeiro nível desta árvore é também um handle reservado
+ * pelo contrato (ver `HANDLES_RESERVADOS`): ninguém pode se cadastrar com
+ * esses nomes, então a rota de perfil `/u/:handle` da M6 não vai colidir com
+ * nenhuma delas. Rota nova aqui pede palavra nova lá.
  */
 const configuracoesRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -142,6 +167,8 @@ const routeTree = rootRoute.addChildren([
   meusJogosRoute,
   loginRoute,
   cadastroRoute,
+  recuperarSenhaRoute,
+  redefinirSenhaRoute,
   configuracoesRoute,
 ]);
 

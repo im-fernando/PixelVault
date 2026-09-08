@@ -24,6 +24,11 @@ const CAMPO_POR_CODIGO: Record<CodigoErroIdentity, string> = {
   // o login precisa evitar — ver `autenticar-usuario.ts`.
   CREDENCIAIS_INVALIDAS: 'credentials',
   SENHA_ATUAL_INCORRETA: 'currentPassword',
+  // O token vem da URL, não de um campo que a pessoa digitou — mas é o
+  // `token` do corpo que está errado, e nomeá-lo é o que permite ao front
+  // distinguir "este link não vale" de "esta senha não passa na política",
+  // que são as duas recusas possíveis da mesma tela.
+  TOKEN_INVALIDO: 'token',
 };
 
 /**

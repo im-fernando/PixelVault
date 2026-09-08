@@ -10,7 +10,7 @@
  */
 
 /** Superfície de credencial. Os valores espelham o enum `AuthAttemptScope`. */
-export type EscopoDeTentativa = 'login' | 'register' | 'change_password';
+export type EscopoDeTentativa = 'login' | 'register' | 'change_password' | 'forgot_password';
 
 /** Eixo de contagem. Os valores espelham o enum `AuthAttemptKey`. */
 export type TipoDeChave = 'ip' | 'identifier';
@@ -57,6 +57,23 @@ const MINUTO = 60_000;
  * "falha" observável para contar. O teto por e-mail é generoso de propósito:
  * apertá-lo só daria a alguém o poder de impedir um desconhecido de criar
  * conta com o próprio e-mail.
+ *
+ * **Recuperação de senha** é o único escopo em que a assimetria se inverte
+ * numa rota aberta ao público: o teto por e-mail (3 por hora) é mais estreito
+ * que o teto por IP (5 em 15 minutos). A inversão é deliberada, porque o que
+ * se está limitando aqui não é adivinhação de credencial — é gasto. Cada
+ * requisição que encontra conta manda uma mensagem que custa dinheiro no
+ * provedor e, pior, um pedaço da reputação do nosso domínio: caixa de entrada
+ * inundada de "esqueci minha senha" que ninguém pediu vira marcação de spam,
+ * e marcação de spam derruba a entrega de todo mundo (docs/adr/0021).
+ *
+ * O preço da inversão é conhecido e aceito: quem quiser pode negar a
+ * recuperação de uma conta escolhida por até meia hora — o teto de bloqueio
+ * de todos os escopos. Isso é um aborrecimento — a pessoa espera, ou entra
+ * normalmente se lembrar da senha — enquanto a caixa de entrada bombardeada e
+ * a reputação do domínio queimada não têm volta. Também não há aqui o dano
+ * que a assimetria protege no login: ninguém perde sessão nem fica sem entrar
+ * por causa deste contador.
  */
 export const LIMITES: Record<EscopoDeTentativa, Record<TipoDeChave, ParametrosDeLimite>> = {
   login: {
@@ -99,6 +116,20 @@ export const LIMITES: Record<EscopoDeTentativa, Record<TipoDeChave, ParametrosDe
       janelaMs: 15 * MINUTO,
       bloqueioBaseMs: MINUTO,
       bloqueioMaximoMs: 15 * MINUTO,
+    },
+  },
+  forgot_password: {
+    ip: {
+      limite: 5,
+      janelaMs: 15 * MINUTO,
+      bloqueioBaseMs: 5 * MINUTO,
+      bloqueioMaximoMs: 30 * MINUTO,
+    },
+    identifier: {
+      limite: 3,
+      janelaMs: 60 * MINUTO,
+      bloqueioBaseMs: 15 * MINUTO,
+      bloqueioMaximoMs: 30 * MINUTO,
     },
   },
 };

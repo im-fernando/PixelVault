@@ -36,6 +36,7 @@ export interface LimitesDeAutenticacao {
   login: GanchosDeLimite;
   cadastro: GanchosDeLimite;
   trocaDeSenha: GanchosDeLimite;
+  recuperacaoDeSenha: GanchosDeLimite;
 }
 
 /** O que o `onSend` precisa lembrar do que o `preValidation` já fez. */
@@ -135,6 +136,12 @@ export function criarLimitesDeAutenticacao(
     // zerar contador nenhum. Ver `application/registrar-usuario.ts`.
     cadastro: proteger('register', emailDoCorpo, false),
     trocaDeSenha: proteger('change_password', (request) => request.userId, true),
+    // Recuperação também nunca esquece, e pelo mesmo motivo do cadastro: ela
+    // responde igual para conta existente e inexistente, então não há
+    // "sucesso" observável que autorize zerar contador nenhum. Se zerasse, o
+    // próprio `ratelimit-remaining` da resposta viraria o oráculo que o resto
+    // do fluxo evita — bastaria comparar o cabeçalho de dois e-mails.
+    recuperacaoDeSenha: proteger('forgot_password', emailDoCorpo, false),
   };
 }
 

@@ -32,5 +32,13 @@ export const codigoErroIdentitySchema = z.enum([
   // os dois viram status diferentes: credencial inválida no login é 401,
   // senha atual errada numa troca é 422 (ver `traduzir-erro.ts`).
   'SENHA_ATUAL_INCORRETA',
+  // Redefinição por e-mail: o token do link não serve. Um código só para os
+  // quatro casos — nunca existiu, já foi usado, expirou, ou foi digitado
+  // errado — de propósito. Separá-los diria a quem tem um token roubado se
+  // ele existe e apenas venceu (vale a pena insistir noutro) ou se nunca
+  // existiu, e diria ao dono da conta que alguém já gastou o link dele antes
+  // de ele clicar. O que a pessoa precisa saber é a mesma coisa nos quatro:
+  // peça outro link.
+  'TOKEN_INVALIDO',
 ]);
 export type CodigoErroIdentity = z.infer<typeof codigoErroIdentitySchema>;

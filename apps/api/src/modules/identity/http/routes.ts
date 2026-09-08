@@ -6,22 +6,34 @@ import {
   authenticatedUserResponseSchema,
   changePasswordRequestSchema,
   changePasswordResponseSchema,
+  forgotPasswordRequestSchema,
+  forgotPasswordResponseSchema,
   loginRequestSchema,
   registerRequestSchema,
   registerResponseSchema,
+  resetPasswordRequestSchema,
+  resetPasswordResponseSchema,
 } from '@pixelvault/contracts';
 import type { Sessoes } from '../../sessions/index.js';
 import { autenticarUsuario } from '../application/autenticar-usuario.js';
 import { buscarUsuarioAutenticado } from '../application/buscar-usuario-autenticado.js';
+import { redefinirSenha } from '../application/redefinir-senha.js';
 import { registrarUsuario } from '../application/registrar-usuario.js';
+import { solicitarRecuperacaoDeSenha } from '../application/solicitar-recuperacao-de-senha.js';
 import { trocarSenha } from '../application/trocar-senha.js';
+import type { EnvioDeEmail } from '../domain/envio-de-email.js';
 import {
   gerarHashDeSenha,
   HASH_DESCARTAVEL,
   verificarERehash,
   verificarSenha,
 } from '../infrastructure/hash-de-senha.js';
+import { prismaTokenDeRecuperacaoRepository } from '../infrastructure/prisma-token-de-recuperacao-repository.js';
 import { prismaUserRepository } from '../infrastructure/prisma-user-repository.js';
+import {
+  gerarTokenDeRecuperacao,
+  hashDoTokenDeRecuperacao,
+} from '../infrastructure/token-de-recuperacao.js';
 import { regrasDeHabilidadeDoUsuario } from './habilidades.js';
 import type { LimitesDeAutenticacao } from './limite-de-autenticacao.js';
 
@@ -38,16 +50,29 @@ export interface OpcoesDeIdentity extends FastifyPluginOptions {
    * pertence a este arquivo. Ver `limite-de-autenticacao.ts`.
    */
   limites: LimitesDeAutenticacao;
+  /**
+   * Por onde o e-mail de recuperação sai. Vem da composition root porque a
+   * escolha entre console e Resend é de configuração, não deste arquivo.
+   * Ver docs/adr/0021.
+   */
+  envioDeEmail: EnvioDeEmail;
+  /**
+   * A origem do front (`WEB_ORIGIN`), de onde o link do e-mail é montado.
+   * Configuração, e nunca um cabeçalho da requisição: montar o link a partir
+   * de `Host` deixaria qualquer pessoa escolher para onde aponta o link de
+   * redefinição de outra.
+   */
+  origemDoFront: string;
 }
 
 /**
  * Camada HTTP fina: valida, delega ao caso de uso e serializa. Nenhuma regra
- * de negócio mora aqui — inclusive a decisão de responder igual para e-mail
- * duplicado e a de responder igual para e-mail inexistente e senha errada,
- * que são dos casos de uso.
+ * de negócio mora aqui — inclusive as três decisões de responder igual
+ * (e-mail duplicado no cadastro, e-mail inexistente ou senha errada no login,
+ * conta inexistente na recuperação), que são dos casos de uso.
  */
 export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (app, opcoes) => {
-  const { sessoes, limites } = opcoes;
+  const { sessoes, limites, envioDeEmail, origemDoFront } = opcoes;
 
   app.post(
     '/auth/register',
@@ -209,6 +234,101 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
       const revokedSessions = await sessoes.revogarOutras(request);
 
       return reply.status(200).send({ status: 'senha-alterada' as const, revokedSessions });
+    },
+  );
+
+  app.post(
+    '/auth/forgot-password',
+    {
+      preValidation: limites.recuperacaoDeSenha.preValidation,
+      onSend: limites.recuperacaoDeSenha.onSend,
+      schema: {
+        tags: ['identity'],
+        summary: 'Pede o link de redefinição de senha',
+        description:
+          'Responde 202 sempre, com o mesmo corpo, exista conta com esse e-mail ou ' +
+          'não — e sem esperar o provedor de e-mail responder, para que o relógio ' +
+          'também não conte a diferença. Quem tem conta recebe um link de uso único, ' +
+          'válido por 30 minutos. Rate limit próprio e estreito: aqui cada requisição ' +
+          'que encontra conta custa dinheiro e reputação de domínio, não CPU.',
+        body: forgotPasswordRequestSchema,
+        response: {
+          202: forgotPasswordResponseSchema,
+          422: apiErrorSchema,
+          429: apiErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      await solicitarRecuperacaoDeSenha(
+        {
+          tokens: prismaTokenDeRecuperacaoRepository,
+          gerarToken: gerarTokenDeRecuperacao,
+          hashDoToken: hashDoTokenDeRecuperacao,
+          origemDoFront,
+          agora: () => new Date(),
+          // Fora da requisição de propósito: esperar a entrega faria o
+          // caminho "existe conta" durar visivelmente mais que o outro, e o
+          // cronômetro desfaria a anti-enumeração. Falha de envio vira log
+          // do servidor — nunca resposta diferente. Ver o caso de uso.
+          despachar: (mensagem) => {
+            void envioDeEmail.enviar(mensagem).catch((erro: unknown) => {
+              request.log.error(
+                { err: erro, evento: 'auth.email-de-recuperacao-nao-enviado' },
+                'falha ao entregar o e-mail de recuperação de senha',
+              );
+            });
+          },
+        },
+        request.body,
+      );
+
+      // 202 nos dois casos: "Created" ou "OK" afirmariam o que foi feito, e é
+      // justamente o que não pode variar aqui.
+      return reply.status(202).send({ status: 'recuperacao-solicitada' as const });
+    },
+  );
+
+  app.post(
+    '/auth/reset-password',
+    {
+      schema: {
+        tags: ['identity'],
+        summary: 'Redefine a senha pelo link do e-mail',
+        description:
+          'O token do link é a prova de identidade, e vale uma vez só: usá-lo de novo ' +
+          'falha como se ele nunca tivesse existido. A senha nova passa pela mesma ' +
+          'política do cadastro. Em caso de sucesso, TODAS as sessões da conta caem — ' +
+          'sem exceção, porque quem chega aqui não está logado e não tem sessão atual ' +
+          'a preservar. Não tem contador próprio de tentativas: o token são 256 bits ' +
+          'aleatórios, não há o que adivinhar, e o Argon2id só é pago depois de o ' +
+          'token se provar válido.',
+        body: resetPasswordRequestSchema,
+        response: {
+          200: resetPasswordResponseSchema,
+          422: apiErrorSchema,
+          429: apiErrorSchema,
+        },
+      },
+    },
+    async (request, reply) => {
+      const userId = await redefinirSenha(
+        {
+          usuarios: prismaUserRepository,
+          tokens: prismaTokenDeRecuperacaoRepository,
+          hashDoToken: hashDoTokenDeRecuperacao,
+          gerarHash: gerarHashDeSenha,
+          agora: () => new Date(),
+        },
+        request.body,
+      );
+
+      // Mesma ordem da troca de senha autenticada: a senha nova primeiro,
+      // as sessões depois. Revogar antes deixaria a pessoa deslogada de
+      // todos os aparelhos por nada, se a escrita da senha falhasse.
+      const revokedSessions = await sessoes.revogarTodasDoUsuario(userId);
+
+      return reply.status(200).send({ status: 'senha-redefinida' as const, revokedSessions });
     },
   );
 };
