@@ -20,6 +20,12 @@ const CAMPOS = ['email', 'handle', 'password', 'displayName', 'termsAccepted'] a
  * ele é o nome público da pessoa aqui (`/u/:handle`, na M6) e é o único
  * campo que o servidor recusa com honestidade quando já está tomado — os
  * outros ele aceita em silêncio, para não virar uma lista de quem tem conta.
+ *
+ * A nota diz que o save fica no aparelho porque hoje ele fica: save na nuvem
+ * é a M4, e criar conta não move, não copia e não apaga nada do que já foi
+ * gravado aqui. Prometer sincronia antes de ela existir é como se perde
+ * progresso — a pessoa para de cuidar do save local achando que a conta já
+ * cuida. Ver docs/adr/0020.
  */
 export function CadastroPage({ retorno }: { readonly retorno: string | undefined }) {
   const navegar = useNavigate();
@@ -68,7 +74,7 @@ export function CadastroPage({ retorno }: { readonly retorno: string | undefined
   return (
     <Ficha
       titulo="Criar conta"
-      nota="Cartucho guarda o save numa pilha, e pilha acaba. Com conta, o progresso fica onde você deixou — em qualquer aparelho."
+      nota="Cartucho guarda o save numa pilha, e pilha acaba — a conta existe para o progresso não depender disso. Por ora o save fica neste aparelho, e criar conta não mexe nele."
     >
       <form onSubmit={aoEnviar} noValidate>
         {erro.geral !== null && <Recusa>{erro.geral}</Recusa>}
