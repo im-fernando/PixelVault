@@ -1,18 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config as loadEnv } from 'dotenv';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
-import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
 import { DURACAO_DA_SESSAO_MS, NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
-
-loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
-
-const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
+import { configDeTeste } from './suporte/ambiente.js';
+import { rastroDeTeste } from './suporte/rastro.js';
 
 /**
  * Integração de verdade: PostgreSQL real, app Fastify inteiro por
@@ -29,16 +22,11 @@ const SENHA = 'cavalo-bateria-grampo';
  * do outro. Faixa reservada para documentação (RFC 5737).
  */
 const IP_DO_ARQUIVO = '198.51.100.20';
-const emailsCriados: string[] = [];
 
-function identidadeNova(prefixo: string): { email: string; handle: string } {
-  const sufixo = randomUUID().slice(0, 8);
-  const email = `teste-${prefixo}-${sufixo}@exemplo.test`;
-  emailsCriados.push(email);
-  return { email, handle: `teste-${prefixo}-${sufixo}` };
-}
+/** Identidades novas a cada execução e a limpeza delas. Ver test/suporte/rastro.ts. */
+const rastro = rastroDeTeste(IP_DO_ARQUIVO);
 
-const conta = identidadeNova('login');
+const conta = rastro.identidadeNova('login');
 let contaId: string;
 
 let app: FastifyInstance;
@@ -62,22 +50,6 @@ async function pedirMe(cookie?: string): Promise<RespostaInjetada> {
   });
 }
 
-/**
- * Zera o contador de tentativas deste arquivo. A tabela guarda HMAC, então o
- * teste calcula a mesma chave que a aplicação calcularia.
- */
-async function limparContador(): Promise<void> {
-  await prisma.authAttempt.deleteMany({
-    where: {
-      keyHash: {
-        in: [IP_DO_ARQUIVO, conta.email].map((valor) =>
-          chaveDeTentativa(config.SESSION_SECRET, valor),
-        ),
-      },
-    },
-  });
-}
-
 // O tipo da resposta de `inject()` vem do próprio Fastify: `light-my-request`
 // é dependência transitiva e não está no node_modules deste pacote.
 type RespostaInjetada = Awaited<ReturnType<typeof pedirMe>>;
@@ -95,7 +67,7 @@ function corpoComparavel(resposta: RespostaInjetada): unknown {
 }
 
 beforeAll(async () => {
-  const criador = await buildApp(config);
+  const criador = await buildApp(configDeTeste);
   const resposta = await criador.inject({
     method: 'POST',
     url: '/api/auth/register',
@@ -110,23 +82,21 @@ beforeAll(async () => {
 }, 30_000);
 
 beforeEach(async () => {
-  app = await buildApp(config);
+  app = await buildApp(configDeTeste);
   // Cada cenário conta e inspeciona as sessões da conta de teste; sobra de
   // um cenário anterior estragaria a contagem do seguinte. O mesmo vale para
   // o contador de tentativas: vários cenários daqui erram a senha de
   // propósito, e a soma deles bateria no limite da #49.
   await prisma.session.deleteMany({ where: { userId: contaId } });
-  await limparContador();
+  await rastro.limparContador();
   return async () => {
     await app.close();
   };
 });
 
 afterAll(async () => {
-  await limparContador();
   // As sessões vão junto: a FK de `sessions` é `onDelete: Cascade`.
-  await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
-  await prisma.$disconnect();
+  await rastro.limpar();
 });
 
 describe('POST /api/auth/login', () => {
@@ -229,7 +199,7 @@ describe('POST /api/auth/login', () => {
       // é exatamente o que o rate limit da #49 existe para cortar. Zerar o
       // contador antes de cada medição mantém este teste medindo o que ele
       // se propõe a medir — o custo do Argon2id nos dois caminhos.
-      await limparContador();
+      await rastro.limparContador();
 
       const inicio = performance.now();
       await logar(payload);

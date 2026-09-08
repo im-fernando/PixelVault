@@ -1,21 +1,10 @@
-import { randomUUID } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config as loadEnv } from 'dotenv';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
 import { LIMITES } from '../src/modules/identity/domain/limite-de-tentativas.js';
-import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
-
-// O .env é único e mora na raiz do monorepo. `dotenv` não sobrescreve o que
-// já está no ambiente, então no CI (que exporta DATABASE_URL apontando para o
-// serviço postgres do job) esta linha não muda nada.
-loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
-
-const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
+import { configDeTeste } from './suporte/ambiente.js';
+import { rastroDeTeste } from './suporte/rastro.js';
 
 /**
  * Integração de verdade: PostgreSQL real, migrations aplicadas, app Fastify
@@ -37,15 +26,9 @@ const IP_DO_ARQUIVO = '198.51.100.10';
  * IP. Os demais cenários usam e-mail novo a cada vez e não têm o problema.
  */
 const EMAIL_INVALIDO = 'não-é-email';
-const emailsCriados: string[] = [];
 
-/** Sufixo único por execução, para dois runs em paralelo não colidirem. */
-function identidadeNova(prefixo: string): { email: string; handle: string } {
-  const sufixo = randomUUID().slice(0, 8);
-  const email = `teste-${prefixo}-${sufixo}@exemplo.test`;
-  emailsCriados.push(email);
-  return { email, handle: `teste-${prefixo}-${sufixo}` };
-}
+/** Identidades novas a cada execução e a limpeza delas. Ver test/suporte/rastro.ts. */
+const rastro = rastroDeTeste(IP_DO_ARQUIVO, EMAIL_INVALIDO);
 
 function corpoDeCadastro(sobrescritas: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -68,36 +51,21 @@ async function cadastrar(payload: Record<string, unknown>): Promise<RespostaInje
 
 type RespostaInjetada = Awaited<ReturnType<typeof cadastrar>>;
 
-/** A tabela guarda HMAC, então o teste calcula a mesma chave da aplicação. */
-async function limparContador(): Promise<void> {
-  await prisma.authAttempt.deleteMany({
-    where: {
-      keyHash: {
-        in: [IP_DO_ARQUIVO, EMAIL_INVALIDO].map((valor) =>
-          chaveDeTentativa(config.SESSION_SECRET, valor),
-        ),
-      },
-    },
-  });
-}
-
 beforeEach(async () => {
-  app = await buildApp(config);
-  await limparContador();
+  app = await buildApp(configDeTeste);
+  await rastro.limparContador();
   return async () => {
     await app.close();
   };
 });
 
 afterAll(async () => {
-  await limparContador();
-  await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
-  await prisma.$disconnect();
+  await rastro.limpar();
 });
 
 describe('POST /api/auth/register', () => {
   it('cria o usuário no banco, com aceite dos termos carimbado pelo servidor', async () => {
-    const { email, handle } = identidadeNova('feliz');
+    const { email, handle } = rastro.identidadeNova('feliz');
     const antesDoCadastro = new Date();
 
     const resposta = await cadastrar(corpoDeCadastro({ email: email.toUpperCase(), handle }));
@@ -123,7 +91,7 @@ describe('POST /api/auth/register', () => {
   }, 30_000);
 
   it('responde a e-mail já cadastrado exatamente como responde a cadastro novo', async () => {
-    const { email, handle } = identidadeNova('duplicado');
+    const { email, handle } = rastro.identidadeNova('duplicado');
 
     const primeira = await cadastrar(corpoDeCadastro({ email, handle }));
 
@@ -140,7 +108,7 @@ describe('POST /api/auth/register', () => {
   }, 30_000);
 
   it('duas requisições simultâneas com o mesmo e-mail criam um usuário só', async () => {
-    const { email, handle } = identidadeNova('corrida');
+    const { email, handle } = rastro.identidadeNova('corrida');
 
     const respostas = await Promise.all([
       cadastrar(corpoDeCadastro({ email, handle: `${handle}-a` })),
@@ -158,8 +126,8 @@ describe('POST /api/auth/register', () => {
   }, 30_000);
 
   it('recusa handle já em uso com mensagem honesta', async () => {
-    const { email, handle } = identidadeNova('handle');
-    const outro = identidadeNova('handle-outro');
+    const { email, handle } = rastro.identidadeNova('handle');
+    const outro = rastro.identidadeNova('handle-outro');
 
     await cadastrar(corpoDeCadastro({ email, handle }));
 
@@ -174,7 +142,7 @@ describe('POST /api/auth/register', () => {
   }, 30_000);
 
   it('recusa quem não aceitou os termos, sem tocar no banco', async () => {
-    const { email, handle } = identidadeNova('termos');
+    const { email, handle } = rastro.identidadeNova('termos');
 
     const resposta = await cadastrar(corpoDeCadastro({ email, handle, termsAccepted: false }));
 

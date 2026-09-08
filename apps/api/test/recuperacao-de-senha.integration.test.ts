@@ -1,19 +1,11 @@
-import { randomUUID } from 'node:crypto';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { config as loadEnv } from 'dotenv';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import { LIMITES } from '../src/modules/identity/domain/limite-de-tentativas.js';
-import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
 import { NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
 import { buildApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
-
-loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
-
-const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
+import { configDeTeste } from './suporte/ambiente.js';
+import { rastroDeTeste } from './suporte/rastro.js';
 
 /**
  * O fluxo inteiro de "esqueci minha senha", contra PostgreSQL de verdade e
@@ -44,18 +36,18 @@ const IP_CADASTRO = '198.51.100.40';
 const IP_DO_ARQUIVO = '198.51.100.41';
 const IP_DO_LIMITE = '198.51.100.42';
 
-const emailsCriados: string[] = [];
-
-function identidadeNova(prefixo: string): { email: string; handle: string } {
-  const sufixo = randomUUID().slice(0, 8);
-  const email = `teste-${prefixo}-${sufixo}@exemplo.test`;
-  emailsCriados.push(email);
-  return { email, handle: `teste-${prefixo}-${sufixo}` };
-}
-
-const conta = identidadeNova('rec');
-const contaDoLimite = identidadeNova('rec-lim');
 const EMAIL_SEM_CONTA = 'ninguem-tem-esta-conta@exemplo.test';
+
+/**
+ * Identidades novas a cada execução, e as chaves que este arquivo suja no
+ * contador. Zeradas antes de cada cenário porque o limite por e-mail da
+ * recuperação é estreito de propósito (três por hora), e quatro cenários
+ * pedem o link da mesma conta. Ver test/suporte/rastro.ts.
+ */
+const rastro = rastroDeTeste(IP_CADASTRO, IP_DO_ARQUIVO, IP_DO_LIMITE, EMAIL_SEM_CONTA);
+
+const conta = rastro.identidadeNova('rec');
+const contaDoLimite = rastro.identidadeNova('rec-lim');
 
 /** A senha viva da conta principal — cada redefinição a troca. */
 let senhaAtual = SENHA;
@@ -64,38 +56,18 @@ let contaId: string;
 let app: FastifyInstance;
 let linhasDoConsole: string[];
 
-/**
- * As chaves que este arquivo suja. Zeradas antes de cada cenário porque o
- * limite por e-mail da recuperação é estreito de propósito (três por hora), e
- * quatro cenários pedem o link da mesma conta.
- */
-const chavesDoArquivo = [
-  IP_CADASTRO,
-  IP_DO_ARQUIVO,
-  IP_DO_LIMITE,
-  conta.email,
-  contaDoLimite.email,
-  EMAIL_SEM_CONTA,
-];
-
 async function limparEstado(): Promise<void> {
-  await prisma.authAttempt.deleteMany({
-    where: {
-      keyHash: {
-        in: chavesDoArquivo.map((valor) => chaveDeTentativa(config.SESSION_SECRET, valor)),
-      },
-    },
-  });
+  await rastro.limparContador();
   // Token de um cenário não pode sobrar para o próximo achar por engano: as
   // asserções procuram "o token desta conta", e duas linhas fariam a busca
   // encontrar a errada sem falhar.
   await prisma.passwordResetToken.deleteMany({
-    where: { user: { email: { in: emailsCriados } } },
+    where: { user: { email: { in: [...rastro.emails] } } },
   });
   // Sessão de um cenário também não sobra: o cenário que conta quantas caem
   // precisa saber quantas existiam, e login de teste anterior somaria à
   // conta sem quebrar nada visivelmente.
-  await prisma.session.deleteMany({ where: { user: { email: { in: emailsCriados } } } });
+  await prisma.session.deleteMany({ where: { user: { email: { in: [...rastro.emails] } } } });
 }
 
 type RespostaInjetada = Awaited<ReturnType<FastifyInstance['inject']>>;
@@ -163,7 +135,7 @@ function tokenDoUltimoEmail(): string {
 }
 
 beforeAll(async () => {
-  const criador = await buildApp(config);
+  const criador = await buildApp(configDeTeste);
   for (const identidade of [conta, contaDoLimite]) {
     const resposta = await criador.inject({
       method: 'POST',
@@ -191,7 +163,7 @@ beforeEach(async () => {
     linhasDoConsole.push(partes.map(String).join(' '));
   });
 
-  app = await buildApp(config);
+  app = await buildApp(configDeTeste);
   await limparEstado();
 
   return async () => {
@@ -205,8 +177,7 @@ afterEach(() => {
 
 afterAll(async () => {
   await limparEstado();
-  await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
-  await prisma.$disconnect();
+  await rastro.limpar();
 });
 
 describe('POST /api/auth/forgot-password', () => {
