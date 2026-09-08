@@ -1,3 +1,5 @@
+import type { Papel } from './habilidades.js';
+
 /**
  * Dados de uma tentativa de cadastro, já validados pelo domínio: o e-mail e
  * o handle chegam aqui normalizados, a senha só como hash e o aceite dos
@@ -67,6 +69,14 @@ export interface UserRepository {
   buscarCredenciaisPorId(id: string): Promise<CredenciaisDoUsuario | null>;
   /** O usuário sem nada derivado de senha — é o que `/me` devolve. */
   buscarPorId(id: string): Promise<DadosDoUsuario | null>;
+  /**
+   * O papel da conta, e só ele — é tudo que a autorização precisa saber
+   * sobre alguém depois que a sessão já disse quem é. Uma leitura própria,
+   * e não um campo a mais em `DadosDoUsuario`, porque papel não é dado de
+   * perfil: ele não sai pela API nem aparece no `/me`. `null` quando a conta
+   * não existe. Ver `domain/habilidades.ts`.
+   */
+  buscarPapelPorId(id: string): Promise<Papel | null>;
   /** Regrava o hash migrado pela reidratação do Argon2id (ver issue #44). */
   regravarSenhaHash(id: string, senhaHash: string): Promise<void>;
 }

@@ -2,6 +2,7 @@ import rateLimit from '@fastify/rate-limit';
 import type { FastifyPluginOptions } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
+  abilitiesResponseSchema,
   apiErrorSchema,
   authenticatedUserResponseSchema,
   changePasswordRequestSchema,
@@ -23,6 +24,7 @@ import {
   verificarSenha,
 } from '../infrastructure/hash-de-senha.js';
 import { prismaUserRepository } from '../infrastructure/prisma-user-repository.js';
+import { regrasDeHabilidadeDoUsuario } from './habilidades.js';
 
 /**
  * Teto provisório por IP no cadastro. Cinco tentativas em dez minutos é
@@ -156,6 +158,26 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
       );
       return { user: usuario };
     },
+  );
+
+  app.get(
+    '/auth/abilities',
+    {
+      schema: {
+        tags: ['identity'],
+        summary: 'O que quem está pedindo pode fazer',
+        description:
+          'As regras de autorização de quem chamou, no formato nativo do CASL — o ' +
+          'front joga o array direto no `createMongoAbility` e obtém a mesma `Ability` ' +
+          'que o servidor usa. Serve para esconder o que a pessoa não pode fazer, e ' +
+          'nada além disso: quem autoriza é o servidor, em cada requisição. ' +
+          'Responde 200 sem sessão também, com as regras do visitante (ler o catálogo ' +
+          'e jogar homebrew) — é o único jeito de o front saber o que desenhar antes ' +
+          'de alguém entrar.',
+        response: { 200: abilitiesResponseSchema },
+      },
+    },
+    async (request) => ({ rules: await regrasDeHabilidadeDoUsuario(request.userId) }),
   );
 
   app.post(

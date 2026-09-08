@@ -23,12 +23,24 @@ enum SystemId {
   genesis
 }
 
+/// Papel da conta. Dois valores e nada além disso: o produto não tem
+/// moderação nem time, e papel que ninguém usa vira permissão esquecida.
+/// Ver docs/adr/0018 e issue #48.
+enum Role {
+  user
+  admin
+}
+
 model User {
   id              String   @id @default(uuid()) @db.Uuid
   email           String   @unique
   passwordHash    String   @map("password_hash")
   displayName     String   @map("display_name")
   handle          String   @unique
+  /// Padrão seguro: toda conta nasce `user`. Virar `admin` é operação
+  /// manual, deliberada — não existe caminho de aplicação que promova
+  /// alguém.
+  role            Role     @default(user)
   /// Quando a pessoa aceitou os termos de uso. Exigência de LGPD: o
   /// consentimento precisa ser demonstrável, e quem carimba é o relógio do
   /// servidor — nunca um timestamp vindo do cliente. Ver issue #45.

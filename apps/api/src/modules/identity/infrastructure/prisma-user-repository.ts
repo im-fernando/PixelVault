@@ -1,4 +1,5 @@
 import { prisma, Prisma } from '@pixelvault/database';
+import type { Papel } from '../domain/habilidades.js';
 import type {
   CredenciaisDoUsuario,
   DadosDeCadastro,
@@ -96,6 +97,14 @@ export const prismaUserRepository: UserRepository = {
       where: { id },
       select: { id: true, email: true, handle: true, displayName: true },
     });
+  },
+
+  async buscarPapelPorId(id: string): Promise<Papel | null> {
+    // O enum `Role` do Prisma tem exatamente os mesmos valores de `Papel`, e
+    // é assim que se mantêm alinhados: quem adicionar um papel no banco sem
+    // adicioná-lo no domínio (ou vice-versa) quebra a compilação aqui.
+    const linha = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+    return linha?.role ?? null;
   },
 
   async regravarSenhaHash(id: string, senhaHash: string): Promise<void> {
