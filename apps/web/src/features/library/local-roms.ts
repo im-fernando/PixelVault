@@ -30,6 +30,14 @@ const romLocalSchema = z.object({
    */
   sha256SemHeader: z.string().regex(/^[a-f0-9]{64}$/),
   temHeaderDeCopiador: z.boolean(),
+  /**
+   * Caminho da imagem de lombada, relativo a `apps/web/public/roms-local/`.
+   *
+   * Opcional porque a maioria dos jogos locais não vai ter uma: sem o campo,
+   * o cartucho fechado continua mostrando o título vertical gerado, exatamente
+   * como hoje.
+   */
+  spineImageUrl: z.string().min(1).optional(),
 });
 
 export type RomLocal = z.infer<typeof romLocalSchema>;
@@ -40,6 +48,10 @@ export const CAMINHO_ROMS_LOCAIS = '/roms-local';
 
 export function urlDaRomLocal(rom: RomLocal): string {
   return `${CAMINHO_ROMS_LOCAIS}/${rom.file}`;
+}
+
+export function urlDaLombadaLocal(rom: RomLocal): string | null {
+  return rom.spineImageUrl ? `${CAMINHO_ROMS_LOCAIS}/${rom.spineImageUrl}` : null;
 }
 
 export function useRomsLocais() {

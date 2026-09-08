@@ -22,6 +22,12 @@ interface Props {
   readonly systemId: SystemId;
   readonly selo?: string | undefined;
   readonly capaUrl?: string | null | undefined;
+  /**
+   * Imagem de lombada de verdade, para quando ela existe (ensaio da
+   * biblioteca pessoal local — ver `LocalLibrary.tsx`). Sem ela, o cartucho
+   * fechado mostra o título vertical gerado, que é o caso comum de homebrew.
+   */
+  readonly lombadaUrl?: string | null | undefined;
   readonly desbotado?: boolean;
 }
 
@@ -39,7 +45,14 @@ export function numeroDeAcervo(titulo: string, systemId: SystemId): string {
   return `${systemId.toUpperCase()}-${String(h).padStart(5, '0')}`;
 }
 
-export function Cartucho({ titulo, systemId, selo, capaUrl, desbotado = false }: Props) {
+export function Cartucho({
+  titulo,
+  systemId,
+  selo,
+  capaUrl,
+  lombadaUrl,
+  desbotado = false,
+}: Props) {
   const h = matizDoTitulo(titulo);
   const faixa = `oklch(0.62 0.16 ${h})`;
 
@@ -62,14 +75,18 @@ export function Cartucho({ titulo, systemId, selo, capaUrl, desbotado = false }:
             aria-hidden="true"
           />
 
-          {/* Fechado: título de lombada. */}
+          {/* Fechado: lombada de verdade quando existe, senão título gerado. */}
           <div className="flex flex-1 items-start justify-center overflow-hidden pt-2 group-hover:hidden group-focus-visible:hidden">
-            <p
-              className="titulo-estampado text-[0.6rem] leading-none text-ink-950"
-              style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-            >
-              {titulo}
-            </p>
+            {lombadaUrl ? (
+              <img src={lombadaUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+            ) : (
+              <p
+                className="titulo-estampado text-[0.6rem] leading-none text-ink-950"
+                style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+              >
+                {titulo}
+              </p>
+            )}
           </div>
 
           {/* Aberto: a etiqueta inteira. */}
