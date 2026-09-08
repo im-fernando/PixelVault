@@ -14,8 +14,13 @@ import { garantirCapaDoJogo } from './garantir-capa-do-jogo.js';
  *
  * O `library` recebe isto como uma função — a porta `IdentificarRomNoCatalogo`
  * que ele mesmo declara —, e não como um repositório: o BYOR não precisa saber
- * que existe um catálogo com jogos, só que alguém sabe dizer de que hash é um
- * jogo.
+ * que existe um catálogo com jogos, só que alguém sabe dizer de que jogo é um
+ * hash.
+ *
+ * Reconhecer um jogo é também o gatilho da busca de capa (#77), que sai daqui
+ * por fora da requisição — ver `procurarCapaEmSegundoPlano`, abaixo. A
+ * assinatura não muda por causa disso, e é de propósito: a capa é assunto do
+ * catálogo, não da porta que o `library` declarou.
  */
 export async function identificarRomPorHash(
   hashes: readonly string[],
