@@ -289,3 +289,75 @@ describe('prismaGameRepository.findBySlug', () => {
     expect(SHA_MENOR < SHA_MAIOR).toBe(true);
   }, 30_000);
 });
+
+/**
+ * A parte da busca de capa (#77) que só existe dentro do banco: as duas
+ * consultas decidem por cláusula, e não por `if` do lado de cá — é isso que
+ * este bloco afirma. A conversa com o serviço externo não passa por aqui; quem
+ * a exercita é `capa-libretro-thumbnails.test.ts`, com o `fetch` trocado.
+ */
+describe('prismaGameRepository — capa de jogo reconhecido', () => {
+  /** Um jogo comercial novo por teste, para nenhum deles depender do outro. */
+  async function criarComercialSemCapa(sufixo: string): Promise<string> {
+    const jogo = await prisma.game.create({
+      data: {
+        slug: `${MARCADOR}-capa-${sufixo}`,
+        title: `${MARCADOR} Capa ${sufixo}`,
+        systemId: 'snes',
+        isHomebrew: false,
+      },
+      select: { id: true },
+    });
+    return jogo.id;
+  }
+
+  it('devolve título e console de jogo comercial sem capa — é o que a busca precisa', async () => {
+    const id = await criarComercialSemCapa('alfa');
+
+    await expect(prismaGameRepository.jogoSemCapa(id)).resolves.toEqual({
+      systemId: 'snes',
+      title: `${MARCADOR} Capa alfa`,
+    });
+  }, 30_000);
+
+  it('grava a capa encontrada, e a partir daí não há mais o que procurar', async () => {
+    const id = await criarComercialSemCapa('beta');
+    const capa = 'https://thumbnails.libretro.com/x/Named_Boxarts/Beta%20(USA).png';
+
+    await prismaGameRepository.definirCapa(id, capa);
+
+    await expect(
+      prisma.game.findUniqueOrThrow({ where: { id }, select: { coverUrl: true } }),
+    ).resolves.toEqual({ coverUrl: capa });
+    await expect(prismaGameRepository.jogoSemCapa(id)).resolves.toBeNull();
+  }, 30_000);
+
+  it('não sobrescreve capa que já existe — quem chegou primeiro fica', async () => {
+    const id = await criarComercialSemCapa('gama');
+    await prismaGameRepository.definirCapa(id, '/roms/primeira/capa.png');
+
+    await prismaGameRepository.definirCapa(id, 'https://exemplo/segunda.png');
+
+    await expect(
+      prisma.game.findUniqueOrThrow({ where: { id }, select: { coverUrl: true } }),
+    ).resolves.toEqual({ coverUrl: '/roms/primeira/capa.png' });
+  }, 30_000);
+
+  it('não manda procurar capa de homebrew — a lombada da estante é de propósito (ADR 0016)', async () => {
+    const homebrew = await prisma.game.findFirstOrThrow({
+      where: { slug: homebrewGb.slug },
+      select: { id: true, coverUrl: true },
+    });
+
+    // O jogo é homebrew E está sem capa: se o filtro olhasse só a coluna, ele
+    // entraria na busca.
+    expect(homebrew.coverUrl).toBeNull();
+    await expect(prismaGameRepository.jogoSemCapa(homebrew.id)).resolves.toBeNull();
+  }, 30_000);
+
+  it('devolve null para jogo que não existe, sem estourar', async () => {
+    await expect(
+      prismaGameRepository.jogoSemCapa('00000000-0000-4000-8000-000000000000'),
+    ).resolves.toBeNull();
+  }, 30_000);
+});
