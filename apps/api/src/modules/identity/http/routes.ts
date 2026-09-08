@@ -4,6 +4,8 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   apiErrorSchema,
   authenticatedUserResponseSchema,
+  changePasswordRequestSchema,
+  changePasswordResponseSchema,
   loginRequestSchema,
   registerRequestSchema,
   registerResponseSchema,
@@ -13,10 +15,12 @@ import type { Sessoes } from '../../sessions/index.js';
 import { autenticarUsuario } from '../application/autenticar-usuario.js';
 import { buscarUsuarioAutenticado } from '../application/buscar-usuario-autenticado.js';
 import { registrarUsuario } from '../application/registrar-usuario.js';
+import { trocarSenha } from '../application/trocar-senha.js';
 import {
   gerarHashDeSenha,
   HASH_DESCARTAVEL,
   verificarERehash,
+  verificarSenha,
 } from '../infrastructure/hash-de-senha.js';
 import { prismaUserRepository } from '../infrastructure/prisma-user-repository.js';
 
@@ -151,6 +155,45 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
         sessoes.usuarioAutenticado(request),
       );
       return { user: usuario };
+    },
+  );
+
+  app.post(
+    '/auth/change-password',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['identity'],
+        summary: 'Troca a senha e derruba os outros dispositivos',
+        description:
+          'Exige o cookie de sessão E a senha atual — só o cookie faria de qualquer ' +
+          'máquina destravada um sequestro permanente da conta. Em caso de sucesso, ' +
+          'todas as outras sessões da conta são revogadas; a que fez a troca sobrevive. ' +
+          'Não é o fluxo de "esqueci minha senha", que é a #51.',
+        body: changePasswordRequestSchema,
+        response: { 200: changePasswordResponseSchema, 401: apiErrorSchema, 422: apiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      await trocarSenha(
+        {
+          usuarios: prismaUserRepository,
+          verificar: verificarSenha,
+          gerarHash: gerarHashDeSenha,
+        },
+        sessoes.usuarioAutenticado(request),
+        request.body,
+      );
+
+      // A ordem importa: revogar antes de a senha estar trocada deixaria uma
+      // janela em que os outros dispositivos caíram por nada, se a escrita
+      // falhasse. Depois, o pior caso é a senha nova valendo com uma sessão
+      // antiga a mais viva — que a pessoa ainda pode derrubar pela listagem.
+      // Quem trocou a senha continua logada de propósito: deslogar quem
+      // acabou de provar que sabe a senha atual pune o comportamento certo.
+      const revokedSessions = await sessoes.revogarOutras(request);
+
+      return reply.status(200).send({ status: 'senha-alterada' as const, revokedSessions });
     },
   );
 };

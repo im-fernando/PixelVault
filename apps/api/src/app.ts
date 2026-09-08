@@ -15,7 +15,7 @@ import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
 import { catalogRoutes } from './modules/catalog/index.js';
 import { identityRoutes } from './modules/identity/index.js';
-import { criarSessoes } from './modules/sessions/index.js';
+import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
 /**
  * Composition root da API.
@@ -70,6 +70,9 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // escopo que a referência em .NET obtém com um container de IoC por módulo.
   await app.register(catalogRoutes, { prefix: '/api' });
   await app.register(identityRoutes, { prefix: '/api', sessoes });
+  // As rotas de sessão são do módulo `sessions`, ainda que a URL comece com
+  // `/auth`: quem lista e revoga sessão é o dono do ciclo de vida dela.
+  await app.register(sessionsRoutes, { prefix: '/api', sessoes });
 
   return app;
 }

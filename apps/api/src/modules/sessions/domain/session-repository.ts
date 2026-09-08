@@ -14,6 +14,21 @@ export interface DadosDeAbertura {
 }
 
 /**
+ * Uma sessão como ela aparece para o próprio dono na listagem.
+ *
+ * Sem `tokenHash` e sem `expiresAt`: o primeiro nunca sai do banco, e o
+ * segundo não tem por que sair porque sessão expirada não chega a ser
+ * listada — a limpeza preguiçosa apaga antes. Ver `application/listar-sessoes.ts`.
+ */
+export interface SessaoDoUsuario {
+  id: string;
+  userAgent: string | null;
+  ipTruncated: string | null;
+  createdAt: Date;
+  lastSeenAt: Date;
+}
+
+/**
  * Porta de persistência do `sessions`.
  *
  * Repare no que ela não tem: nada sobre usuário além de um `userId` que é
@@ -31,4 +46,25 @@ export interface SessionRepository {
    * `expiresAt` seria escrita por requisição, que é o que a ADR evita.
    */
   renovar(id: string, expiresAt: Date, lastSeenAt: Date): Promise<void>;
+  /** As sessões vivas do usuário, da usada mais recentemente para a mais antiga. */
+  listarDoUsuario(userId: string): Promise<SessaoDoUsuario[]>;
+  /**
+   * Apaga uma sessão do usuário. `true` quando apagou.
+   *
+   * O `userId` é parâmetro, e não uma checagem que quem chama faz depois de
+   * ler a linha, de propósito: ele entra no mesmo `WHERE` do `id`. Com isso,
+   * "essa sessão não existe" e "essa sessão existe mas é de outra pessoa"
+   * não são dois caminhos que alguém possa acabar tratando diferente — são
+   * literalmente a mesma consulta devolvendo zero linhas. É assim que o
+   * `DELETE /api/auth/sessions/:id` consegue responder 404 nos dois casos
+   * sem depender de disciplina de quem escreve a rota.
+   */
+  revogar(id: string, userId: string): Promise<boolean>;
+  /** Apaga todas as sessões do usuário menos uma. Devolve quantas caíram. */
+  revogarOutras(userId: string, sessaoPreservada: string): Promise<number>;
+  /**
+   * Limpeza preguiçosa: apaga as sessões já vencidas deste usuário. Ver
+   * `application/listar-sessoes.ts` para o porquê de não haver cron.
+   */
+  apagarExpiradas(userId: string, agora: Date): Promise<number>;
 }

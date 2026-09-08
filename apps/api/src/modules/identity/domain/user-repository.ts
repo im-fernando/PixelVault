@@ -58,6 +58,13 @@ export interface UserRepository {
    * `application/autenticar-usuario.ts`.
    */
   buscarCredenciaisPorEmail(email: string): Promise<CredenciaisDoUsuario | null>;
+  /**
+   * O mesmo, achando pelo id — é o que a troca de senha autenticada usa para
+   * conferir a senha atual. Sem espelho do cuidado acima: quem chega aqui já
+   * provou quem é pelo cookie de sessão, então não há existência de conta a
+   * esconder de ninguém.
+   */
+  buscarCredenciaisPorId(id: string): Promise<CredenciaisDoUsuario | null>;
   /** O usuário sem nada derivado de senha — é o que `/me` devolve. */
   buscarPorId(id: string): Promise<DadosDoUsuario | null>;
   /** Regrava o hash migrado pela reidratação do Argon2id (ver issue #44). */

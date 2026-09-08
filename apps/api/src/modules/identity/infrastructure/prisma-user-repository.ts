@@ -78,6 +78,17 @@ export const prismaUserRepository: UserRepository = {
     return { ...usuario, senhaHash: passwordHash };
   },
 
+  async buscarCredenciaisPorId(id: string): Promise<CredenciaisDoUsuario | null> {
+    const linha = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, handle: true, displayName: true, passwordHash: true },
+    });
+    if (linha === null) return null;
+
+    const { passwordHash, ...usuario } = linha;
+    return { ...usuario, senhaHash: passwordHash };
+  },
+
   async buscarPorId(id: string): Promise<DadosDoUsuario | null> {
     // Sem `passwordHash` no select: o que `/me` devolve não tem por que
     // sair do banco.

@@ -23,6 +23,7 @@ const CAMPO_POR_CODIGO: Record<CodigoErroIdentity, string> = {
   // coisa só. Dizer qual dos dois está errado é exatamente o vazamento que
   // o login precisa evitar — ver `autenticar-usuario.ts`.
   CREDENCIAIS_INVALIDAS: 'credentials',
+  SENHA_ATUAL_INCORRETA: 'currentPassword',
 };
 
 /**
@@ -30,6 +31,12 @@ const CAMPO_POR_CODIGO: Record<CodigoErroIdentity, string> = {
  * o resto é entrada que não passa na regra de negócio (422). O 422 e não
  * 400 porque a sintaxe estava certa — o Zod da borda já teria barrado o que
  * é malformado.
+ *
+ * `SENHA_ATUAL_INCORRETA` cai no 422 de propósito, e não no 401 do login,
+ * embora também seja "a senha não confere": 401 significa "sua sessão não
+ * vale" e é assim que todo cliente o trata — o front deslogaria quem apenas
+ * errou a digitação da senha antiga. Ali o que falhou foi um campo do
+ * formulário, e é como campo que a resposta o aponta.
  */
 export function traduzirErroDeIdentidade(erro: ErroDeIdentidade): DomainError {
   const detalhes = { [CAMPO_POR_CODIGO[erro.codigo]]: [erro.codigo] };

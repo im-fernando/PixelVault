@@ -252,11 +252,72 @@ guarda apenas o SHA-256 dele. SHA-256 e não Argon2 porque o token já é 256
 bits de aleatoriedade — não há dicionário para atacar, e um hash lento aqui
 custaria latência em toda requisição autenticada.
 
+## Revogação de sessões
+
+Desenhado na #47. As rotas são `POST /api/auth/logout`,
+`GET /api/auth/sessions`, `DELETE /api/auth/sessions/:id` e
+`POST /api/auth/sessions/revoke-others`. A listagem devolve id, user-agent, IP
+truncado, `createdAt`, `lastSeenAt` e uma marca de qual é a sessão atual —
+nunca o token nem o hash dele.
+
+### `DELETE /sessions/:id` responde 404 para o que não é seu
+
+Sessão de outra pessoa e id que não existe recebem exatamente a mesma
+resposta: 404, mesmo corpo, mesmo código. Um 403 no primeiro caso seria a
+resposta "certa" pelo livro de HTTP e entregaria de graça a informação de que
+aquele id existe — que é justamente o que alguém varrendo ids de sessão
+alheia quer descobrir.
+
+A garantia não depende de disciplina de quem escreve a rota: o `userId` entra
+no mesmo `WHERE` do `id`, no `deleteMany`. Não há nenhum ponto do fluxo em que
+o código tenha em mãos a informação "existe, mas é de outro" — ele só sabe
+quantas linhas caíram. Ler a linha antes para conferir o dono seria o desenho
+que abre a porta para o 403 aparecer numa refatoração futura.
+
+### Trocar a senha derruba os outros aparelhos
+
+`POST /api/auth/change-password` exige as duas provas: o cookie de sessão **e**
+a senha atual. Só o cookie faria de qualquer máquina destravada um sequestro
+permanente da conta — bastaria trocar a senha. Em caso de sucesso, todas as
+outras sessões da conta são revogadas e a que fez a troca sobrevive: quem
+acabou de provar que sabe a senha atual não deve ser punido com um logout.
+
+Senha atual incorreta responde 422, não 401. 401 significa "sua sessão não
+vale", e é assim que o front o trata — deslogaria quem apenas errou a
+digitação da senha antiga.
+
+Este endpoint não é o "esqueci minha senha" (#51), que é para quem não sabe a
+senha e não está logado.
+
+### Limpeza de sessões expiradas: preguiçosa, não por cron
+
+A ADR 0017 registrou a poda da tabela `sessions` como dívida. A #47 a resolve
+de forma preguiçosa, em dois pontos:
+
+1. **Ao resolver uma sessão vencida** (`resolver-sessao.ts`): a linha é
+   apagada em vez de apenas recusada. Recusar e deixar no banco só garante que
+   ela seja recusada de novo amanhã.
+2. **Ao listar as sessões de alguém** (`listar-sessoes.ts`): as vencidas
+   daquele usuário são apagadas antes de a lista ser montada.
+
+Preguiçosa e não um job por duas razões. A primeira é que **corretude não
+depende da poda**: sessão vencida já era recusada antes desta issue existir, e
+um cron atrasado nunca deixaria uma sessão morta autenticar ninguém — podar é
+higiene da tabela, não regra de segurança. A segunda é que o custo fica onde a
+informação está: o `DELETE` é por `user_id` indexado e roda numa rota que a
+pessoa abriu justamente para ver e limpar as próprias sessões, enquanto um job
+global varreria a tabela inteira para o mesmo efeito. Não existe
+infraestrutura de cron no projeto, e montar a primeira por causa disto seria
+caro pelo que se ganha.
+
+O limite honesto: sessão de quem nunca mais volta não é podada por ninguém. Se
+a tabela virar problema de tamanho, um `DELETE ... WHERE expires_at < now()`
+periódico resolve — e é decisão de operação, não mudança de contrato.
+
 ## O que falta
 
-- **Rate limit no login** (#49) — o hash caro reduz o dano de um vazamento de
-  banco, mas não impede tentativa em massa contra o endpoint; rate limit é
-  quem faz isso.
-- **Logout, listagem e revogação de sessões** (#47).
-- **Limpeza de sessões expiradas** — a tabela `sessions` cresce e ninguém
-  poda. Registrado como dívida na ADR 0017.
+- **Rate limit no login e nas rotas de sessão** (#49) — o hash caro reduz o
+  dano de um vazamento de banco, mas não impede tentativa em massa contra o
+  endpoint; rate limit é quem faz isso.
+- **Poda das sessões de quem nunca mais volta** — ver acima: a limpeza
+  preguiçosa não alcança quem nunca mais aparece.
