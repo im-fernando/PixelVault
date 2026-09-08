@@ -24,6 +24,7 @@ referencia a antiga.
 | [0015](0015-audio-do-emulador-no-navegador.md)                  | Manter a saída de áudio do RetroArch e pendurar um barramento nela | aceita |
 | [0016](0016-identidade-visual-arquivo.md)                       | Adotar a direção visual "Arquivo"                                  | aceita |
 | [0017](0017-sessao-em-banco.md)                                 | Usar sessão em banco, com renovação deslizante e cookie assinado   | aceita |
+| [0018](0018-autorizacao-com-casl-e-negacao-como-inexistente.md) | Autorizar com CASL e negar recurso alheio como inexistente         | aceita |
 
 O código de investigação que sustenta os números da 0008 e da 0011 está em
 [docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por

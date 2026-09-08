@@ -36,6 +36,23 @@ describe('app', () => {
     await app.close();
   });
 
+  it('entrega ao visitante as regras de habilidade, sem exigir sessão', async () => {
+    const app = await buildApp(config);
+    // Sem cookie não há consulta ao banco: o visitante tem regras fixas, e é
+    // isto que permite testar a rota inteira — schema de resposta incluído —
+    // sem PostgreSQL.
+    const resposta = await app.inject({ method: 'GET', url: '/api/auth/abilities' });
+
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual({
+      rules: [
+        { action: 'read', subject: 'Game' },
+        { action: 'play', subject: 'Game', conditions: { isHomebrew: true } },
+      ],
+    });
+    await app.close();
+  });
+
   it('registra as rotas do catálogo no OpenAPI', async () => {
     const app = await buildApp(config);
     const resposta = await app.inject({ method: 'GET', url: '/docs/json' });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DomainError } from '../../../infrastructure/errors.js';
+import type { Papel } from '../domain/habilidades.js';
 import type {
   CredenciaisDoUsuario,
   DadosDeCadastro,
@@ -43,6 +44,9 @@ function montar(
     },
     async buscarPorId(): Promise<DadosDoUsuario | null> {
       return usuario;
+    },
+    async buscarPapelPorId(): Promise<Papel | null> {
+      return usuario === null ? null : 'user';
     },
     async regravarSenhaHash(id: string, senhaHash: string): Promise<void> {
       espiao.regravacoes.push({ id, senhaHash });
