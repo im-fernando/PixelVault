@@ -4,6 +4,7 @@ import { EXTENSOES_ACEITAS } from './arquivo-de-rom.js';
 import { Cartucho } from './Cartucho.js';
 import type { EstadoDoEnvio } from './envio-de-rom.js';
 import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
+import { emBytesLegiveis } from './tamanho.js';
 import { useEnvioDeRom, type RomDaSessao } from './use-envio-de-rom.js';
 
 /**
@@ -98,7 +99,7 @@ function ZonaDeEntrada({
         A ROM tem que estar descompactada — o arquivo do cartucho, não o .zip que veio com ele.
       </span>
       <span className="leitura mt-4 text-ink-700">
-        {EXTENSOES_ACEITAS.join(' ')} · até {emMegabytes(TAMANHO_MAXIMO_DE_ROM_EM_BYTES)}
+        {EXTENSOES_ACEITAS.join(' ')} · até {emBytesLegiveis(TAMANHO_MAXIMO_DE_ROM_EM_BYTES)}
       </span>
       <input
         id={id}
@@ -154,7 +155,7 @@ function Protocolo({
           {estado.recusa.detalhe}
         </p>
         <p className="leitura mt-3 truncate text-ink-700">
-          {estado.arquivo.nome} · {emMegabytes(estado.arquivo.sizeBytes)}
+          {estado.arquivo.nome} · {emBytesLegiveis(estado.arquivo.sizeBytes)}
         </p>
         <button
           type="button"
@@ -177,7 +178,7 @@ function Protocolo({
     <div className="mt-8 border border-ink-850 bg-ink-900/40 px-5 py-4">
       <p className="truncate text-sm text-label-100">{estado.arquivo.nome}</p>
       <p className="leitura mt-1 text-ink-700">
-        {emMegabytes(estado.arquivo.sizeBytes)}
+        {emBytesLegiveis(estado.arquivo.sizeBytes)}
         {estado.arquivo.systemId !== null && ` · ${estado.arquivo.systemId.toUpperCase()}`}
       </p>
 
@@ -303,7 +304,7 @@ function Barra({ total, feito }: { readonly total: number; readonly feito: numbe
         <div className="h-full bg-label-400 transition-[width]" style={{ width: `${porcento}%` }} />
       </div>
       <p className="leitura mt-1.5 text-ink-700">
-        {emMegabytes(feito)} de {emMegabytes(total)} · {porcento}%
+        {emBytesLegiveis(feito)} de {emBytesLegiveis(total)} · {porcento}%
       </p>
     </div>
   );
@@ -312,9 +313,10 @@ function Barra({ total, feito }: { readonly total: number; readonly feito: numbe
 /**
  * O que entrou nesta sessão, na prateleira de sempre.
  *
- * É confirmação, não listagem: a biblioteca completa — com favoritar, remover
- * e o acervo inteiro — é a #75. O que esta fileira prova é que o cartucho
- * existe do outro lado, e ela some no próximo F5 sem deixar saudade.
+ * É confirmação, não listagem: a biblioteca completa — com favoritar e remover
+ * — mora na home, e é ela que sobrevive ao F5. O que esta fileira prova é que
+ * o cartucho existe do outro lado, aqui, sem tirar a pessoa da mesa de envio;
+ * some no próximo F5 sem deixar saudade.
  */
 function NestaSessao({ itens }: { readonly itens: readonly RomDaSessao[] }) {
   const bytes = itens.reduce((soma, item) => soma + item.rom.sizeBytes, 0);
@@ -325,7 +327,7 @@ function NestaSessao({ itens }: { readonly itens: readonly RomDaSessao[] }) {
         nome="Entrou agora"
         itens={itens.length}
         bytes={bytes}
-        nota="só suas · a listagem completa vem na próxima"
+        nota="só suas · já estão na sua biblioteca"
       />
       <Prateleira>
         {itens.map((item) => (
@@ -365,11 +367,4 @@ function SemSistema({ titulo }: { readonly titulo: string }) {
       </p>
     </div>
   );
-}
-
-/** Bytes na unidade em que a pessoa pensa neles. */
-function emMegabytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

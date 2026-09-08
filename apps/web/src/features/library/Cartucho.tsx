@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { SystemId } from '@pixelvault/contracts';
 
 /**
@@ -19,7 +20,12 @@ import type { SystemId } from '@pixelvault/contracts';
 
 interface Props {
   readonly titulo: string;
-  readonly systemId: SystemId;
+  /**
+   * De que console. Nulo quando nem o catálogo nem a extensão do arquivo
+   * respondem — caso que a biblioteca pessoal (#75) traz e que não pode virar
+   * cartucho ausente: a ROM está lá, e a estante precisa dizer isso.
+   */
+  readonly systemId: SystemId | null;
   readonly selo?: string | undefined;
   readonly capaUrl?: string | null | undefined;
   /**
@@ -29,6 +35,22 @@ interface Props {
    */
   readonly lombadaUrl?: string | null | undefined;
   readonly desbotado?: boolean;
+  /**
+   * A marca de favorito: a etiqueta adesiva que se cola na lombada para achar
+   * o item sem ler a fileira inteira. Fica visível com o cartucho fechado, que
+   * é quando ela serve para alguma coisa.
+   */
+  readonly favorito?: boolean;
+  /**
+   * O que a etiqueta aberta mostra embaixo de tudo — os botões da estante
+   * pessoal, por exemplo.
+   *
+   * É um espaço, e não uma lista de ações: o cartucho não sabe o que se faz
+   * com ele. Quem sabe é a prateleira que o desenhou. Repare que quem usa isto
+   * NÃO pode embrulhar o cartucho num link: botão dentro de âncora é HTML
+   * inválido, e a estante pessoal por enquanto não navega para lugar nenhum.
+   */
+  readonly rodape?: ReactNode;
 }
 
 /** Matiz estável por título — prateleira toda da mesma cor não é prateleira. */
@@ -38,11 +60,11 @@ function matizDoTitulo(titulo: string): number {
   return h;
 }
 
-/** Num arquivo, todo item tem um número. */
-export function numeroDeAcervo(titulo: string, systemId: SystemId): string {
+/** Num arquivo, todo item tem um número — inclusive o de procedência incerta. */
+export function numeroDeAcervo(titulo: string, systemId: SystemId | null): string {
   let h = 7;
   for (const ch of titulo) h = (h * 33 + ch.codePointAt(0)!) % 100000;
-  return `${systemId.toUpperCase()}-${String(h).padStart(5, '0')}`;
+  return `${(systemId ?? 'rom').toUpperCase()}-${String(h).padStart(5, '0')}`;
 }
 
 export function Cartucho({
@@ -52,16 +74,20 @@ export function Cartucho({
   capaUrl,
   lombadaUrl,
   desbotado = false,
+  favorito = false,
+  rodape,
 }: Props) {
   const h = matizDoTitulo(titulo);
   const faixa = `oklch(0.62 0.16 ${h})`;
 
   return (
     <div
-      className={`relative h-[17rem] w-14 shrink-0 transition-[width,transform] duration-300 ease-out group-hover:w-44 group-hover:-translate-y-5 group-focus-visible:w-44 group-focus-visible:-translate-y-5 ${
+      className={`relative h-[17rem] w-14 shrink-0 transition-[width,transform] duration-300 ease-out group-hover:w-44 group-hover:-translate-y-5 group-focus-within:w-44 group-focus-within:-translate-y-5 group-focus-visible:w-44 group-focus-visible:-translate-y-5 ${
         desbotado ? 'opacity-45 grayscale' : ''
       }`}
     >
+      {favorito && <MarcaDeFavorito />}
+
       <div
         className="flex h-full flex-col overflow-hidden bg-ink-850 shadow-[inset_-6px_0_10px_-8px_rgba(0,0,0,0.9),inset_6px_0_10px_-8px_rgba(255,255,255,0.06)]"
         style={{ borderRadius: '2px 2px 6px 6px' }}
@@ -76,7 +102,7 @@ export function Cartucho({
           />
 
           {/* Fechado: lombada de verdade quando existe, senão título gerado. */}
-          <div className="flex flex-1 items-start justify-center overflow-hidden pt-2 group-hover:hidden group-focus-visible:hidden">
+          <div className="flex flex-1 items-start justify-center overflow-hidden pt-2 group-hover:hidden group-focus-within:hidden group-focus-visible:hidden">
             {lombadaUrl ? (
               <img src={lombadaUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
             ) : (
@@ -90,7 +116,7 @@ export function Cartucho({
           </div>
 
           {/* Aberto: a etiqueta inteira. */}
-          <div className="hidden flex-1 flex-col gap-1.5 p-2 group-hover:flex group-focus-visible:flex">
+          <div className="hidden flex-1 flex-col gap-1.5 p-2 group-hover:flex group-focus-within:flex group-focus-visible:flex">
             <p className="titulo-estampado text-[0.72rem] leading-[1.1] text-ink-950">{titulo}</p>
             {capaUrl ? (
               <img
@@ -109,9 +135,12 @@ export function Cartucho({
               />
             )}
             <div>
-              <p className="leitura truncate text-ink-700">{selo ?? systemId.toUpperCase()}</p>
+              <p className="leitura truncate text-ink-700">
+                {selo ?? (systemId ?? 'sistema não identificado').toUpperCase()}
+              </p>
               <p className="leitura text-ink-500/70">{numeroDeAcervo(titulo, systemId)}</p>
             </div>
+            {rodape}
           </div>
         </div>
 
@@ -122,5 +151,23 @@ export function Cartucho({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A etiqueta adesiva de destaque, colada na lombada.
+ *
+ * Não é estrela: num acervo, o que marca um item é a tira de papel que sai
+ * para fora da lombada, e é ela que se enxerga com a fileira fechada. Fica em
+ * `label-100` porque é papel, e não numa das quatro cores dos slots de save —
+ * aquelas têm significado próprio e não podem virar decoração (docs/design.md).
+ */
+function MarcaDeFavorito() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute -top-2.5 right-2 z-10 h-7 w-2 bg-label-100 shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
+      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)' }}
+    />
   );
 }
