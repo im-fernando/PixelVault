@@ -141,10 +141,6 @@ module.exports = {
           '(^|/)(eslint|vite|vitest|prisma)\\.config\\.[cm]?[jt]s$',
           // Fachadas de módulo ainda vazias, que ganham conteúdo na milestone delas.
           `${MODULOS}/[^/]+/index\\.ts$`,
-          // A porta de storage nasceu na #70 sem consumidor: o primeiro é o
-          // upload de ROM da #71. Quem a exercita hoje é o teste de
-          // integração, que não entra neste grafo.
-          '^apps/api/src/infrastructure/storage/',
         ],
       },
       to: {},

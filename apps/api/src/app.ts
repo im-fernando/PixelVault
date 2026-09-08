@@ -15,12 +15,14 @@ import {
 import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
 import { RateLimitedError } from './infrastructure/errors.js';
+import { criarArmazenamentoS3 } from './infrastructure/storage/armazenamento-s3.js';
 import { catalogRoutes } from './modules/catalog/index.js';
 import {
   criarEnvioDeEmail,
   criarLimitesDeAutenticacao,
   identityRoutes,
 } from './modules/identity/index.js';
+import { libraryRoutes } from './modules/library/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
 /**
@@ -96,6 +98,19 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   const sessoes = criarSessoes({ cookieSeguro: config.NODE_ENV !== 'development' });
   sessoes.registrarEm(app);
 
+  // A porta de object storage, montada uma vez para a aplicação inteira: o
+  // `S3Client` mantém pool de conexão, e criar um por requisição jogaria isso
+  // fora. Quem a consome hoje é o `library` (upload de ROM); o `progress` da
+  // M4 recebe a mesma instância. Ver docs/adr/0012.
+  const armazenamento = criarArmazenamentoS3({
+    endpoint: config.S3_ENDPOINT,
+    regiao: config.S3_REGION,
+    bucket: config.S3_BUCKET,
+    chaveDeAcesso: config.S3_ACCESS_KEY_ID,
+    segredo: config.S3_SECRET_ACCESS_KEY,
+    caminhoNoEstiloDePasta: config.S3_FORCE_PATH_STYLE,
+  });
+
   await app.register(swagger, {
     openapi: {
       info: {
@@ -138,6 +153,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // As rotas de sessão são do módulo `sessions`, ainda que a URL comece com
   // `/auth`: quem lista e revoga sessão é o dono do ciclo de vida dela.
   await app.register(sessionsRoutes, { prefix: '/api', sessoes });
+  await app.register(libraryRoutes, { prefix: '/api', sessoes, armazenamento });
 
   return app;
 }
