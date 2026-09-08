@@ -646,6 +646,107 @@ deixaria qualquer pessoa escolher para onde aponta o link de redefinição de
 outra — envenenamento de link de redefinição, dos ataques mais baratos que
 existem contra este fluxo.
 
+## Cota de armazenamento por conta
+
+Decidida na #76. A [ADR 0006](adr/0006-byor-mais-catalogo-de-metadados.md) já
+registrava a cota como consequência não-opcional do BYOR — "dedupe por SHA-256
+e quota por usuário deixam de ser opcionais, porque upload é vetor de abuso" —,
+e o que faltava era o número.
+
+São **dois eixos**, e ambos por conta:
+
+| eixo             | teto  | onde mora                                                    |
+| ---------------- | ----- | ------------------------------------------------------------ |
+| bytes acumulados | 4 GiB | `COTA_DE_ARMAZENAMENTO_EM_BYTES`, em `@pixelvault/contracts` |
+| ROMs acumuladas  | 1500  | `COTA_DE_ROMS_POR_CONTA`, no mesmo arquivo                   |
+
+Eles convivem com o teto **por arquivo** de 64 MiB (#71), que responde outra
+pergunta: aquele arquivo cabe num cartucho? A cota responde quanto uma conta
+pode acumular.
+
+### De onde sai o 4 GiB
+
+Do perfil real de biblioteca pessoal dos cinco sistemas suportados, não de um
+número redondo. Só o GBA tem arquivo grande (8 a 16 MiB); SNES e Mega Drive
+ficam em um a quatro megabytes, Game Boy em torno de um, e NES em centenas de
+kilobytes. Uma coleção pessoal generosa — cem de NES, cem de Game Boy, cem de
+Mega Drive, cento e cinquenta de SNES e cem de GBA, 550 arquivos — soma perto
+de 1,8 GiB. O teto é o dobro disso, e umas vinte vezes a estimativa da
+[ADR 0012](adr/0012-usar-cloudflare-r2-como-object-storage.md) ("cinquenta ROMs
+de SNES dá algumas centenas de megabytes").
+
+Onde ele não cabe é onde ele deve não caber: o set completo dos cinco sistemas
+passa de dezenas de gigabytes e de dezenas de milhares de arquivos. Isso não é
+biblioteca pessoal, é espelho de acervo — o uso que a cota existe para não
+subsidiar, e que o BYOR nunca prometeu.
+
+Do lado do custo, 4 GiB por conta no teto é da ordem de centavos de dólar por
+mês de armazenamento no R2, e o dedupe por conteúdo
+([ADR 0013](adr/0013-enderecar-roms-pelo-conteudo.md)) faz o custo real ficar
+abaixo da soma das cotas — duas pessoas com a mesma ROM ocupam um objeto só. O
+número de preço deve ser conferido junto com a pendência que a própria ADR 0012
+já registra.
+
+### Por que também um teto de arquivos
+
+Porque o de bytes não o cobre. A verificação (#72) aceita homebrew de GBA a
+partir de 192 bytes, então 4 GiB comportariam milhões de linhas em `user_roms`
+sem chegar perto do limite de bytes: o abuso deixaria de ser "encher o bucket"
+e passaria a ser "encher a tabela", com o custo aparecendo no banco e na
+listagem da biblioteca, não na conta do storage. Mil e quinhentos arquivos é
+três vezes a coleção generosa que calibra o eixo de bytes; quem esbarrar nele
+primeiro está com média de 2,8 MiB por arquivo, que é perfil de acervo e não de
+quem joga.
+
+### A cota conta o que a pessoa tem, não o que o bucket guarda
+
+Cada conta gasta o tamanho inteiro do arquivo, mesmo quando o objeto é
+compartilhado por dedupe. Não é imprecisão contábil: cobrar menos pelo arquivo
+deduplicado transformaria a cota num oráculo — bastaria olhar quanto ela andou
+para descobrir que **outra pessoa** já tem aquele conteúdo, que é o que a ADR
+0013 proíbe. A cota é direito de guardar, não fatura de armazenamento.
+
+Pelo mesmo motivo, o atalho de "você já tem essa ROM" é respondido antes da
+cota: quem já tem o conteúdo não está pedindo espaço nenhum, e recusar por cota
+cheia um pedido que não faria a biblioteca crescer seria negar à pessoa o que
+já é dela.
+
+### Onde a checagem acontece, e o que ela recusa
+
+Na autorização do upload (`POST /library/uploads`), **antes de assinar a URL de
+PUT**. É o ponto barato do fluxo: nenhuma URL saiu, nenhum byte trafegou, nada
+foi para a quarentena. Conferir depois seria deixar o cliente descobrir que não
+cabia só ao terminar de subir sessenta megabytes.
+
+A recusa é **409**, e não 422. A requisição está impecável — o que não cabe é o
+estado atual da biblioteca —, e a mesma requisição passa amanhã, depois de a
+pessoa remover alguma coisa. Isso é conflito com o estado do recurso, que é
+literalmente o que o 409 descreve, e não entidade malformada. O corpo traz
+`code: "CONFLICT"` e o eixo estourado em `details.cota`
+(`LIMITE_DE_BYTES` ou `LIMITE_DE_ARQUIVOS`), no mesmo desenho de
+`details.rateLimit` e `details.rom`: o código decide o fluxo, o detalhe escolhe
+a frase. O front consome esse código quando a tela de upload (#74) existir; até
+lá, quem mostra o que fazer é a mensagem.
+
+A soma sai de uma agregação (`SUM` + `COUNT`) sobre `user_roms`, e não de uma
+coluna de acumulador: o dado já existe linha a linha, e acumulador é segunda
+cópia da mesma verdade — divergir aqui recusaria o upload de quem tem espaço,
+ou liberaria o de quem não tem.
+
+### A janela que fica aberta
+
+A checagem lê a biblioteca de agora, e a linha em `user_roms` só nasce quando o
+envio é concluído. Autorizações simultâneas podem, portanto, passar juntas
+antes de qualquer uma virar linha, e o excesso é limitado pelo que estiver em
+voo naquele instante. A autorização seguinte já vê a soma nova e recusa.
+
+Fechar a janela exige **reservar** a cota no momento da assinatura, e a reserva
+depende de um registro de envio pendente — que é a mesma estrutura de que a
+limpeza de upload abandonado da
+[ADR 0014](adr/0014-verificar-a-rom-em-quarentena-antes-de-promover.md) vai
+precisar. As duas andam juntas, na mesma issue futura; adiantar uma tabela de
+reserva agora seria construir metade dela duas vezes.
+
 ## O que falta
 
 - **Poda das sessões de quem nunca mais volta** — ver acima: a limpeza
@@ -656,6 +757,9 @@ existem contra este fluxo.
   `password_reset_tokens` é preguiçosa igual, pendurada no próprio
   `forgot-password`. O token esquecido já não vale (a validade está no
   `WHERE`), então é higiene de tabela e não regra de segurança.
+- **Reserva de cota no momento da assinatura** — ver acima: hoje a checagem é
+  contra a biblioteca de agora, e envios simultâneos passam juntos. Anda com o
+  registro de envio pendente que a limpeza de quarentena abandonada precisa.
 - **Verificação de e-mail no cadastro** — a conta continua utilizável sem
   ela, e é decisão registrada na [ADR 0021](adr/0021-usar-resend-para-email-transacional.md),
   com os dois gatilhos que devem reabri-la.

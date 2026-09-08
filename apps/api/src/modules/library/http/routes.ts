@@ -9,6 +9,8 @@ import {
   romUploadRequestSchema,
   romUploadResponseSchema,
   uuidSchema,
+  COTA_DE_ARMAZENAMENTO_EM_BYTES,
+  COTA_DE_ROMS_POR_CONTA,
   TAMANHO_MAXIMO_DE_ROM_EM_BYTES,
 } from '@pixelvault/contracts';
 import {
@@ -79,13 +81,18 @@ export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app,
           'entram na assinatura, então a URL só serve para exatamente aqueles bytes. ' +
           'Informar o `sha256` é opcional e vale como dica: se aquele conteúdo já estiver ' +
           'na biblioteca de quem pediu, a resposta é `ja-na-biblioteca` e nenhum upload ' +
-          `é assinado. O teto por arquivo é de ${TAMANHO_MAXIMO_DE_ROM_EM_BYTES} bytes.`,
+          `é assinado. O teto por arquivo é de ${TAMANHO_MAXIMO_DE_ROM_EM_BYTES} bytes, e o ` +
+          `total por conta é de ${COTA_DE_ARMAZENAMENTO_EM_BYTES} bytes em até ` +
+          `${COTA_DE_ROMS_POR_CONTA} ROMs (docs/seguranca.md). Biblioteca sem espaço para o ` +
+          'arquivo pedido responde 409 com o eixo estourado em `details.cota`, e nada é ' +
+          'assinado — a cota é conferida antes da assinatura.',
         body: romUploadRequestSchema,
         response: {
           200: romUploadResponseSchema,
           400: apiErrorSchema,
           401: apiErrorSchema,
           403: apiErrorSchema,
+          409: apiErrorSchema,
           422: apiErrorSchema,
         },
       },

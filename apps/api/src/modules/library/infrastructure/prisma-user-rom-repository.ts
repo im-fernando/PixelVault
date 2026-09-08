@@ -1,4 +1,5 @@
 import { prisma } from '@pixelvault/database';
+import type { UsoDaBiblioteca } from '../domain/cota.js';
 import type {
   NovaRomDoUsuario,
   RomDoUsuario,
@@ -55,5 +56,18 @@ export const prismaUserRomRepository: UserRomRepository = {
         fileName: true,
       },
     });
+  },
+
+  async medirUso(userId: string): Promise<UsoDaBiblioteca> {
+    // Um `SUM` e um `COUNT` na mesma consulta, sobre o índice de `user_id`:
+    // nenhuma linha sai do banco para o processo. `_sum` vem nulo quando a
+    // pessoa não tem ROM nenhuma — biblioteca vazia é zero, não ausência.
+    const agregado = await prisma.userRom.aggregate({
+      where: { userId },
+      _sum: { sizeBytes: true },
+      _count: { _all: true },
+    });
+
+    return { bytes: agregado._sum.sizeBytes ?? 0, quantidade: agregado._count._all };
   },
 };

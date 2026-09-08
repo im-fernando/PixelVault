@@ -5,9 +5,10 @@
  * que precisa, a infraestrutura resolve como. Ver docs/adr/0004.
  *
  * Cresce com quem a usa: `buscarPorHash` nasceu com o upload (#71),
- * `registrar` com a verificação (#72) e `buscarPorId` com o download
- * autorizado (#73). Listar e apagar chegam com a biblioteca pessoal (#75).
- * Método sem chamador é código morto com aparência de arquitetura.
+ * `registrar` com a verificação (#72), `buscarPorId` com o download
+ * autorizado (#73) e `medirUso` com a cota por conta (#76). Listar e apagar
+ * chegam com a biblioteca pessoal (#75). Método sem chamador é código morto
+ * com aparência de arquitetura.
  *
  * ## Contagem de referências: `COUNT`, não coluna
  *
@@ -32,6 +33,8 @@
  * porta com um método só até agora. O que a #72 fixa é a decisão, não a
  * assinatura.
  */
+
+import type { UsoDaBiblioteca } from './cota.js';
 
 /** O bastante para responder "você já tem esse" e levar o front até a ROM. */
 export interface RomDoUsuario {
@@ -114,4 +117,21 @@ export interface UserRomRepository {
    * checagem seria entregar a ROM de outra pessoa.
    */
   buscarPorId(id: string): Promise<RomDoUsuarioParaDownload | null>;
+
+  /**
+   * Quanto a biblioteca daquela pessoa já ocupa, nos dois eixos da cota
+   * (`domain/cota.ts`).
+   *
+   * Os dois números saem de uma agregação sobre `user_roms`, e não de uma
+   * coluna de acumulador em `users` — é o mesmo raciocínio do `COUNT` acima,
+   * com o mesmo desfecho: o dado já existe linha a linha, e um acumulador
+   * seria uma segunda cópia da mesma verdade, capaz de divergir. Divergir
+   * aqui recusaria o upload de quem tem espaço, ou liberaria o de quem não
+   * tem.
+   *
+   * Trazer as linhas para somar em memória também está fora: uma biblioteca
+   * no teto tem mil e quinhentas linhas, e nenhuma delas precisa sair do
+   * banco para responder "quanto isto soma".
+   */
+  medirUso(userId: string): Promise<UsoDaBiblioteca>;
 }
