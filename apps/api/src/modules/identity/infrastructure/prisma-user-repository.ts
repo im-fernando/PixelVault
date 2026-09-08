@@ -1,6 +1,8 @@
 import { prisma, Prisma } from '@pixelvault/database';
 import type {
+  CredenciaisDoUsuario,
   DadosDeCadastro,
+  DadosDoUsuario,
   ResultadoDeCadastro,
   UserRepository,
 } from '../domain/user-repository.js';
@@ -60,5 +62,36 @@ export const prismaUserRepository: UserRepository = {
       if (alvo === 'handle') return 'handle-ja-cadastrado';
       throw erro;
     }
+  },
+
+  async buscarCredenciaisPorEmail(email: string): Promise<CredenciaisDoUsuario | null> {
+    // O e-mail chega normalizado pelo value object `Email`; a coluna guarda
+    // o mesmo formato desde o cadastro, então isto é uma leitura por índice
+    // único, não uma comparação case-insensitive.
+    const linha = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, handle: true, displayName: true, passwordHash: true },
+    });
+    if (linha === null) return null;
+
+    const { passwordHash, ...usuario } = linha;
+    return { ...usuario, senhaHash: passwordHash };
+  },
+
+  async buscarPorId(id: string): Promise<DadosDoUsuario | null> {
+    // Sem `passwordHash` no select: o que `/me` devolve não tem por que
+    // sair do banco.
+    return prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true, handle: true, displayName: true },
+    });
+  },
+
+  async regravarSenhaHash(id: string, senhaHash: string): Promise<void> {
+    await prisma.user.update({
+      where: { id },
+      data: { passwordHash: senhaHash },
+      select: { id: true },
+    });
   },
 };

@@ -1,6 +1,12 @@
 import argon2 from 'argon2';
 import { describe, expect, it } from 'vitest';
-import { gerarHashDeSenha, verificarERehash, verificarSenha } from './hash-de-senha.js';
+import {
+  gerarHashDeSenha,
+  HASH_DESCARTAVEL,
+  hashPrecisaDeRecalibragem,
+  verificarERehash,
+  verificarSenha,
+} from './hash-de-senha.js';
 
 describe('gerarHashDeSenha', () => {
   it('gera hashes diferentes para o mesmo texto, por causa do salt aleatório', async () => {
@@ -64,5 +70,22 @@ describe('verificarERehash', () => {
     await expect(verificarSenha(senha, resultado.novoHash as string)).resolves.toBe(true);
     const segundaChecagem = await verificarERehash(senha, resultado.novoHash as string);
     expect(segundaChecagem.novoHash).toBeUndefined();
+  });
+});
+
+describe('HASH_DESCARTAVEL', () => {
+  it('está calibrado com os parâmetros atuais', () => {
+    // O hash descartável só cumpre o papel dele — igualar o tempo do login
+    // com e sem conta — se custar o mesmo que um hash de verdade. E o custo
+    // de uma verificação Argon2 vem dos parâmetros embutidos na string do
+    // hash, não da constante do módulo. Recalibrou o Argon2id? Gere um hash
+    // descartável novo junto (a receita está em docs/seguranca.md).
+    expect(hashPrecisaDeRecalibragem(HASH_DESCARTAVEL)).toBe(false);
+  });
+
+  it('não é o hash de nenhuma senha que alguém fosse escolher', async () => {
+    await expect(verificarSenha('', HASH_DESCARTAVEL)).resolves.toBe(false);
+    await expect(verificarSenha('senha', HASH_DESCARTAVEL)).resolves.toBe(false);
+    await expect(verificarSenha(HASH_DESCARTAVEL, HASH_DESCARTAVEL)).resolves.toBe(false);
   });
 });

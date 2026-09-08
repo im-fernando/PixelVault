@@ -20,6 +20,23 @@ export interface DadosDeCadastro {
 export type ResultadoDeCadastro = 'criado' | 'email-ja-cadastrado' | 'handle-ja-cadastrado';
 
 /**
+ * O usuário como ele aparece para o próprio dono. Não tem `senhaHash` de
+ * propósito: este é o objeto que sai pela API, e o que não existe no tipo
+ * não escapa numa serialização distraída.
+ */
+export interface DadosDoUsuario {
+  id: string;
+  email: string;
+  handle: string;
+  displayName: string;
+}
+
+/** O mesmo usuário, mais o hash da senha — só o login precisa disso. */
+export interface CredenciaisDoUsuario extends DadosDoUsuario {
+  senhaHash: string;
+}
+
+/**
  * Porta de persistência do `identity`.
  *
  * `cadastrar` devolve a colisão em vez de lançar de propósito: colidir não é
@@ -33,4 +50,16 @@ export type ResultadoDeCadastro = 'criado' | 'email-ja-cadastrado' | 'handle-ja-
 export interface UserRepository {
   handleEmUso(handle: string): Promise<boolean>;
   cadastrar(dados: DadosDeCadastro): Promise<ResultadoDeCadastro>;
+  /**
+   * O usuário e o hash da senha dele, para o login conferir. `null` quando
+   * não há conta com esse e-mail — e quem chama tem obrigação de tratar o
+   * `null` sem encurtar caminho, porque encurtar caminho aqui é exatamente
+   * o que denuncia a existência da conta pelo relógio. Ver
+   * `application/autenticar-usuario.ts`.
+   */
+  buscarCredenciaisPorEmail(email: string): Promise<CredenciaisDoUsuario | null>;
+  /** O usuário sem nada derivado de senha — é o que `/me` devolve. */
+  buscarPorId(id: string): Promise<DadosDoUsuario | null>;
+  /** Regrava o hash migrado pela reidratação do Argon2id (ver issue #44). */
+  regravarSenhaHash(id: string, senhaHash: string): Promise<void>;
 }

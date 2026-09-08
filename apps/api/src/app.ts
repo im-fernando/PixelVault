@@ -15,6 +15,7 @@ import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
 import { catalogRoutes } from './modules/catalog/index.js';
 import { identityRoutes } from './modules/identity/index.js';
+import { criarSessoes } from './modules/sessions/index.js';
 
 /**
  * Composition root da API.
@@ -42,6 +43,14 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(cookie, { secret: config.SESSION_SECRET });
   await app.register(sensible);
 
+  // Depois do @fastify/cookie (que precisa ter parseado o cookie antes) e
+  // antes das rotas: `registrarEm` instala o hook que resolve a sessão e
+  // decora `request.userId`, e hook de raiz só alcança rota registrada
+  // depois dele. `Secure` cai apenas em desenvolvimento, onde o front fala
+  // com http://localhost. Ver docs/adr/0017.
+  const sessoes = criarSessoes({ cookieSeguro: config.NODE_ENV !== 'development' });
+  sessoes.registrarEm(app);
+
   await app.register(swagger, {
     openapi: {
       info: {
@@ -60,7 +69,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // Cada módulo é um plugin encapsulado — o Fastify já nos dá o isolamento de
   // escopo que a referência em .NET obtém com um container de IoC por módulo.
   await app.register(catalogRoutes, { prefix: '/api' });
-  await app.register(identityRoutes, { prefix: '/api' });
+  await app.register(identityRoutes, { prefix: '/api', sessoes });
 
   return app;
 }
