@@ -62,6 +62,15 @@ function repositorioFalso(uso: UsoDaBiblioteca): UserRomRepository {
       throw new Error('a autorização de envio não busca por id');
     },
     medirUso: async () => uso,
+    listar: async () => {
+      throw new Error('a autorização de envio não lista a biblioteca');
+    },
+    apagarReferencia: async () => {
+      throw new Error('a autorização de envio não apaga referência');
+    },
+    definirFavorito: async () => {
+      throw new Error('a autorização de envio não mexe em favorito');
+    },
   };
 }
 
@@ -140,6 +149,15 @@ describe('solicitarEnvioDeRom, do lado da cota', () => {
       },
       medirUso: async () => {
         throw new Error('o atalho do hash responde antes de medir a cota');
+      },
+      listar: async () => {
+        throw new Error('a autorização de envio não lista a biblioteca');
+      },
+      apagarReferencia: async () => {
+        throw new Error('a autorização de envio não apaga referência');
+      },
+      definirFavorito: async () => {
+        throw new Error('a autorização de envio não mexe em favorito');
       },
     };
 

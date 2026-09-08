@@ -2,8 +2,10 @@ import { prisma } from '@pixelvault/database';
 import type { UsoDaBiblioteca } from '../domain/cota.js';
 import type {
   NovaRomDoUsuario,
+  ReferenciaRemovida,
   RomDoUsuario,
   RomDoUsuarioParaDownload,
+  RomNaBiblioteca,
   UserRomRepository,
 } from '../domain/user-rom-repository.js';
 
@@ -69,5 +71,47 @@ export const prismaUserRomRepository: UserRomRepository = {
     });
 
     return { bytes: agregado._sum.sizeBytes ?? 0, quantidade: agregado._count._all };
+  },
+
+  async listar(userId: string): Promise<RomNaBiblioteca[]> {
+    // Sem `take`: a cota já é o teto (`COTA_DE_ROMS_POR_CONTA`), e um limite a
+    // mais aqui esconderia parte da biblioteca de quem chegou perto dele — sem
+    // que nada na resposta dissesse que faltava coisa.
+    return prisma.userRom.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        gameId: true,
+        sha256: true,
+        sizeBytes: true,
+        fileName: true,
+        isFavorite: true,
+        uploadedAt: true,
+      },
+      // Favorito na frente, e dentro de cada grupo o mais recente primeiro: é
+      // a ordem da estante, e ela sai daqui para não ser reinventada por cada
+      // tela que listar a biblioteca.
+      orderBy: [{ isFavorite: 'desc' }, { uploadedAt: 'desc' }],
+    });
+  },
+
+  async apagarReferencia(romId: string, sha256: string): Promise<ReferenciaRemovida> {
+    return prisma.$transaction(async (tx) => {
+      // `deleteMany` e não `delete`: a linha pode ter sumido entre a busca que
+      // autorizou a remoção e esta chamada — dois cliques, duas abas. `delete`
+      // estouraria um P2025 e viraria 500 num caso em que o estado desejado já
+      // aconteceu.
+      const { count } = await tx.userRom.deleteMany({ where: { id: romId } });
+      const restantes = await tx.userRom.count({ where: { sha256 } });
+
+      return { ultimaReferencia: count > 0 && restantes === 0 };
+    });
+  },
+
+  async definirFavorito(romId: string, favorito: boolean): Promise<void> {
+    // `updateMany` pelo mesmo motivo do `deleteMany` acima: a linha pode ter
+    // sido removida entre a busca que autorizou e esta chamada, e nenhuma
+    // linha afetada é resultado normal — não erro.
+    await prisma.userRom.updateMany({ where: { id: romId }, data: { isFavorite: favorito } });
   },
 };

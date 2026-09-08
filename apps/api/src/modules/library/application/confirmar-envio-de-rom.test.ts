@@ -99,6 +99,15 @@ function repositorioFalso(): RepositorioFalso {
       // novo aqui só recusaria o que já foi pago.
       throw new Error('a confirmação não mede cota');
     },
+    listar: async () => {
+      throw new Error('a confirmação não lista a biblioteca');
+    },
+    apagarReferencia: async () => {
+      throw new Error('a confirmação não apaga referência');
+    },
+    definirFavorito: async () => {
+      throw new Error('a confirmação não mexe em favorito');
+    },
   };
 }
 

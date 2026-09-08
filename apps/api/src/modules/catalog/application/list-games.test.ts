@@ -19,6 +19,7 @@ function repositorioFalso(jogos: GameDetail[]): GameRepository {
     // (`catalogo.integration.test.ts`), e o caso de uso da capa tem suíte
     // própria (`garantir-capa-do-jogo.test.ts`).
     identificarRomPorHash: async () => null,
+    descreverJogos: async () => [],
     jogoSemCapa: async () => null,
     definirCapa: async () => {},
   };

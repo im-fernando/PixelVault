@@ -166,6 +166,14 @@ model UserRom {
   storageKey String   @map("storage_key")
   sizeBytes  Int      @map("size_bytes")
   fileName   String   @map("file_name")
+  /// Favorito é do CARTUCHO na estante, não do jogo do catálogo, e por isso
+  /// a coluna mora aqui — a de `user_games` foi removida na #75 em vez de
+  /// conviver com esta. O motivo é o BYOR: `game_id` nulo é o caso comum
+  /// (ADR 0006), então favoritar por jogo não funcionaria justamente para a
+  /// maioria das ROMs enviadas. Duas colunas com o mesmo nome em tabelas
+  /// diferentes seriam duas versões da mesma verdade, e verdade copiada
+  /// diverge.
+  isFavorite Boolean  @default(false) @map("is_favorite")
   uploadedAt DateTime @default(now()) @map("uploaded_at")
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -177,13 +185,16 @@ model UserRom {
   @@map("user_roms")
 }
 
-/// A relação da pessoa com um jogo do catálogo: favorito, quando jogou por
-/// último, quanto tempo. `totalPlaytimeSeconds` é escrito apenas pelo
-/// servidor, a partir de sessões verificadas. Ver docs/adr/0009.
+/// A relação da pessoa com um jogo do catálogo: quando jogou por último,
+/// quanto tempo. `totalPlaytimeSeconds` é escrito apenas pelo servidor, a
+/// partir de sessões verificadas. Ver docs/adr/0009.
+///
+/// Favorito saiu daqui na #75 e foi para `user_roms`: o que a pessoa
+/// favorita é o cartucho que ela tem, e nem toda ROM enviada casa com um
+/// jogo do catálogo. Ver o comentário da coluna lá.
 model UserGame {
   userId               String    @map("user_id") @db.Uuid
   gameId               String    @map("game_id") @db.Uuid
-  isFavorite           Boolean   @default(false) @map("is_favorite")
   lastPlayedAt         DateTime? @map("last_played_at")
   totalPlaytimeSeconds Int       @default(0) @map("total_playtime_seconds")
   createdAt            DateTime  @default(now()) @map("created_at")

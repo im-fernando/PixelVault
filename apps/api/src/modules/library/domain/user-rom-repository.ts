@@ -28,10 +28,11 @@
  *    remoção (raro), e nunca no de leitura. Coluna denormalizada se paga
  *    quando a consulta é quente; esta é fria.
  *
- * O método (`contarReferencias`, ou `apagarSeSemReferencia`) nasce na #75,
- * junto da rota de remoção que o chama — a mesma disciplina que manteve esta
- * porta com um método só até agora. O que a #72 fixa é a decisão, não a
- * assinatura.
+ * A #75 fechou a assinatura: {@link UserRomRepository.apagarReferencia}, que
+ * apaga a linha e **responde** se aquela era a última a apontar para o
+ * conteúdo. Não `apagarSeSemReferencia`, porque quem apaga o objeto não é o
+ * repositório — ele não conhece storage nenhum. Uma coisa quem sabe é a
+ * outra: o banco sabe contar, o caso de uso sabe coletar.
  */
 
 import type { UsoDaBiblioteca } from './cota.js';
@@ -66,6 +67,33 @@ export interface RomDoUsuarioParaDownload {
   storageKey: string;
   sizeBytes: number;
   fileName: string;
+}
+
+/**
+ * A linha como a estante precisa dela.
+ *
+ * `gameId` vem junto porque é ele que decide de onde sai o título e a capa —
+ * quem completa isso é o caso de uso, perguntando ao catálogo. O que a tabela
+ * sabe sozinha é o resto.
+ */
+export interface RomNaBiblioteca {
+  id: string;
+  gameId: string | null;
+  sha256: string;
+  sizeBytes: number;
+  fileName: string;
+  isFavorite: boolean;
+  uploadedAt: Date;
+}
+
+/** O que sobrou depois de tirar uma referência de cima de um conteúdo. */
+export interface ReferenciaRemovida {
+  /**
+   * `true` quando nenhuma outra linha de `user_roms` aponta para aquele
+   * `sha256` — ou seja, quando o objeto em `roms/<sha256>` ficou órfão e pode
+   * ser coletado (ADR 0013, regra 3).
+   */
+  readonly ultimaReferencia: boolean;
 }
 
 export interface NovaRomDoUsuario {
@@ -134,4 +162,48 @@ export interface UserRomRepository {
    * banco para responder "quanto isto soma".
    */
   medirUso(userId: string): Promise<UsoDaBiblioteca>;
+
+  /**
+   * A biblioteca inteira de alguém, pronta para virar prateleira.
+   *
+   * Sem paginação, e o que torna isso seguro é a cota: `COTA_DE_ROMS_POR_CONTA`
+   * fecha a conta em mil e quinhentas linhas por pessoa, sobre o índice de
+   * `user_id`. Paginar aqui atenderia a um caso que a cota não deixa existir,
+   * e cobraria do front uma mecânica que a estante não tem.
+   *
+   * A ordem é do banco, e não de quem chama: favorito primeiro, e depois o
+   * mais recente. É a ordem que a estante mostra, e deixá-la aqui evita que
+   * duas telas ordenem diferente a mesma coleção.
+   *
+   * A `storageKey` não sai: é endereço interno de um objeto compartilhado por
+   * conteúdo (ADR 0013), e a listagem não tem o que fazer com ela.
+   */
+  listar(userId: string): Promise<RomNaBiblioteca[]>;
+
+  /**
+   * Apaga a referência daquela pessoa àquele conteúdo e diz se sobrou alguma.
+   *
+   * As duas coisas na mesma transação, e é isso que a ADR 0013 exige: o objeto
+   * em `roms/<sha256>` não carrega dono, então "posso apagar o arquivo?" só
+   * tem resposta confiável se a contagem enxergar a remoção que acabou de
+   * acontecer. Contar antes, apagar depois — ou o contrário, em transações
+   * diferentes — é o caminho para coletar um objeto que ainda tem dono.
+   *
+   * O que ela **não** faz é apagar o objeto. Repositório não conhece storage;
+   * ele responde `ultimaReferencia` e quem coleta é o caso de uso, depois do
+   * commit. Ver `remover-rom-da-biblioteca.ts` para o que isso custa e por que
+   * o custo cai para o lado certo.
+   */
+  apagarReferencia(romId: string, sha256: string): Promise<ReferenciaRemovida>;
+
+  /**
+   * Marca ou desmarca a ROM como favorita.
+   *
+   * Recebe o estado desejado, e não um "alterna": alternar do lado do servidor
+   * faria dois cliques simultâneos — ou um retry de rede — terminarem em
+   * estado imprevisível. Com o valor explícito a operação é idempotente, que é
+   * o que um `PUT` e um `DELETE` prometem, e não sobra resposta a devolver:
+   * quem chamou já sabe o estado que pediu.
+   */
+  definirFavorito(romId: string, favorito: boolean): Promise<void>;
 }
