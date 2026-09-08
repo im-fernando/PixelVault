@@ -180,6 +180,27 @@ describe('operações de servidor', () => {
     expect(await armazenamento.existe(chave)).toBe(true);
   });
 
+  it('lê o objeto inteiro no servidor, byte a byte', async () => {
+    // É a leitura de que a verificação da ADR 0014 depende: sem ela, o
+    // SHA-256 que endereça o objeto compartilhado viria do cliente. O
+    // conteúdo é binário e tem byte alto de propósito — uma leitura que
+    // passasse por string devolveria outra coisa e o teste acusaria.
+    const chave = chaveNova('leitura-no-servidor.bin');
+    const conteudo = new Uint8Array([0x00, 0xff, 0x1a, 0x80, ...randomBytes(4096)]);
+    await enviar(await armazenamento.assinarEnvio(chave), conteudo);
+
+    const lido = await armazenamento.ler(chave);
+
+    expect(lido).toEqual(conteudo);
+    expect(lido.byteLength).toBe(conteudo.byteLength);
+  });
+
+  it('estoura ao ler objeto que não existe, em vez de devolver vazio', async () => {
+    // Vazio seria pior que erro: a verificação leria "ROM de zero byte" e
+    // recusaria o envio de alguém por um problema que é nosso.
+    await expect(armazenamento.ler(`${PREFIXO}/nunca-existiu-para-ler.bin`)).rejects.toThrow();
+  });
+
   it('copia da quarentena para o caminho definitivo sem mexer na origem', async () => {
     // O caminho da ADR 0014: o cliente escreve na quarentena, o servidor
     // promove. `copiar` não é `mover` de propósito — quem promove decide
