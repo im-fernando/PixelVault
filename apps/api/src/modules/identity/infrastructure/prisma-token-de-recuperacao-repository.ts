@@ -23,8 +23,9 @@ import type {
  * grava nelas — mas um `Date` entregue cru ao driver chega com o fuso da
  * máquina, e o PostgreSQL o descartaria ao encaixar num `timestamp`,
  * guardando a hora local. As duas escritas da mesma coluna passariam a
- * discordar em três horas, e a poda apagaria token recém-criado. A conversão
- * explícita tira a máquina da conta.
+ * discordar pelo tanto que o fuso da máquina anda — e, num fuso a oeste de
+ * Greenwich, a poda apagaria token recém-criado. A conversão explícita tira a
+ * máquina da conta.
  */
 export const prismaTokenDeRecuperacaoRepository: TokenDeRecuperacaoRepository = {
   async criarSeContaExistir(email: string, dados: DadosDoTokenDeRecuperacao): Promise<boolean> {
