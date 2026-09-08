@@ -14,6 +14,9 @@ function repositorioFalso(jogos: GameDetail[]): GameRepository {
     list: async (query: GameListQuery) =>
       jogos.filter((j) => (query.systemId ? j.systemId === query.systemId : true)),
     findBySlug: async (slug: string) => jogos.find((j) => j.slug === slug) ?? null,
+    // Não é o assunto destes testes: quem exercita o match de hash é o
+    // adaptador, contra banco de verdade (`catalogo.integration.test.ts`).
+    identificarRomPorHash: async () => null,
   };
 }
 

@@ -1,45 +1,134 @@
 import type { RomUploadCompletedResponse } from '@pixelvault/contracts';
-import { NotFoundError } from '../../../infrastructure/errors.js';
+import { DomainError, NotFoundError } from '../../../infrastructure/errors.js';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
+import { caminhoDaRom } from '../domain/caminho-da-rom.js';
+import type { IdentificarRomNoCatalogo } from '../domain/catalogo-de-roms.js';
+import { RomRecusada } from '../domain/erros.js';
 import { caminhoNaQuarentena } from '../domain/quarentena.js';
+import type { UserRomRepository } from '../domain/user-rom-repository.js';
+import { verificarRom, type RomVerificada } from '../domain/verificacao-de-rom.js';
 
 export interface DependenciasDaConfirmacao {
   armazenamento: ArmazenamentoDeObjetos;
+  roms: UserRomRepository;
+  /** O match de hash contra o catálogo, que quem monta o caso de uso liga. */
+  catalogo: IdentificarRomNoCatalogo;
 }
 
 /**
- * O cliente avisa que terminou de enviar.
+ * O cliente avisa que terminou de enviar, e é aqui que a ROM vira ROM.
  *
- * Hoje isto faz uma coisa só: confirma que o objeto está mesmo na quarentena
- * daquela pessoa. É pouco de propósito — o passo seguinte da ADR 0014 (ler os
- * bytes, calcular o SHA-256 de verdade, validar cabeçalho e sistema, promover
- * para `roms/<sha256>` ou apagar) é a **#72**, e é ali que ele entra: entre a
- * confirmação de existência abaixo e o retorno.
+ * É o passo 4 em diante da [ADR 0014](../../../../../../docs/adr/0014-verificar-a-rom-em-quarentena-antes-de-promover.md):
+ * o servidor lê os bytes da quarentena, calcula o SHA-256 **dele**, confere
+ * que aquilo é mesmo uma ROM do sistema que o nome promete e só então promove
+ * o objeto para `roms/<sha256>` — ou descobre que aquele conteúdo já está lá e
+ * não transfere nada.
  *
- * O que já está resolvido aqui, e a #72 herda pronto, é a autorização. A chave
- * é montada a partir do `userId` da sessão, então "o envio de outra pessoa"
- * não é um caso a tratar: ele simplesmente não existe no caminho de quem
- * pergunta, e a resposta é o mesmo 404 de um `uploadId` que nunca existiu.
- * Duas respostas idênticas, nenhum oráculo — o mesmo padrão de
- * `autorizarOuNaoEncontrado` no `identity`.
+ * ## O que o cliente ainda decide, e o que ele não decide mais
  *
- * Enquanto a #72 não chega, o estado que o cliente vê é "recebido, aguardando
- * verificação". Nada foi para a biblioteca: `user_roms` continua sem linha, e
- * o objeto continua na quarentena, onde a limpeza de upload abandonado (issue
- * própria) o encontra se ninguém verificar.
+ * Decide o nome do arquivo, que é dele e vai para a biblioteca dele. Não
+ * decide mais nada: o caminho da quarentena sai da sessão (#71), e o caminho
+ * definitivo sai do hash calculado aqui. O hash que ele informou no pedido de
+ * upload não é lido em lugar nenhum deste arquivo — ele era dica para
+ * responder "você já tem esse" antes de transferir, e a dica acaba ali.
+ *
+ * ## A ordem das operações não é arbitrária
+ *
+ * Verificar → promover → apagar a quarentena → registrar a referência.
+ *
+ * Registrar por último porque a linha em `user_roms` é a promessa de que o
+ * objeto existe: criá-la antes da cópia produziria biblioteca com ROM que não
+ * baixa, que é pior do que upload que falhou. O caminho oposto — objeto
+ * promovido sem linha nenhuma — é só um objeto sem referência, que a próxima
+ * tentativa reaproveita pelo dedupe e que a coleta da ADR 0013 recolhe.
+ *
+ * Apagar a quarentena antes de registrar pelo mesmo raciocínio: se apagar
+ * falhar, o erro sobe, a pessoa tenta de novo e a segunda tentativa passa pelo
+ * mesmo caminho — só que agora o destino já existe e ela cai no dedupe. Nada
+ * fica pela metade sem que uma retentativa conserte.
  */
 export async function confirmarEnvioDeRom(
   deps: DependenciasDaConfirmacao,
   userId: string,
   uploadId: string,
+  fileName: string,
 ): Promise<RomUploadCompletedResponse> {
-  const chave = caminhoNaQuarentena(userId, uploadId);
+  const quarentena = caminhoNaQuarentena(userId, uploadId);
 
-  if (!(await deps.armazenamento.existe(chave))) {
+  // A chave é montada a partir do `userId` da sessão, então "o envio de outra
+  // pessoa" não existe no caminho de quem pergunta: a resposta é o mesmo 404
+  // de um `uploadId` que nunca existiu. Duas respostas idênticas, nenhum
+  // oráculo — o mesmo padrão de `autorizarOuNaoEncontrado` no `identity`.
+  if (!(await deps.armazenamento.existe(quarentena))) {
     throw new NotFoundError('Envio');
   }
 
-  // #72 entra aqui.
+  const verificada = await verificarOuLimpar(deps.armazenamento, quarentena, fileName);
 
-  return { status: 'recebido-aguardando-verificacao', uploadId };
+  const destino = caminhoDaRom(verificada.sha256);
+  const deduplicado = await deps.armazenamento.existe(destino);
+  if (!deduplicado) {
+    await deps.armazenamento.copiar(quarentena, destino);
+  }
+  await deps.armazenamento.apagar(quarentena);
+
+  const identificada = await deps.catalogo(hashesParaCasar(verificada));
+  const gameId = identificada?.gameId ?? null;
+
+  const rom = await deps.roms.registrar({
+    userId,
+    sha256: verificada.sha256,
+    storageKey: destino,
+    sizeBytes: verificada.sizeBytes,
+    fileName: verificada.fileName,
+    gameId,
+  });
+
+  return {
+    status: 'na-biblioteca',
+    romId: rom.id,
+    sha256: verificada.sha256,
+    gameId,
+    sizeBytes: verificada.sizeBytes,
+    deduplicado,
+  };
+}
+
+/**
+ * Lê os bytes e confere. Recusou, a quarentena some antes do erro subir.
+ *
+ * Apagar faz parte da recusa, e não é faxina: o que não vai ser promovido não
+ * pode ficar ocupando espaço numa conta nem esperando a limpeza de upload
+ * abandonado. É o último item do escopo da ADR 0014 — "falhou a verificação, a
+ * quarentena é apagada e nada é promovido".
+ */
+async function verificarOuLimpar(
+  armazenamento: ArmazenamentoDeObjetos,
+  quarentena: string,
+  fileName: string,
+): Promise<RomVerificada> {
+  const bytes = await armazenamento.ler(quarentena);
+
+  try {
+    return verificarRom(bytes, fileName);
+  } catch (erro) {
+    if (!(erro instanceof RomRecusada)) throw erro;
+
+    await armazenamento.apagar(quarentena);
+    // 422, e não 400: a sintaxe da requisição estava certa: o que não passou
+    // foi a regra de negócio sobre o conteúdo. O `details.rom` carrega o
+    // motivo estável, que é o que o front usa para escolher a frase.
+    throw new DomainError('VALIDATION_FAILED', erro.message, 422, { rom: [erro.motivo] });
+  }
+}
+
+/**
+ * Os hashes que o catálogo deve tentar.
+ *
+ * Os dois quando há cabeçalho de copiador, porque as bases de metadado
+ * catalogam sem ele — sem isso, dump de SNES com header nunca reconheceria o
+ * jogo, e a capa nunca apareceria sozinha.
+ */
+function hashesParaCasar(rom: RomVerificada): string[] {
+  return rom.sha256SemHeader === null ? [rom.sha256] : [rom.sha256, rom.sha256SemHeader];
 }

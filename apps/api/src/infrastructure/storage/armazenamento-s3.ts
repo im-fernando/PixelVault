@@ -95,6 +95,21 @@ export function criarArmazenamentoS3(opcoes: OpcoesDoArmazenamentoS3): Armazenam
       return getSignedUrl(cliente, comando, { expiresIn: validadeEmSegundos(ajustes) });
     },
 
+    async ler(chave: string): Promise<Uint8Array> {
+      const resposta = await cliente.send(new GetObjectCommand({ Bucket: bucket, Key: chave }));
+      if (resposta.Body === undefined) {
+        // O SDK tipa `Body` como opcional, mas um GET bem-sucedido sempre tem
+        // corpo — nem que seja vazio. Tratar como erro é melhor que devolver
+        // um array vazio que a verificação leria como "ROM de zero byte".
+        throw new Error(`Objeto ${chave} veio sem corpo`);
+      }
+
+      // `transformToByteArray` consome o stream até o fim e libera a conexão
+      // do pool. Ler por `Body.transformToString()` corromperia binário, e
+      // deixar o stream aberto vazaria socket a cada verificação.
+      return resposta.Body.transformToByteArray();
+    },
+
     async copiar(origem: string, destino: string): Promise<void> {
       await cliente.send(
         new CopyObjectCommand({

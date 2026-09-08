@@ -1,6 +1,6 @@
 import { prisma, type Prisma } from '@pixelvault/database';
 import type { Game, GameDetail, GameListQuery, HomebrewRom } from '@pixelvault/contracts';
-import type { GameRepository } from '../domain/game-repository.js';
+import type { GameRepository, RomDoCatalogo } from '../domain/game-repository.js';
 
 type LinhaJogo = {
   id: string;
@@ -109,5 +109,20 @@ export const prismaGameRepository: GameRepository = {
       ...paraDominio(linha),
       homebrewRom: rom === undefined ? null : paraRomDeHomebrew(rom),
     };
+  },
+
+  async identificarRomPorHash(hashes: readonly string[]): Promise<RomDoCatalogo | null> {
+    if (hashes.length === 0) return null;
+
+    // `sha256` é `@unique` global em `game_roms`, então "primeiro que casar" é
+    // determinístico mesmo com os dois hashes na consulta: no máximo um deles
+    // existe na tabela. Um `findFirst` com `in` é um acerto de índice, e não
+    // duas consultas em sequência.
+    const linha = await prisma.gameRom.findFirst({
+      where: { sha256: { in: [...hashes] } },
+      select: { gameId: true },
+    });
+
+    return linha === null ? null : { gameId: linha.gameId };
   },
 };

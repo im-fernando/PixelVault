@@ -50,11 +50,11 @@
  *
  * ## O que a porta não faz
  *
- * Ler o objeto no servidor. A verificação da quarentena
- * ([ADR 0014](../../../../../docs/adr/0014-verificar-a-rom-em-quarentena-antes-de-promover.md))
- * vai precisar disso para calcular o SHA-256 de verdade, e o método nasce lá,
- * junto do caso de uso que o chama e do teste que o exercita. Porta cresce com
- * consumidor; método sem chamador é código morto com aparência de arquitetura.
+ * Listar o bucket, e escrever nele sem ser por URL assinada. Não há caso de
+ * uso: quem escreve é o cliente, pela URL que a API assina, e a limpeza de
+ * quarentena abandonada apaga por chave conhecida, nunca por varredura. Porta
+ * cresce com consumidor; método sem chamador é código morto com aparência de
+ * arquitetura.
  */
 
 /**
@@ -119,7 +119,7 @@ export interface OpcoesDeEnvioAssinado extends OpcoesDeUrlAssinada {
 }
 
 /**
- * As cinco operações de que o BYOR inteiro (#71 a #77) precisa.
+ * As seis operações de que o BYOR inteiro (#71 a #77) precisa.
  *
  * A chave é o caminho do objeto dentro do bucket — `roms/<sha256>` ou
  * `quarentena/<userId>/<uuid>`, conforme as ADRs 0013 e 0014. A porta não
@@ -135,6 +135,39 @@ export interface ArmazenamentoDeObjetos {
 
   /** URL para o cliente ler o objeto direto do storage. */
   assinarLeitura(chave: string, opcoes?: OpcoesDeUrlAssinada): Promise<string>;
+
+  /**
+   * Lê o objeto **no servidor**, inteiro, na memória do processo.
+   *
+   * É o que a verificação da quarentena (ADR 0014) precisa: sem ler os bytes
+   * não há SHA-256 calculado por nós, e sem ele o caminho definitivo passaria
+   * a depender do que o cliente disse que enviou.
+   *
+   * Devolve um `Uint8Array` de uma vez, e não um stream, por três razões que
+   * se somam:
+   *
+   * 1. **O teto é conhecido e pequeno.** O maior objeto possível tem 64 MiB
+   *    (`TAMANHO_MAXIMO_DE_ROM_EM_BYTES`), e não por confiança: o tamanho
+   *    entra na assinatura do PUT como `Content-Length`, então o storage
+   *    recusa quem tenta escrever mais do que foi negociado.
+   * 2. **A verificação precisa do arquivo inteiro de qualquer jeito** — são
+   *    dois hashes (com e sem cabeçalho de copiador) sobre os mesmos bytes,
+   *    mais a inspeção do começo do arquivo. Por stream, isso seria duas
+   *    passagens ou um buffer montado à mão, e o ganho de memória evaporaria
+   *    justamente onde ele importaria.
+   * 3. **O domínio fica puro e síncrono.** As funções de verificação recebem
+   *    `Uint8Array` e são testáveis sem storage, sem I/O e sem async.
+   *
+   * O que isso custa é pico de memória proporcional a uploads verificando ao
+   * mesmo tempo. Se um dia isso apertar, o caminho já está claro — hash
+   * incremental sobre o stream, com um prefixo bufferizado para o cabeçalho —
+   * e ele muda este adaptador, não quem chama.
+   *
+   * Objeto ausente é erro, e não `null`: quem chama pergunta antes com
+   * {@link ArmazenamentoDeObjetos.existe}, e a ausência depois disso é falha
+   * de verdade, não caso normal.
+   */
+  ler(chave: string): Promise<Uint8Array>;
 
   /**
    * Copia um objeto dentro do bucket, servidor a servidor: nenhum byte passa

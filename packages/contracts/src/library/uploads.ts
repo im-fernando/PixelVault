@@ -103,16 +103,79 @@ export const romUploadResponseSchema = z.discriminatedUnion('status', [
 export type RomUploadResponse = z.infer<typeof romUploadResponseSchema>;
 
 /**
+ * Nome do arquivo, informado ao concluir o envio.
+ *
+ * É o único dado do cliente que sobrevive à verificação, e ele existe por duas
+ * razões: `user_roms.file_name` guarda o nome que a pessoa deu ao arquivo
+ * dela, e a **extensão é o que diz de qual sistema a ROM afirma ser** — sem
+ * isso não há faixa de tamanho plausível a conferir nem cabeçalho a procurar
+ * (docs/adr/0014).
+ *
+ * Mentir aqui não alcança ninguém: o nome não encosta no caminho do objeto,
+ * que é `roms/<sha256 calculado pelo servidor>`, e extensão errada só faz a
+ * verificação recusar o envio de quem mentiu.
+ */
+export const TAMANHO_MAXIMO_DO_NOME_DE_ARQUIVO = 255;
+
+export const romUploadCompletionSchema = z.object({
+  fileName: z.string().min(1).max(TAMANHO_MAXIMO_DO_NOME_DE_ARQUIVO),
+});
+export type RomUploadCompletion = z.infer<typeof romUploadCompletionSchema>;
+
+/**
+ * Por que a verificação recusou a ROM — vai em `details.rom` de um
+ * `VALIDATION_FAILED`.
+ *
+ * Mesmo espírito do `CodigoErroIdentity`: o `ErrorCode` genérico decide o
+ * status HTTP, e este diz o que a pessoa precisa entender. "Não é do sistema
+ * que a extensão promete" e "é grande demais para este console" viram o mesmo
+ * 422, mas não a mesma frase na tela.
+ *
+ * Nenhum dos quatro vaza nada: todos falam do arquivo que quem perguntou
+ * acabou de enviar.
+ */
+export const motivoDeRecusaDeRomSchema = z.enum([
+  /** A extensão não é de nenhum sistema suportado — `.zip`, `.txt`, sem ponto. */
+  'EXTENSAO_NAO_RECONHECIDA',
+  /** Fora da faixa plausível de cartucho daquele console. */
+  'TAMANHO_IMPLAUSIVEL',
+  /** Falta o cabeçalho que aquele formato sempre tem. Não é ROM. */
+  'CONTEUDO_NAO_RECONHECIDO',
+  /** O conteúdo é de outro console, ou é um arquivo compactado. */
+  'SISTEMA_DIVERGENTE',
+]);
+export type MotivoDeRecusaDeRom = z.infer<typeof motivoDeRecusaDeRomSchema>;
+
+/**
  * Resposta de `POST /api/library/uploads/:id/complete`.
  *
- * "Recebido, aguardando verificação" é literal, e não uma formalidade: o
- * objeto está na quarentena e ainda não é ROM de ninguém. Quem lê os bytes,
- * calcula o SHA-256 de verdade e promove (ou apaga) é a verificação da #72 —
- * até lá, nada foi para a biblioteca. A ADR 0014 avisa que a interface precisa
- * mostrar isso como estado, em vez de fingir que acabou.
+ * Aqui a verificação da ADR 0014 já aconteceu: o servidor leu os bytes da
+ * quarentena, calculou o SHA-256 de verdade, conferiu tamanho e cabeçalho, e
+ * ou promoveu o objeto para `roms/<sha256>` ou descobriu que aquele conteúdo
+ * já estava lá. Nos dois casos a ROM passou a ser da pessoa, e por isso o
+ * estado é um só. Falha de verificação não é estado desta resposta: é 422 com
+ * o motivo em `details.rom`.
+ *
+ * `gameId` nulo é normal, e não erro: o hash não casou com nada do catálogo e
+ * a biblioteca funciona do mesmo jeito (docs/adr/0006).
+ *
+ * `deduplicado` diz que nada foi transferido porque o conteúdo já existia no
+ * storage. Ele conta, sim, que **alguém** já tinha aquele arquivo — mas é um
+ * agregado sem dono, e o cliente concluiria o mesmo pelo relógio: dedupe
+ * responde na hora, promoção copia o objeto antes de responder. O que a ADR
+ * 0013 proíbe é outra coisa — servir bytes a partir de um hash informado —, e
+ * disso esta resposta continua longe.
  */
 export const romUploadCompletedResponseSchema = z.object({
-  status: z.literal('recebido-aguardando-verificacao'),
-  uploadId: uuidSchema,
+  status: z.literal('na-biblioteca'),
+  /** A linha em `user_roms`. É por ela que o front chega à ROM. */
+  romId: uuidSchema,
+  /** O hash que o servidor calculou. Nunca o que o cliente informou. */
+  sha256: sha256Schema,
+  /** O jogo do catálogo, quando o hash casou. Nulo é o caso comum do BYOR. */
+  gameId: uuidSchema.nullable(),
+  sizeBytes: z.number().int().positive(),
+  /** `true` quando o conteúdo já existia no storage e nada foi transferido. */
+  deduplicado: z.boolean(),
 });
 export type RomUploadCompletedResponse = z.infer<typeof romUploadCompletedResponseSchema>;
