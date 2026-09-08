@@ -93,6 +93,12 @@ function repositorioFalso(): RepositorioFalso {
       registradas.push(rom);
       return { id: '33333333-3333-4333-8333-333333333333', sha256: rom.sha256 };
     },
+    medirUso: async () => {
+      // A cota é conferida na autorização do envio (#76), antes de a URL ser
+      // assinada. Quando a confirmação chega, os bytes já subiram: medir de
+      // novo aqui só recusaria o que já foi pago.
+      throw new Error('a confirmação não mede cota');
+    },
   };
 }
 
