@@ -221,8 +221,9 @@ limiar do teste é 25% do custo médio (~72 ms): folgado o bastante para não
 piscar em CI ruidoso, e ainda quatro vezes menor que o sinal (~100% do custo)
 que denunciaria o Argon2 tendo sido pulado.
 
-Rate limit no login continua fora daqui — é a #49. O hash caro e a resposta
-uniforme não impedem tentativa em massa; só encarecem cada tentativa.
+O hash caro e a resposta uniforme não impedem tentativa em massa; só
+encarecem cada tentativa. Quem impede está na seção "Rate limit e defesa
+contra força bruta", abaixo.
 
 ## Sessão em cookie
 
@@ -314,10 +315,182 @@ O limite honesto: sessão de quem nunca mais volta não é podada por ninguém. 
 a tabela virar problema de tamanho, um `DELETE ... WHERE expires_at < now()`
 periódico resolve — e é decisão de operação, não mudança de contrato.
 
+## Rate limit e defesa contra força bruta
+
+Desenhado na #49. O hash caro do Argon2id encarece cada tentativa; ele não
+impede tentativa em massa — e, por ser caro, transforma o login num alvo
+barato de negação de serviço: o atacante gasta uma requisição, o servidor
+gasta ~330 ms de CPU. Rate limit é a segunda linha, e é ela que resolve os
+dois problemas.
+
+**Onde o contador vive** é decisão de arquitetura e está na
+[ADR 0019](adr/0019-contador-de-tentativas-no-postgresql.md): PostgreSQL,
+tabela `auth_attempts`, uma linha por tentativa, chave mascarada por HMAC. O
+resto desta seção é o que a ADR não decide — os números e o desenho do
+bloqueio.
+
+### Dois eixos, e um não substitui o outro
+
+Cada tentativa é contada duas vezes: pelo **IP** de onde saiu e pelo
+**identificador tentado** (o e-mail digitado no login e no cadastro; o
+`userId` da sessão na troca de senha). Nenhum dos dois basta sozinho:
+
+- **Só por IP** não enxerga o ataque distribuído — mil IPs tentando dez
+  senhas cada contra uma conta só passam por baixo de qualquer teto por
+  origem.
+- **Só por identificador** entrega uma arma: quem escolhe a vítima escolhe
+  quando ela fica de fora, bastando errar a senha dela de propósito.
+
+O identificador é o e-mail tentado, e não o usuário encontrado — antes do
+login não se sabe quem é, e consultar para descobrir criaria um oráculo de
+enumeração. O e-mail é normalizado exatamente como o login o normaliza
+(`Email.chaveDeBusca`), senão alternar maiúsculas daria um balde novo a cada
+variação da mesma conta.
+
+### Os parâmetros
+
+| escopo         | eixo          | limite | janela | bloqueio inicial | teto do bloqueio |
+| -------------- | ------------- | ------ | ------ | ---------------- | ---------------- |
+| login          | IP            | 20     | 15 min | 1 min            | 30 min           |
+| login          | identificador | 25     | 15 min | 1 min            | 15 min           |
+| cadastro       | IP            | 5      | 10 min | 5 min            | 30 min           |
+| cadastro       | identificador | 10     | 10 min | 5 min            | 30 min           |
+| troca de senha | IP            | 20     | 15 min | 1 min            | 30 min           |
+| troca de senha | identificador | 5      | 15 min | 1 min            | 15 min           |
+
+A escolha que mais importa é o teto por identificador ser **maior** que o
+teto por IP nas duas rotas abertas ao público, com a mesma janela. É isso que
+impede o limite por conta de virar arma: um atacante sozinho esbarra no
+próprio teto (20 no login) antes de encostar no teto da vítima (25), porque o
+bloqueio progressivo do IP só o deixa emendar mais três ou quatro tentativas
+dentro dos mesmos quinze minutos. Bloquear a conta de alguém escolhido passa
+a exigir mais de um IP. O teste de unidade de
+`limite-de-tentativas.ts` guarda essa invariante.
+
+E, mesmo quando o bloqueio por conta acontece, o dano é limitado por
+construção: ele dura no máximo 15 minutos, não derruba nenhuma sessão que a
+pessoa já tenha aberta (quem está logado continua logado) e não toca na
+recuperação de senha (#51). O que ele nega é abrir uma sessão nova, por
+alguns minutos.
+
+Vinte e cinco erros em quinze minutos também está longe de quem só digitou
+errado — três, quatro — e perto de zero para quem adivinha: com a política de
+12 caracteres, 2.400 tentativas por dia não chegam a lugar nenhum.
+
+A **troca de senha** inverte a assimetria de propósito. Ali o identificador é
+o `userId` de quem já provou ser dono da conta pelo cookie, então ninguém de
+fora consegue gastar a cota alheia — cinco erros em quinze minutos é seguro
+justamente por ser estreito.
+
+O **cadastro** conta toda requisição, e não só as que falham, porque ele
+responde igual para conta criada e para e-mail já cadastrado: não existe
+falha observável para contar. O teto por e-mail é generoso porque apertá-lo
+só daria a alguém o poder de impedir um desconhecido de criar conta com o
+próprio e-mail.
+
+### Bloqueio temporário que dobra, não atraso na resposta
+
+Estourado o limite, a chave fica de fora por 1 minuto; cada tentativa
+excedente dobra a espera (2, 4, 8…) até o teto do escopo. Erro humano quase
+nunca chega lá; insistência curta custa um minuto; insistência longa custa
+cada vez mais — e nunca vira trava permanente.
+
+A outra receita clássica — segurar a resposta por alguns segundos — foi
+descartada pelo mesmo motivo que o Argon2id ficou em `p=1`: requisição
+pendurada ocupa conexão e event loop, então "atrasar o atacante" é atrasar o
+servidor junto. Recusar rápido com `retry-after` custa quase nada e diz ao
+cliente honesto exatamente quando voltar.
+
+### A tentativa é contada antes de a senha ser conferida
+
+Duas consequências, e a segunda é o preço da primeira.
+
+A boa: não existe janela de corrida. Contar só o fracasso deixaria um punhado
+de requisições simultâneas passar junto pelo Argon2id antes de qualquer
+contador subir. Aqui a linha é gravada antes, e **apagada depois** quando a
+credencial se prova correta — do identificador, tudo; do IP, só a linha
+daquela requisição. Login que dá certo não consome cota de ninguém, o que
+mantém um escritório inteiro atrás do mesmo NAT longe do limite; e zerar o
+eixo do IP por inteiro no sucesso não serve, porque bastaria ao atacante ter
+uma conta própria e logar nela entre as tentativas para limpar o rastro.
+
+A ruim: enquanto o bloqueio por identificador vale, **nem a senha certa
+passa**. Liberar quem acerta significaria conferir a senha antes de aplicar o
+limite — e aí o limite não limitaria adivinhação nenhuma, que é a única coisa
+que ele existe para limitar. O preço é a espera com teto, descrita acima.
+
+A contagem acontece em `preValidation`, antes da validação do schema: corpo
+malformado também conta contra o IP. Se não contasse, mandar corpo lixo seria
+requisição de graça — e mil delas, um flood de graça.
+
+### Cabeçalhos e código de erro
+
+Toda resposta das rotas de credencial carrega `ratelimit-limit`,
+`ratelimit-remaining` e `ratelimit-reset` (em segundos), pelo eixo mais
+apertado dos dois; o 429 carrega também `retry-after`. São os nomes do
+rascunho de padrão da IETF, sem o `x-`, para não colidirem com os
+`x-ratelimit-*` que o `@fastify/rate-limit` emite pelo teto genérico da API
+(300 requisições por minuto por IP, em memória, descrito na ADR 0019).
+
+O corpo do 429 é o `ApiError` de sempre, com `code: RATE_LIMITED` — o mesmo
+código desde a #45. Qual dos dois eixos cortou vai em
+`details.rateLimit`, como `LIMITE_POR_IP` ou `LIMITE_POR_IDENTIFICADOR`. Não
+viramos isso em dois `ErrorCode` porque o código é o que o cliente usa para
+decidir o que fazer, e a decisão é a mesma nos dois casos: esperar o que o
+`retry-after` mandar. O que muda é a mensagem que a pessoa precisa ler, e
+mensagem não é fluxo. Também não vaza nada: o eixo do identificador conta o
+e-mail tentado exista ele ou não como conta.
+
+### O registro de tentativa recusada
+
+Toda resposta 4xx de rota de credencial vira uma linha de log estruturado
+(`pino`, que já é o logger do projeto), com `evento`,`escopo`, `resultado`,
+`ip` e `identificador` — o e-mail normalizado, ou o `userId` na troca de
+senha. Com o `reqId` que o Fastify já põe em toda linha, dá para reconstruir
+uma investigação: de onde veio, contra quem, quantas vezes, quando.
+
+**A senha tentada não entra em lugar nenhum.** Não é passada para a função
+que loga, não aparece em erro (nem o `DomainError`, nem o `ApiError` que vai
+ao cliente carregam campo de senha) e não vai para a tabela, que só guarda
+HMAC. Por precaução, o logger ainda declara `redact` para `password`,
+`currentPassword`, `newPassword` e para o corpo da requisição — o serializer
+padrão do Fastify não loga corpo, e a redação é a rede para o dia em que
+alguém pendurar um objeto inteiro num log de depuração.
+
+A divisão entre o que vai para o log e o que vai para a tabela é deliberada:
+log é operacional, tem retenção curta e existe para quem está investigando um
+incidente; a tabela é durável e não deve virar, com o tempo, a lista de quem
+foi alvo.
+
+### O que fica de fora, e por quê
+
+As rotas de sessão — `POST /api/auth/logout`, `GET /api/auth/sessions`,
+`DELETE /api/auth/sessions/:id`, `POST /api/auth/sessions/revoke-others` —
+não têm rate limit próprio. Todas exigem cookie de sessão válido, então
+nenhuma é superfície de adivinhação de credencial: quem chega nelas já provou
+quem é, e o que ele pode fazer ali é revogar as próprias sessões. Aplicar o
+regime do login a elas custaria consultas ao banco em toda navegação para
+proteger de um abuso que não existe. Elas ficam sob o teto genérico da API,
+que é o suficiente para cliente desgovernado.
+
+`GET /api/auth/me` fica de fora pela mesma razão, com um motivo a mais: ela é
+chamada em toda abertura de tela do front.
+
+### Cuidado de operação: `trustProxy`
+
+O contador por IP usa `request.ip`. Com a API atrás de um proxy ou CDN e sem
+`trustProxy` configurado no Fastify, `request.ip` é o endereço do proxy — e
+aí todos os usuários compartilham o mesmo balde, o limite por IP corta todo
+mundo junto e o eixo deixa de significar o que promete. O mesmo cuidado vale
+para o `ipTruncated` das sessões. Ligar `trustProxy` faz parte de colocar
+isto em produção atrás de qualquer coisa.
+
 ## O que falta
 
-- **Rate limit no login e nas rotas de sessão** (#49) — o hash caro reduz o
-  dano de um vazamento de banco, mas não impede tentativa em massa contra o
-  endpoint; rate limit é quem faz isso.
 - **Poda das sessões de quem nunca mais volta** — ver acima: a limpeza
   preguiçosa não alcança quem nunca mais aparece.
+- **Poda das tentativas de quem nunca mais volta** — mesma forma e mesmo
+  limite: a poda de `auth_attempts` é preguiçosa (ADR 0019).
+- **Recuperação de senha** (#51) — é o caminho de quem não sabe a senha, e
+  ele nasce precisando do mesmo cuidado de rate limit e de resposta
+  indistinguível que o login tem aqui.

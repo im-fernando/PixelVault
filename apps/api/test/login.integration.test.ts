@@ -7,6 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
 import { DURACAO_DA_SESSAO_MS, NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
 
 loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
@@ -20,6 +21,14 @@ const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
  * falso não haveria tempo nenhum para medir.
  */
 const SENHA = 'cavalo-bateria-grampo';
+
+/**
+ * Todo request deste arquivo sai deste IP. O rate limit da #49 conta por IP
+ * no PostgreSQL, compartilhado, e os arquivos de teste rodam em paralelo
+ * contra o mesmo banco: sem um endereço próprio, um arquivo comeria a cota
+ * do outro. Faixa reservada para documentação (RFC 5737).
+ */
+const IP_DO_ARQUIVO = '198.51.100.20';
 const emailsCriados: string[] = [];
 
 function identidadeNova(prefixo: string): { email: string; handle: string } {
@@ -35,7 +44,12 @@ let contaId: string;
 let app: FastifyInstance;
 
 async function logar(credenciais: { email: string; password: string }): Promise<RespostaInjetada> {
-  return app.inject({ method: 'POST', url: '/api/auth/login', payload: credenciais });
+  return app.inject({
+    method: 'POST',
+    url: '/api/auth/login',
+    payload: credenciais,
+    remoteAddress: IP_DO_ARQUIVO,
+  });
 }
 
 /** `GET /api/auth/me` mandando (ou não) o cookie de sessão. */
@@ -43,7 +57,24 @@ async function pedirMe(cookie?: string): Promise<RespostaInjetada> {
   return app.inject({
     method: 'GET',
     url: '/api/auth/me',
+    remoteAddress: IP_DO_ARQUIVO,
     ...(cookie === undefined ? {} : { cookies: { [NOME_DO_COOKIE_DE_SESSAO]: cookie } }),
+  });
+}
+
+/**
+ * Zera o contador de tentativas deste arquivo. A tabela guarda HMAC, então o
+ * teste calcula a mesma chave que a aplicação calcularia.
+ */
+async function limparContador(): Promise<void> {
+  await prisma.authAttempt.deleteMany({
+    where: {
+      keyHash: {
+        in: [IP_DO_ARQUIVO, conta.email].map((valor) =>
+          chaveDeTentativa(config.SESSION_SECRET, valor),
+        ),
+      },
+    },
   });
 }
 
@@ -69,6 +100,7 @@ beforeAll(async () => {
     method: 'POST',
     url: '/api/auth/register',
     payload: { ...conta, password: SENHA, termsAccepted: true },
+    remoteAddress: IP_DO_ARQUIVO,
   });
   expect(resposta.statusCode).toBe(202);
   await criador.close();
@@ -80,14 +112,18 @@ beforeAll(async () => {
 beforeEach(async () => {
   app = await buildApp(config);
   // Cada cenário conta e inspeciona as sessões da conta de teste; sobra de
-  // um cenário anterior estragaria a contagem do seguinte.
+  // um cenário anterior estragaria a contagem do seguinte. O mesmo vale para
+  // o contador de tentativas: vários cenários daqui erram a senha de
+  // propósito, e a soma deles bateria no limite da #49.
   await prisma.session.deleteMany({ where: { userId: contaId } });
+  await limparContador();
   return async () => {
     await app.close();
   };
 });
 
 afterAll(async () => {
+  await limparContador();
   // As sessões vão junto: a FK de `sessions` é `onDelete: Cascade`.
   await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
   await prisma.$disconnect();
@@ -189,6 +225,12 @@ describe('POST /api/auth/login', () => {
     const REPETICOES = 8;
 
     async function medir(payload: { email: string; password: string }): Promise<number> {
+      // Fora do cronômetro: são dezoito tentativas erradas seguidas, o que
+      // é exatamente o que o rate limit da #49 existe para cortar. Zerar o
+      // contador antes de cada medição mantém este teste medindo o que ele
+      // se propõe a medir — o custo do Argon2id nos dois caminhos.
+      await limparContador();
+
       const inicio = performance.now();
       await logar(payload);
       return performance.now() - inicio;

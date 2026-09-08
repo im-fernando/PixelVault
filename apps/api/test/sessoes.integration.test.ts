@@ -8,6 +8,7 @@ import { prisma } from '@pixelvault/database';
 import type { SessionListResponse, SessionSummary } from '@pixelvault/contracts';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { chaveDeTentativa } from '../src/modules/identity/infrastructure/chave-de-tentativa.js';
 import { NOME_DO_COOKIE_DE_SESSAO } from '../src/modules/sessions/index.js';
 
 loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'), quiet: true });
@@ -24,6 +25,14 @@ const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
  * dois navegadores.
  */
 const SENHA = 'cavalo-bateria-grampo';
+
+/**
+ * Todo request deste arquivo sai deste IP. O rate limit da #49 conta por IP
+ * no PostgreSQL, compartilhado, e os arquivos de teste rodam em paralelo
+ * contra o mesmo banco: sem um endereço próprio, um arquivo comeria a cota
+ * do outro. Faixa reservada para documentação (RFC 5737).
+ */
+const IP_DO_ARQUIVO = '198.51.100.30';
 const emailsCriados: string[] = [];
 
 function identidadeNova(prefixo: string): { email: string; handle: string } {
@@ -58,8 +67,27 @@ function cookieDeLimpeza(
   );
 }
 
-function comCookie(cookie?: string): { cookies?: Record<string, string> } {
-  return cookie === undefined ? {} : { cookies: { [NOME_DO_COOKIE_DE_SESSAO]: cookie } };
+function comCookie(cookie?: string): {
+  remoteAddress: string;
+  cookies?: Record<string, string>;
+} {
+  return {
+    remoteAddress: IP_DO_ARQUIVO,
+    ...(cookie === undefined ? {} : { cookies: { [NOME_DO_COOKIE_DE_SESSAO]: cookie } }),
+  };
+}
+
+/** A tabela guarda HMAC, então o teste calcula a mesma chave da aplicação. */
+async function limparContador(): Promise<void> {
+  await prisma.authAttempt.deleteMany({
+    where: {
+      keyHash: {
+        in: [IP_DO_ARQUIVO, conta.email, outraConta.email].map((valor) =>
+          chaveDeTentativa(config.SESSION_SECRET, valor),
+        ),
+      },
+    },
+  });
 }
 
 /** Abre uma sessão nova e devolve o cookie dela — um "dispositivo". */
@@ -70,6 +98,7 @@ async function novoDispositivo(
     method: 'POST',
     url: '/api/auth/login',
     payload: credenciais,
+    remoteAddress: IP_DO_ARQUIVO,
   });
   expect(resposta.statusCode).toBe(200);
 
@@ -122,11 +151,17 @@ async function criarConta(
     method: 'POST',
     url: '/api/auth/register',
     payload: { ...dados, password: SENHA, termsAccepted: true },
+    remoteAddress: IP_DO_ARQUIVO,
   });
   expect(resposta.statusCode).toBe(202);
 }
 
 beforeAll(async () => {
+  // Antes de cadastrar: o contador de cadastro por IP é compartilhado e
+  // sobrevive à execução anterior, então rodar a suíte duas vezes seguidas
+  // esbarraria nele.
+  await limparContador();
+
   const criador = await buildApp(config);
   await criarConta(criador, conta);
   await criarConta(criador, outraConta);
@@ -140,12 +175,14 @@ beforeEach(async () => {
   app = await buildApp(config);
   // Cada cenário conta sessões; sobra do anterior estragaria a contagem.
   await prisma.session.deleteMany({ where: { userId: { in: [contaId, outraContaId] } } });
+  await limparContador();
   return async () => {
     await app.close();
   };
 });
 
 afterAll(async () => {
+  await limparContador();
   // As sessões vão junto: a FK de `sessions` é `onDelete: Cascade`.
   await prisma.user.deleteMany({ where: { email: { in: emailsCriados } } });
   await prisma.$disconnect();

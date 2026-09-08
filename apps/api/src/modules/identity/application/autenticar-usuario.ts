@@ -60,7 +60,13 @@ export async function autenticarUsuario(
   entrada: LoginRequest,
 ): Promise<DadosDoUsuario> {
   return comErrosTraduzidos(async () => {
-    const credenciais = await deps.usuarios.buscarCredenciaisPorEmail(chaveDeBusca(entrada.email));
+    const credenciais = await deps.usuarios.buscarCredenciaisPorEmail(
+      // A mesma normalização que o rate limit usa para escolher o balde da
+      // tentativa. Quando o texto não passa pelo value object, a busca vai
+      // adiante com a versão crua e simplesmente não acha nada — o caminho
+      // precisa ter o mesmo formato dos outros. Ver `Email.chaveDeBusca`.
+      Email.chaveDeBusca(entrada.email),
+    );
 
     // A linha que sustenta o item 3: sem conta, verifica contra o hash
     // descartável. `verificar` roda em todos os caminhos, sempre.
@@ -85,18 +91,4 @@ export async function autenticarUsuario(
       displayName: credenciais.displayName,
     };
   });
-}
-
-/**
- * O e-mail normalizado do jeito que o cadastro o gravou. Quando o texto não
- * passa pelo value object, cai para a normalização crua: a busca precisa
- * acontecer de qualquer jeito para que o caminho tenha o mesmo formato dos
- * outros — ela simplesmente não vai achar nada.
- */
-function chaveDeBusca(email: string): string {
-  try {
-    return Email.criar(email).toString();
-  } catch {
-    return email.trim().toLowerCase();
-  }
 }

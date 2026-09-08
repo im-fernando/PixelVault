@@ -101,8 +101,9 @@ export function deErroDeApi(
     if (mensagem !== undefined) porCampo[campo] = mensagem;
   }
 
-  // A mensagem geral aparece quando algo não coube em campo nenhum, e também
-  // quando a recusa veio sem `details` — 429 do teto de tentativas, 500,
+  // A mensagem geral aparece quando algo não coube em campo nenhum — o 429
+  // do rate limit, cujo `details.rateLimit` nomeia o eixo do limite e não um
+  // campo — e também quando a recusa veio sem `details` nenhum: 500, ou
   // qualquer coisa que não seja validação.
   const geral = sobrou || Object.keys(porCampo).length === 0 ? erro.payload.message : null;
 

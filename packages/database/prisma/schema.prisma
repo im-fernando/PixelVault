@@ -169,3 +169,45 @@ model UserGame {
   @@index([userId, lastPlayedAt])
   @@map("user_games")
 }
+
+/// Papel de uma chave contada em `auth_attempts`. Dois eixos que não se
+/// substituem: só por IP não segura ataque distribuído (muitos IPs, uma
+/// conta), e só por identificador deixa um atacante negar acesso a uma
+/// vítima escolhida. Ver docs/adr/0019.
+enum AuthAttemptKey {
+  ip
+  identifier
+}
+
+/// Superfície de credencial em que a tentativa aconteceu. Contadores
+/// separados por escopo de propósito: quem errou a senha atual numa troca
+/// não deve consumir a cota de quem está tentando entrar.
+enum AuthAttemptScope {
+  login
+  register
+  change_password
+}
+
+/// Tentativa de autenticação — uma linha por requisição que chega a uma rota
+/// onde credencial é testada. É o contador de rate limit, e ele mora no
+/// PostgreSQL porque é a única peça de estado que as instâncias da API já
+/// compartilham. Ver docs/adr/0019.
+///
+/// `keyHash` é o HMAC-SHA256 do IP ou do identificador tentado, nunca o valor
+/// em claro: a contagem só precisa de igualdade, e um dump desta tabela não
+/// pode virar a lista de quem estava sendo atacado. Senha não chega aqui de
+/// forma nenhuma.
+model AuthAttempt {
+  id        String           @id @default(uuid()) @db.Uuid
+  scope     AuthAttemptScope
+  keyType   AuthAttemptKey   @map("key_type")
+  keyHash   String           @map("key_hash")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  /// A ordem serve à única consulta que decide alguma coisa: contar as
+  /// tentativas de uma chave dentro da janela.
+  @@index([scope, keyType, keyHash, createdAt])
+  /// Poda por idade, que não passa por chave nenhuma.
+  @@index([createdAt])
+  @@map("auth_attempts")
+}

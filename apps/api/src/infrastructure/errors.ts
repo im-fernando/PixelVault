@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@pixelvault/contracts';
+import type { ErrorCode, MotivoDeLimite } from '@pixelvault/contracts';
 
 /**
  * Erro de domínio: representa uma regra de negócio violada, não uma falha
@@ -38,5 +38,22 @@ export class UnauthenticatedError extends DomainError {
 export class ForbiddenError extends DomainError {
   constructor(message = 'Acesso negado') {
     super('FORBIDDEN', message, 403);
+  }
+}
+
+/**
+ * Rate limit estourado.
+ *
+ * A mensagem é a mesma para os dois eixos e não diz qual conta, qual IP nem
+ * quantas tentativas faltavam: quem estourou o limite não precisa de um
+ * relatório do que o servidor sabe sobre ele. Qual eixo cortou vai em
+ * `details.rateLimit`, para quem está depurando de boa-fé, e quando voltar
+ * vai no cabeçalho `retry-after`, que o cliente honesto obedece.
+ */
+export class RateLimitedError extends DomainError {
+  constructor(motivo: MotivoDeLimite) {
+    super('RATE_LIMITED', 'Tentativas demais. Tente de novo em alguns minutos.', 429, {
+      rateLimit: [motivo],
+    });
   }
 }

@@ -1,6 +1,7 @@
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -13,8 +14,9 @@ import {
 } from 'fastify-type-provider-zod';
 import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
+import { RateLimitedError } from './infrastructure/errors.js';
 import { catalogRoutes } from './modules/catalog/index.js';
-import { identityRoutes } from './modules/identity/index.js';
+import { criarLimitesDeAutenticacao, identityRoutes } from './modules/identity/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
 /**
@@ -27,6 +29,23 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.NODE_ENV === 'test' ? 'silent' : 'info',
+      // Nenhum log da aplicação escreve corpo de requisição, e o serializer
+      // padrão do Fastify também não. Isto é a rede embaixo: se um dia
+      // alguém pendurar um objeto inteiro num log de depuração, a senha
+      // tentada não vai junto. Ver docs/seguranca.md.
+      redact: {
+        paths: [
+          'password',
+          'currentPassword',
+          'newPassword',
+          '*.password',
+          '*.currentPassword',
+          '*.newPassword',
+          'body',
+          'req.body',
+        ],
+        censor: '[redigido]',
+      },
       ...(config.NODE_ENV === 'development'
         ? { transport: { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss' } } }
         : {}),
@@ -40,6 +59,28 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: config.WEB_ORIGIN, credentials: true });
+
+  // Teto genérico da API, por IP, em memória. É higiene contra cliente
+  // desgovernado, não defesa de credencial: por isso é folgado, e por isso
+  // não faz mal ele viver na memória do processo — com N instâncias o teto
+  // efetivo vira N × 300/min, e nenhuma garantia de segurança depende disso.
+  // Quem defende as rotas de credencial é outro mecanismo, com contador
+  // compartilhado no PostgreSQL e limites bem mais estreitos
+  // (`criarLimitesDeAutenticacao`, docs/adr/0019).
+  //
+  // A ordem de registro é a ordem dos hooks: depois do CORS, para que o 429
+  // saia com os cabeçalhos de origem e o navegador consiga ler o corpo em
+  // vez de reportar um erro de CORS; antes da resolução de sessão, para que
+  // requisição cortada aqui não chegue a consultar o banco.
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: '1 minute',
+    // O plugin lança o que este builder devolver; devolvendo um DomainError,
+    // a resposta 429 sai pelo mesmo tradutor de erro de todo o resto e chega
+    // ao cliente no formato `ApiError`, com requestId.
+    errorResponseBuilder: () => new RateLimitedError('LIMITE_POR_IP'),
+  });
+
   await app.register(cookie, { secret: config.SESSION_SECRET });
   await app.register(sensible);
 
@@ -69,7 +110,16 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // Cada módulo é um plugin encapsulado — o Fastify já nos dá o isolamento de
   // escopo que a referência em .NET obtém com um container de IoC por módulo.
   await app.register(catalogRoutes, { prefix: '/api' });
-  await app.register(identityRoutes, { prefix: '/api', sessoes });
+  await app.register(identityRoutes, {
+    prefix: '/api',
+    sessoes,
+    // As rotas de credencial são as únicas com contador por IP e por
+    // identificador tentado. As de sessão (`/auth/logout`,
+    // `/auth/sessions/*`) ficam de fora: todas exigem cookie válido, então
+    // não são superfície de adivinhação de credencial — quem chega nelas já
+    // provou quem é. Ver docs/seguranca.md.
+    limites: criarLimitesDeAutenticacao({ segredo: config.SESSION_SECRET }),
+  });
   // As rotas de sessão são do módulo `sessions`, ainda que a URL comece com
   // `/auth`: quem lista e revoga sessão é o dono do ciclo de vida dela.
   await app.register(sessionsRoutes, { prefix: '/api', sessoes });

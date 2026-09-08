@@ -9,6 +9,11 @@
  * de vida da sessão é do módulo `sessions` — aqui só se pede a ele que abra
  * uma, passando um `userId`. Logout e revogação são a issue #47.
  *
+ * É dono também da defesa contra força bruta, porque é dele a superfície em
+ * que credencial é testada: `criarLimitesDeAutenticacao` monta os ganchos de
+ * rate limit que a composition root pendura nas rotas de credencial. Ver
+ * docs/adr/0019 e docs/seguranca.md.
+ *
  * É dono também da autorização, porque é dele a conta e o papel dela. Os
  * outros módulos montam a `Ability` de quem está pedindo com
  * `habilidadesDoUsuario(request.userId)`, perguntam com `recurso(...)` e
@@ -17,6 +22,11 @@
  */
 export { identityRoutes } from './http/routes.js';
 export type { OpcoesDeIdentity } from './http/routes.js';
+export { criarLimitesDeAutenticacao } from './http/limite-de-autenticacao.js';
+export type {
+  LimitesDeAutenticacao,
+  OpcoesDoLimiteDeAutenticacao,
+} from './http/limite-de-autenticacao.js';
 export { autorizarOuNaoEncontrado, autorizarOuProibido } from './application/autorizar.js';
 export {
   definirHabilidades,

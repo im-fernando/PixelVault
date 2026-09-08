@@ -103,6 +103,24 @@ describe('deErroDeApi', () => {
     expect(erro.geral).toBe('Tentativas demais. Tente de novo em alguns minutos.');
   });
 
+  it('sobe a recusa do rate limit para o topo, e não para um campo inventado', () => {
+    // O 429 das rotas de credencial traz `details.rateLimit` dizendo qual eixo
+    // cortou (por IP ou pela conta tentada). Não é campo de formulário, e o
+    // formulário não pode tentar desenhar um erro embaixo de um campo que não
+    // existe. Ver docs/seguranca.md.
+    const erro = deErroDeApi(
+      recusa(429, {
+        code: 'RATE_LIMITED',
+        message: 'Tentativas demais. Tente de novo em alguns minutos.',
+        details: { rateLimit: ['LIMITE_POR_IDENTIFICADOR'] },
+      }),
+      CAMPOS_DO_LOGIN,
+    );
+
+    expect(erro.porCampo).toEqual({});
+    expect(erro.geral).toBe('Tentativas demais. Tente de novo em alguns minutos.');
+  });
+
   it('não deixa falha de rede sem explicação', () => {
     const erro = deErroDeApi(new TypeError('Failed to fetch'), CAMPOS_DO_LOGIN);
 
