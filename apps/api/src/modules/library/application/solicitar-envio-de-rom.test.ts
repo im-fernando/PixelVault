@@ -58,6 +58,9 @@ function repositorioFalso(uso: UsoDaBiblioteca): UserRomRepository {
     registrar: async () => {
       throw new Error('a autorização de envio não registra nada');
     },
+    buscarPorId: async () => {
+      throw new Error('a autorização de envio não busca por id');
+    },
     medirUso: async () => uso,
   };
 }
@@ -131,6 +134,9 @@ describe('solicitarEnvioDeRom, do lado da cota', () => {
       buscarPorHash: async () => ({ id: 'rom-1', sha256: 'a'.repeat(64) }),
       registrar: async () => {
         throw new Error('não deveria registrar');
+      },
+      buscarPorId: async () => {
+        throw new Error('a autorização de envio não busca por id');
       },
       medirUso: async () => {
         throw new Error('o atalho do hash responde antes de medir a cota');
