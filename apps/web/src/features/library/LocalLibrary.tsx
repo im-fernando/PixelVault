@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { Cartucho } from './Cartucho.js';
 import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
-import { useRomsLocais } from './local-roms.js';
+import { urlDaLombadaLocal, useRomsLocais } from './local-roms.js';
 
 /**
  * As ROMs pessoais, na mesma estante do catálogo — porque para quem joga são a
@@ -34,6 +34,7 @@ export function LocalLibrary() {
               titulo={rom.title}
               systemId={rom.systemId}
               selo={`${(rom.sizeBytes / 1024).toFixed(0)} KB`}
+              lombadaUrl={urlDaLombadaLocal(rom)}
             />
           </Link>
         ))}
