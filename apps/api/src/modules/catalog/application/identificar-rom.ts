@@ -57,11 +57,11 @@ const buscaDeCapa = criarBuscaDeCapa();
  * ## Por que não é esperada
  *
  * Porque o upload não pode ficar mais lento por causa de uma capa. Quem chama
- * isto está no meio do `POST /api/roms/uploads/:id/completo`, respondendo "sua
- * ROM foi verificada"; capa é enfeite bem-vindo, não parte da resposta. Se a
- * busca demorar, falhar ou o serviço estiver fora do ar, a pessoa não fica
- * sabendo — a ROM entrou na biblioteca do mesmo jeito, sem capa, que é o
- * comportamento de hoje. Mesma escolha do e-mail de recuperação em
+ * isto está no meio do `POST /api/library/uploads/:uploadId/complete`,
+ * respondendo "sua ROM foi verificada"; capa é enfeite bem-vindo, não parte
+ * da resposta. Se a busca demorar, falhar ou o serviço estiver fora do ar, a
+ * pessoa não fica sabendo — a ROM entrou na biblioteca do mesmo jeito, sem
+ * capa, que é o comportamento de hoje. Mesma escolha do e-mail de recuperação em
  * `identity/application/solicitar-recuperacao-de-senha.ts`, por um motivo
  * diferente: lá é anti-enumeração, aqui é latência.
  *
