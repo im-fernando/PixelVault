@@ -86,6 +86,9 @@ function repositorioFalso(): RepositorioFalso {
   return {
     registradas,
     buscarPorHash: async () => null,
+    buscarPorId: async () => {
+      throw new Error('a confirmação não busca por id');
+    },
     registrar: async (rom: NovaRomDoUsuario) => {
       registradas.push(rom);
       return { id: '33333333-3333-4333-8333-333333333333', sha256: rom.sha256 };

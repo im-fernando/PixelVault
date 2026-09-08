@@ -2,6 +2,7 @@ import { prisma } from '@pixelvault/database';
 import type {
   NovaRomDoUsuario,
   RomDoUsuario,
+  RomDoUsuarioParaDownload,
   UserRomRepository,
 } from '../domain/user-rom-repository.js';
 
@@ -35,6 +36,24 @@ export const prismaUserRomRepository: UserRomRepository = {
       },
       update: {},
       select: { id: true, sha256: true },
+    });
+  },
+
+  async buscarPorId(id: string): Promise<RomDoUsuarioParaDownload | null> {
+    // O `userId` sai no `select` porque é ele que a autorização compara — sem
+    // ele, quem chama só saberia que a linha existe, que é exatamente a
+    // pergunta errada. A `storageKey` vem junto e para aqui: ela é assinada no
+    // caso de uso e nunca entra na resposta HTTP.
+    return prisma.userRom.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        sha256: true,
+        storageKey: true,
+        sizeBytes: true,
+        fileName: true,
+      },
     });
   },
 };
