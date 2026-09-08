@@ -1,4 +1,3 @@
-import rateLimit from '@fastify/rate-limit';
 import type { FastifyPluginOptions } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
@@ -11,7 +10,6 @@ import {
   registerRequestSchema,
   registerResponseSchema,
 } from '@pixelvault/contracts';
-import { DomainError } from '../../../infrastructure/errors.js';
 import type { Sessoes } from '../../sessions/index.js';
 import { autenticarUsuario } from '../application/autenticar-usuario.js';
 import { buscarUsuarioAutenticado } from '../application/buscar-usuario-autenticado.js';
@@ -25,25 +23,7 @@ import {
 } from '../infrastructure/hash-de-senha.js';
 import { prismaUserRepository } from '../infrastructure/prisma-user-repository.js';
 import { regrasDeHabilidadeDoUsuario } from './habilidades.js';
-
-/**
- * Teto provisório por IP no cadastro. Cinco tentativas em dez minutos é
- * generoso para quem está criando a própria conta e estreito para quem está
- * varrendo e-mails — e o hash Argon2id de cada tentativa custa caro no
- * servidor, então deixar a rota nua também seria um vetor de negação de
- * serviço.
- *
- * Isto é primeira linha, não a defesa: rate limit de verdade (por rota, por
- * conta, com armazenamento compartilhado entre instâncias e resposta a
- * força bruta) é a issue #49, que deve revisar estes números e provavelmente
- * mover a configuração para fora daqui. Em memória, o contador não sobrevive
- * a restart nem é compartilhado entre processos.
- *
- * O login fica de fora deste teto de propósito: limitar tentativa de senha
- * é o trabalho da #49, com contagem por conta além de por IP. Um limite por
- * IP colado aqui daria a impressão de que o problema está resolvido.
- */
-const LIMITE_DE_CADASTRO = { max: 5, timeWindow: '10 minutes' } as const;
+import type { LimitesDeAutenticacao } from './limite-de-autenticacao.js';
 
 export interface OpcoesDeIdentity extends FastifyPluginOptions {
   /**
@@ -52,6 +32,12 @@ export interface OpcoesDeIdentity extends FastifyPluginOptions {
    * fronteira, e a única coisa que atravessa é esta interface.
    */
   sessoes: Sessoes;
+  /**
+   * Os ganchos de rate limit das rotas de credencial. Vêm da composition
+   * root porque dependem do `SESSION_SECRET`, que é configuração e não
+   * pertence a este arquivo. Ver `limite-de-autenticacao.ts`.
+   */
+  limites: LimitesDeAutenticacao;
 }
 
 /**
@@ -61,21 +47,13 @@ export interface OpcoesDeIdentity extends FastifyPluginOptions {
  * que são dos casos de uso.
  */
 export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (app, opcoes) => {
-  const { sessoes } = opcoes;
-
-  await app.register(rateLimit, {
-    global: false,
-    // O plugin lança o que este builder devolver; devolvendo um DomainError,
-    // a resposta 429 sai pelo mesmo tradutor de erro de todo o resto e chega
-    // ao cliente no formato `ApiError`, com requestId.
-    errorResponseBuilder: () =>
-      new DomainError('RATE_LIMITED', 'Tentativas demais. Tente de novo em alguns minutos.', 429),
-  });
+  const { sessoes, limites } = opcoes;
 
   app.post(
     '/auth/register',
     {
-      config: { rateLimit: LIMITE_DE_CADASTRO },
+      preValidation: limites.cadastro.preValidation,
+      onSend: limites.cadastro.onSend,
       schema: {
         tags: ['identity'],
         summary: 'Cria uma conta',
@@ -107,15 +85,23 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
   app.post(
     '/auth/login',
     {
+      preValidation: limites.login.preValidation,
+      onSend: limites.login.onSend,
       schema: {
         tags: ['identity'],
         summary: 'Autentica e abre sessão',
         description:
           'E-mail inexistente e senha errada produzem a mesma resposta, com o mesmo ' +
           'custo de tempo. Em caso de sucesso, a sessão vai num cookie httpOnly — o ' +
-          'token nunca aparece no corpo.',
+          'token nunca aparece no corpo. É a rota mais protegida da API contra ' +
+          'repetição: conta tentativas por IP e pelo e-mail tentado, e responde 429 ' +
+          'com `RATE_LIMITED` quando qualquer um dos dois estoura.',
         body: loginRequestSchema,
-        response: { 200: authenticatedUserResponseSchema, 401: apiErrorSchema },
+        response: {
+          200: authenticatedUserResponseSchema,
+          401: apiErrorSchema,
+          429: apiErrorSchema,
+        },
       },
     },
     async (request, reply) => {
@@ -183,7 +169,9 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
   app.post(
     '/auth/change-password',
     {
+      preValidation: limites.trocaDeSenha.preValidation,
       preHandler: sessoes.exigirSessao,
+      onSend: limites.trocaDeSenha.onSend,
       schema: {
         tags: ['identity'],
         summary: 'Troca a senha e derruba os outros dispositivos',
@@ -193,7 +181,12 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
           'todas as outras sessões da conta são revogadas; a que fez a troca sobrevive. ' +
           'Não é o fluxo de "esqueci minha senha", que é a #51.',
         body: changePasswordRequestSchema,
-        response: { 200: changePasswordResponseSchema, 401: apiErrorSchema, 422: apiErrorSchema },
+        response: {
+          200: changePasswordResponseSchema,
+          401: apiErrorSchema,
+          422: apiErrorSchema,
+          429: apiErrorSchema,
+        },
       },
     },
     async (request, reply) => {

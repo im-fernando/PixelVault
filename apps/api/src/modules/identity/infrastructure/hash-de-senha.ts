@@ -3,8 +3,9 @@ import argon2 from 'argon2';
 /**
  * Parâmetros atuais do Argon2id, medidos nesta máquina (ver
  * `docs/seguranca.md`) mirando 200–500 ms por hash — rápido o bastante para
- * não virar vetor de negação de serviço no login (issue #49 trata rate
- * limit à parte), caro o bastante para tornar força bruta offline inviável.
+ * não virar vetor de negação de serviço no login (o rate limit que segura a
+ * repetição é outro mecanismo, em `http/limite-de-autenticacao.ts`), caro o
+ * bastante para tornar força bruta offline inviável.
  *
  * Argon2id já embute esses três números na própria string do hash
  * (`$argon2id$v=19$m=...,t=...,p=...$salt$hash`), então "está desatualizado?"
