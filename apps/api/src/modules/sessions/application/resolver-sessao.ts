@@ -8,6 +8,14 @@ export interface DependenciasDeResolucao {
 }
 
 export interface SessaoResolvida {
+  /**
+   * Qual sessão é esta, entre as várias que a pessoa pode ter abertas.
+   *
+   * Não é curiosidade: sem ele, "sair de todos os outros aparelhos" não teria
+   * como saber qual poupar, e a listagem não teria como marcar "este é o
+   * dispositivo em que você está agora". É o id da linha, nunca o token.
+   */
+  sessionId: string;
   userId: string;
   /**
    * Preenchido só quando a renovação deslizante rodou nesta requisição —
@@ -38,13 +46,20 @@ export async function resolverSessao(
   if (sessao === null) return null;
 
   const agora = deps.agora();
-  if (sessaoExpirou(sessao.expiresAt, agora)) return null;
+  if (sessaoExpirou(sessao.expiresAt, agora)) {
+    // Limpeza preguiçosa, metade um: quem toca numa sessão vencida a enterra.
+    // A linha não serve para mais nada — recusá-la e deixá-la no banco só
+    // garantiria que ela fosse recusada de novo amanhã. A outra metade está
+    // em `listar-sessoes.ts`, e o porquê de não haver cron está lá.
+    await deps.sessoes.revogar(sessao.id, sessao.userId);
+    return null;
+  }
 
   if (!precisaRenovar(sessao.expiresAt, agora)) {
-    return { userId: sessao.userId };
+    return { sessionId: sessao.id, userId: sessao.userId };
   }
 
   const novaExpiracao = calcularExpiracao(agora);
   await deps.sessoes.renovar(sessao.id, novaExpiracao, agora);
-  return { userId: sessao.userId, renovadaAte: novaExpiracao };
+  return { sessionId: sessao.id, userId: sessao.userId, renovadaAte: novaExpiracao };
 }

@@ -26,5 +26,11 @@ export const codigoErroIdentitySchema = z.enum([
   // não pode saber qual dos dois foi, porque quem pergunta pode não ser o
   // dono da conta. Ver `autenticar-usuario.ts`.
   'CREDENCIAIS_INVALIDAS',
+  // Troca de senha autenticada: a senha atual não confere. Código próprio, e
+  // não `CREDENCIAIS_INVALIDAS`, porque aqui não há nada a esconder — quem
+  // pergunta já provou ser o dono da conta pelo cookie de sessão — e porque
+  // os dois viram status diferentes: credencial inválida no login é 401,
+  // senha atual errada numa troca é 422 (ver `traduzir-erro.ts`).
+  'SENHA_ATUAL_INCORRETA',
 ]);
 export type CodigoErroIdentity = z.infer<typeof codigoErroIdentitySchema>;

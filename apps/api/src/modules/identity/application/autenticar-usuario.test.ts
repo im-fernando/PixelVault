@@ -49,6 +49,9 @@ function montar(
         espiao.emailsBuscados.push(email);
         return usuario;
       },
+      async buscarCredenciaisPorId(): Promise<CredenciaisDoUsuario | null> {
+        return usuario;
+      },
       async buscarPorId(): Promise<DadosDoUsuario | null> {
         return usuario;
       },
