@@ -1,4 +1,5 @@
 import { useGames } from './use-games.js';
+import { useBiblioteca } from './use-biblioteca.js';
 import { useRomsLocais } from './local-roms.js';
 
 /**
@@ -11,10 +12,15 @@ import { useRomsLocais } from './local-roms.js';
  */
 export function Frontispicio() {
   const { data: publicos } = useGames();
+  const { data: minhas } = useBiblioteca();
   const { data: locais } = useRomsLocais();
 
   const nPublicos = publicos?.length ?? 0;
-  const nLocais = locais?.length ?? 0;
+  // As duas procedências do que é "seu" somadas: as ROMs enviadas para a conta
+  // (#75) e as da biblioteca local de desenvolvimento. Contar só uma delas
+  // faria o frontispício mentir sobre as prateleiras logo abaixo dele — e
+  // acervo que mente a própria contagem não é acervo.
+  const nSeus = (minhas?.length ?? 0) + (locais?.length ?? 0);
 
   return (
     <header className="mx-6 mb-10 border-b border-ink-850 pb-8">
@@ -33,7 +39,7 @@ export function Frontispicio() {
 
       <dl className="mt-7 flex flex-wrap gap-x-10 gap-y-3">
         <Verbete rotulo="no catálogo" valor={nPublicos} nota="jogáveis sem conta" />
-        <Verbete rotulo="seus" valor={nLocais} nota="não saem daqui" />
+        <Verbete rotulo="seus" valor={nSeus} nota="privadas de você" />
         <Verbete rotulo="consoles" valor={1} nota="mais vêm" />
       </dl>
     </header>

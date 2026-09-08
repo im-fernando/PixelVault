@@ -10,6 +10,7 @@ import { EnviarRomPage } from '../features/library/EnviarRomPage.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
 import { LocalLibrary } from '../features/library/LocalLibrary.js';
+import { MinhaBiblioteca } from '../features/library/MinhaBiblioteca.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
 
@@ -63,9 +64,15 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: function Biblioteca() {
+    // A ordem é a resposta a "de quem é o acervo": primeiro o da pessoa, depois
+    // o catálogo público, e por último o ensaio local de desenvolvimento — que
+    // só aparece na máquina de quem montou um. Ver o cabeçalho de
+    // `MinhaBiblioteca.tsx` para por que a estante pessoal mora aqui e não numa
+    // rota própria.
     return (
       <>
         <Frontispicio />
+        <MinhaBiblioteca />
         <GameLibrary />
         <LocalLibrary />
       </>
