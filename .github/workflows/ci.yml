@@ -20,6 +20,11 @@ jobs:
     name: lint, typecheck, test e build
     runs-on: ubuntu-latest
 
+    # O banco do job. As migrations NÃO são aplicadas aqui: quem faz isso é o
+    # `globalSetup` da suíte da API, que também sobe o compose quando não há
+    # banco nenhum respondendo (ver docs/adr/0022). Um passo de `migrate
+    # deploy` aqui seria um segundo mecanismo fazendo o mesmo — e o do CI
+    # esconderia uma quebra no que roda na máquina de quem desenvolve.
     services:
       postgres:
         image: postgres:17-alpine
@@ -53,9 +58,6 @@ jobs:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-
-      - name: Aplicar migrations
-        run: pnpm --filter @pixelvault/database exec prisma migrate deploy
 
       - name: Lint
         run: pnpm turbo run lint
