@@ -6,6 +6,7 @@ import { LoginPage } from '../features/auth/LoginPage.js';
 import { RecuperarSenhaPage } from '../features/auth/RecuperarSenhaPage.js';
 import { RedefinirSenhaPage } from '../features/auth/RedefinirSenhaPage.js';
 import { exigirSessao, retornoSeguro } from '../features/auth/rota-protegida.js';
+import { EnviarRomPage } from '../features/library/EnviarRomPage.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
 import { LocalLibrary } from '../features/library/LocalLibrary.js';
@@ -29,9 +30,20 @@ function Shell() {
           >
             Pixel<span className="text-label-400">Vault</span>
           </Link>
-          <nav className="text-sm text-ink-500">
+          {/*
+            "Enviar ROM" fica visível para todo mundo, inclusive para quem não
+            entrou: o BYOR é a razão de existir de uma conta aqui, e esconder a
+            porta de quem ainda não tem uma esconde o motivo de criar. Quem
+            chegar deslogado é levado ao login pelo `exigirSessao` da rota, com
+            o `retorno` que traz a pessoa de volta para cá — o mesmo caminho
+            que `/configuracoes` já usa.
+          */}
+          <nav className="flex gap-4 text-sm text-ink-500">
             <Link to="/" className="hover:text-label-100">
               Acervo
+            </Link>
+            <Link to="/enviar-rom" className="hover:text-label-100">
+              Enviar ROM
             </Link>
           </nav>
           <span className="leitura hidden text-ink-700 lg:block">snes · o save fica</span>
@@ -161,10 +173,28 @@ const configuracoesRoute = createRoute({
   component: ConfiguracoesPage,
 });
 
+/**
+ * A mesa de recepção do acervo, em rota própria de primeiro nível.
+ *
+ * Não é um painel dentro da home porque enviar é uma tarefa com começo, meio e
+ * fim — e com um passo de verificação que pode demorar (docs/adr/0014). Uma
+ * URL própria é o que permite sair da página, voltar pelo histórico e mandar o
+ * link para si mesmo no celular. `enviar-rom` entrou em `HANDLES_RESERVADOS`
+ * junto com a rota, pela regra que o comentário do `configuracoesRoute`
+ * enuncia: caminho novo de primeiro nível pede palavra nova lá.
+ */
+const enviarRomRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/enviar-rom',
+  beforeLoad: exigirSessao,
+  component: EnviarRomPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   playRoute,
   meusJogosRoute,
+  enviarRomRoute,
   loginRoute,
   cadastroRoute,
   recuperarSenhaRoute,
