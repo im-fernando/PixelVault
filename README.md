@@ -5,8 +5,9 @@ sincronizado entre os seus aparelhos.**
 
 [![CI](https://github.com/im-fernando/PixelVault/actions/workflows/ci.yml/badge.svg)](https://github.com/im-fernando/PixelVault/actions/workflows/ci.yml)
 
-> 🚧 Em construção. A M0 (fundação) está pronta; o player chega na M1.
-> Uma demonstração em vídeo entra aqui assim que houver jogo rodando.
+> 🚧 Em construção. M0 a M3 prontas: cadastro, login, biblioteca com envio de
+> ROM (BYOR) e o player rodando no navegador com save local. A M4 (save na
+> nuvem) tem as issues abertas, mas nada foi implementado ainda.
 
 ## Como funciona
 
@@ -36,9 +37,9 @@ duas semanas.
 | Milestone | O que entrega                                              |
 | --------- | ---------------------------------------------------------- |
 | **M0** ✅ | Fundação: monorepo, fronteiras de módulo no CI, ADRs       |
-| **M1**    | Jogar no navegador: player, teclado e controle, save local |
-| **M2**    | Contas e autenticação                                      |
-| **M3**    | Biblioteca e envio de ROM                                  |
+| **M1** ✅ | Jogar no navegador: player, teclado e controle, save local |
+| **M2** ✅ | Contas e autenticação                                      |
+| **M3** ✅ | Biblioteca e envio de ROM                                  |
 | **M4**    | Save na nuvem (SRAM)                                       |
 | **M5**    | Save states e múltiplos dispositivos                       |
 | **M6**    | Gamificação: XP, conquistas, temporadas e ranking          |
