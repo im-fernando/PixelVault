@@ -35,6 +35,29 @@ const envSchema = z
     EMAIL_TRANSPORTE: transporteDeEmailSchema.optional(),
     /** Remetente das mensagens, no formato `Nome <endereco@dominio>`. */
     EMAIL_REMETENTE: z.string().min(1).default('PixelVault <nao-responda@pixelvault.dev>'),
+    /**
+     * O object storage onde ROM e save vivem: MinIO no desenvolvimento, R2 na
+     * produção (ADR 0012). Todas obrigatórias e sem padrão, como a
+     * `DATABASE_URL`: storage é dependência de funcionamento, não enfeite, e um
+     * padrão apontando para `localhost` faria uma produção mal configurada
+     * subir calada e só quebrar no primeiro upload.
+     */
+    S3_ENDPOINT: z.url(),
+    /** `auto` no R2. No MinIO qualquer uma serve, desde que a mesma dos dois lados. */
+    S3_REGION: z.string().min(1),
+    S3_BUCKET: z.string().min(1),
+    S3_ACCESS_KEY_ID: z.string().min(1),
+    S3_SECRET_ACCESS_KEY: z.string().min(1),
+    /**
+     * MinIO exige `bucket` no caminho; R2 e S3 preferem no subdomínio. É a
+     * única diferença entre os dois ambientes, e ela mora aqui justamente para
+     * não virar um `if` no adaptador.
+     *
+     * `stringbool` e não `coerce.boolean()`: a coerção do JavaScript trata
+     * `"false"` como verdadeiro, que é o jeito mais silencioso de ligar
+     * path-style em produção.
+     */
+    S3_FORCE_PATH_STYLE: z.stringbool().default(false),
   })
   .transform((env) => ({
     ...env,
