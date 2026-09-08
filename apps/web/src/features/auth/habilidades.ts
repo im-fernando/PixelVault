@@ -9,6 +9,13 @@ import {
 import { apiFetch } from '../../lib/api.js';
 
 /**
+ * A chave da consulta, exportada porque quem muda de identidade precisa
+ * invalidá-la: as regras são calculadas para quem está pedindo, e as do
+ * visitante não são as de quem acabou de entrar. Ver `sessao.tsx`.
+ */
+export const CHAVE_DAS_HABILIDADES = ['abilities'] as const;
+
+/**
  * O que a pessoa pode fazer, do ponto de vista do front.
  *
  * As regras não são escritas aqui: vêm de `GET /api/auth/abilities`, montadas
@@ -22,7 +29,7 @@ import { apiFetch } from '../../lib/api.js';
  */
 export function useHabilidades(): { habilidades: Ability; carregando: boolean } {
   const consulta = useQuery<AbilitiesResponse>({
-    queryKey: ['abilities'],
+    queryKey: CHAVE_DAS_HABILIDADES,
     queryFn: () => apiFetch('/api/auth/abilities', abilitiesResponseSchema),
   });
 
