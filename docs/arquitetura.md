@@ -62,6 +62,8 @@ A dependência aponta para dentro: `http` → `application` → `domain`, e
 - `domain/` conhece Fastify, Prisma ou logger
 - `infrastructure/` conhece `http/`
 - Prisma aparece fora de `infrastructure/`
+- a infraestrutura compartilhada (`apps/api/src/infrastructure/`) importa módulo
+- o `@aws-sdk` aparece fora da porta de storage
 - `contracts` arrasta Fastify, React ou Prisma
 - `web` e `api` se importam
 - existe ciclo
@@ -81,6 +83,11 @@ Arquitetura hexagonal **só** onde o mundo externo é instável
 | RetroAchievements   | adiado ([ADR 0008](adr/0008-viabilidade-de-conquistas-por-evento-de-jogo.md)) |
 
 O banco **não** é porta.
+
+A porta de storage mora em `apps/api/src/infrastructure/storage/`, e não dentro
+de um módulo: `library` (M3) e `progress` (M4) precisam dela, e nenhum dos dois
+pode ser dono do que o outro usa. O cabeçalho de `armazenamento-de-objetos.ts`
+tem o raciocínio inteiro, incluindo por que ela não virou pacote do workspace.
 
 ## Pacotes compartilhados
 

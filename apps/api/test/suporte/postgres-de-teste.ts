@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
-import { connect } from 'node:net';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { prisma } from '@pixelvault/database';
 import { RAIZ_DO_MONOREPO } from './ambiente.js';
+import { portaAceitaConexao } from './porta-tcp.js';
 
 /**
  * O banco da suíte de integração: garantido de pé, migrado e — quando fomos
@@ -52,33 +52,16 @@ function enderecoDoBanco(): { host: string; porta: number } | null {
   }
 }
 
-/**
- * Bate na porta antes de falar com o Prisma.
- *
- * Podia ser só o `select 1`, mas o client loga erro de conexão no console, e
- * o caminho normal desta função é justamente falhar enquanto o container
- * sobe. Um socket que não abre é silencioso e mais rápido.
- */
-async function portaAceitaConexao(): Promise<boolean> {
+/** Bate na porta antes de falar com o Prisma — ver `porta-tcp.ts`. */
+async function portaDoBancoResponde(): Promise<boolean> {
   const endereco = enderecoDoBanco();
   if (endereco === null) return false;
-
-  return new Promise((responder) => {
-    const socket = connect({ host: endereco.host, port: endereco.porta });
-    const encerrar = (aberta: boolean): void => {
-      socket.destroy();
-      responder(aberta);
-    };
-    socket.setTimeout(TIMEOUT_DA_PORTA_MS);
-    socket.once('connect', () => encerrar(true));
-    socket.once('timeout', () => encerrar(false));
-    socket.once('error', () => encerrar(false));
-  });
+  return portaAceitaConexao(endereco.host, endereco.porta, TIMEOUT_DA_PORTA_MS);
 }
 
 /** Porta aberta não é banco pronto: só uma consulta prova isso. */
 async function bancoResponde(): Promise<boolean> {
-  if (!(await portaAceitaConexao())) return false;
+  if (!(await portaDoBancoResponde())) return false;
   try {
     await prisma.$queryRawUnsafe('select 1');
     return true;
@@ -168,7 +151,7 @@ async function garantirMigrations(): Promise<void> {
 export async function setup(): Promise<void> {
   const url = process.env['DATABASE_URL'] ?? '';
 
-  if (!(await portaAceitaConexao())) await subirOCompose(url);
+  if (!(await portaDoBancoResponde())) await subirOCompose(url);
 
   if (!(await esperarOBanco())) {
     throw new Error(

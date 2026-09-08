@@ -63,6 +63,31 @@ module.exports = {
       to: { path: 'node_modules/@prisma/client|^packages/database/' },
     },
     {
+      name: 'infraestrutura-compartilhada-nao-conhece-modulo',
+      severity: 'error',
+      comment:
+        'apps/api/src/infrastructure/ é encanamento da aplicação, abaixo de todos ' +
+        'os módulos: erros, tradutor de erro, porta de storage. Importar módulo ' +
+        'daqui inverte a dependência e transforma o que era compartilhado em ' +
+        'extensão de um dono. Ver o cabeçalho de infrastructure/storage/armazenamento-de-objetos.ts.',
+      from: { path: '^apps/api/src/infrastructure/' },
+      to: { path: `${MODULOS}/` },
+    },
+    {
+      name: 'aws-sdk-so-na-porta-de-storage',
+      severity: 'error',
+      comment:
+        'O SDK da AWS fica confinado em infrastructure/storage/, que é a porta ' +
+        'de object storage (ADR 0004). Chamar o S3 direto de um caso de uso ' +
+        'contorna o TTL curto das URLs assinadas e amarra o BYOR a um ' +
+        'fornecedor que a ADR 0012 mantém trocável de propósito.',
+      from: {
+        path: '^apps/api/src/',
+        pathNot: '^apps/api/src/infrastructure/storage/',
+      },
+      to: { path: 'node_modules/@aws-sdk/' },
+    },
+    {
       name: 'contracts-e-puro',
       severity: 'error',
       comment:
@@ -116,6 +141,10 @@ module.exports = {
           '(^|/)(eslint|vite|vitest|prisma)\\.config\\.[cm]?[jt]s$',
           // Fachadas de módulo ainda vazias, que ganham conteúdo na milestone delas.
           `${MODULOS}/[^/]+/index\\.ts$`,
+          // A porta de storage nasceu na #70 sem consumidor: o primeiro é o
+          // upload de ROM da #71. Quem a exercita hoje é o teste de
+          // integração, que não entra neste grafo.
+          '^apps/api/src/infrastructure/storage/',
         ],
       },
       to: {},

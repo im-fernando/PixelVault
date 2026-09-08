@@ -2,10 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 
+// Endereços de mentira de propósito: nenhuma rota exercitada aqui chega ao
+// banco ou ao storage, e um valor plausível convidaria alguém a escrever um
+// teste que chega.
 const config = loadConfig({
   NODE_ENV: 'test',
   DATABASE_URL: 'postgresql://irrelevante/para/este/teste',
   SESSION_SECRET: 'x'.repeat(48),
+  S3_ENDPOINT: 'http://irrelevante-para-este-teste.invalid',
+  S3_REGION: 'us-east-1',
+  S3_BUCKET: 'irrelevante',
+  S3_ACCESS_KEY_ID: 'irrelevante',
+  S3_SECRET_ACCESS_KEY: 'irrelevante',
 });
 
 /**

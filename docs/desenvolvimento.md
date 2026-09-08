@@ -92,27 +92,29 @@ disser, alguma task está com cache desligado ou com `inputs` errados.
 
 ## Testes
 
-`pnpm test` não pede nada antes. A suíte da API fala com PostgreSQL de verdade
-e cuida disso sozinha: se não houver banco respondendo na `DATABASE_URL`, ela
-sobe o serviço `postgres` do `docker-compose.yml`, aplica as migrations que
-faltarem e, no fim, derruba **apenas** o que ela mesma subiu. Banco que já
+`pnpm test` não pede nada antes. A suíte da API fala com PostgreSQL e com
+storage S3 de verdade, e cuida dos dois sozinha: se não houver nada respondendo
+na `DATABASE_URL` ou na `S3_ENDPOINT`, ela sobe os serviços `postgres` e
+`minio` do `docker-compose.yml`, aplica as migrations que faltarem, garante o
+bucket e, no fim, derruba **apenas** o que ela mesma subiu. Serviço que já
 estava aberto continua aberto, e sem `.env` na máquina os padrões apontam para
-o mesmo serviço — clonar e rodar `pnpm test` basta. Ver
+os mesmos serviços — clonar e rodar `pnpm test` basta. Ver
 [ADR 0022](adr/0022-banco-de-teste-pelo-compose-do-projeto.md).
 
 Três alturas, e cada uma decide o que pode usar:
 
-| Altura     | Onde                                  | Banco                 |
-| ---------- | ------------------------------------- | --------------------- |
-| Unidade    | ao lado do código, `*.test.ts`        | nenhum                |
-| Borda HTTP | `apps/api/test/app.test.ts`           | nenhum, só `inject()` |
-| Integração | `apps/api/test/*.integration.test.ts` | PostgreSQL real       |
+| Altura     | Onde                                  | Depende de               |
+| ---------- | ------------------------------------- | ------------------------ |
+| Unidade    | ao lado do código, `*.test.ts`        | nada                     |
+| Borda HTTP | `apps/api/test/app.test.ts`           | nada, só `inject()`      |
+| Integração | `apps/api/test/*.integration.test.ts` | PostgreSQL e MinIO reais |
 
 Os arquivos de integração rodam **em paralelo contra o mesmo banco**, que é o
-banco de desenvolvimento. Disso vem a única regra inegociável ao escrever um:
+banco de desenvolvimento — e contra o mesmo bucket. Disso vem a única regra
+inegociável ao escrever um:
 
-> Nunca limpe por tabela. Crie o que precisa com identificador novo a cada
-> execução e apague exatamente isso no fim.
+> Nunca limpe por tabela, nem liste o bucket para apagar. Crie o que precisa
+> com identificador novo a cada execução e apague exatamente isso no fim.
 
 `apps/api/test/suporte/rastro.ts` é o utilitário que faz isso — identidades com
 sufixo aleatório, o contador de tentativas (`auth_attempts`) das chaves que o
