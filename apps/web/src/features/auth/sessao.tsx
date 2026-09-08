@@ -8,11 +8,15 @@ import {
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import {
   authenticatedUserResponseSchema,
+  forgotPasswordResponseSchema,
   logoutResponseSchema,
   registerResponseSchema,
+  resetPasswordResponseSchema,
   type AuthenticatedUser,
+  type ForgotPasswordRequest,
   type LoginRequest,
   type RegisterRequest,
+  type ResetPasswordRequest,
 } from '@pixelvault/contracts';
 import { ApiRequestError, apiFetch } from '../../lib/api.js';
 import { CHAVE_DAS_HABILIDADES } from './habilidades.js';
@@ -167,6 +171,47 @@ export function useSair() {
         // application/json` em tudo, e o Fastify recusa corpo vazio anunciado
         // como JSON. O logout não lê nada daqui — só precisa ser JSON válido.
         body: '{}',
+      }),
+    onSuccess: async () => {
+      await passouASerOutraPessoa(queryClient, null);
+    },
+  });
+}
+
+/**
+ * Pedir o link de redefinição.
+ *
+ * Sem `onSuccess` que mexa no cache: nada mudou para quem está do lado de cá
+ * da tela. E sem tratamento diferente para "e-mail não cadastrado", porque a
+ * API não diz — ela responde 202 nos dois casos, de propósito.
+ */
+export function useSolicitarRecuperacao() {
+  return useMutation({
+    mutationFn: (dados: ForgotPasswordRequest) =>
+      apiFetch('/api/auth/forgot-password', forgotPasswordResponseSchema, {
+        method: 'POST',
+        body: JSON.stringify(dados),
+      }),
+  });
+}
+
+/**
+ * Redefinir a senha com o token do e-mail.
+ *
+ * A redefinição derruba TODAS as sessões da conta, inclusive uma que este
+ * navegador por acaso tivesse — daí o `passouASerOutraPessoa(null)` no
+ * sucesso: o cookie que sobrou aqui já não abre nada, e deixar o cache
+ * afirmando que alguém está logado desenharia um cabeçalho que mente até o
+ * próximo F5.
+ */
+export function useRedefinirSenha() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dados: ResetPasswordRequest) =>
+      apiFetch('/api/auth/reset-password', resetPasswordResponseSchema, {
+        method: 'POST',
+        body: JSON.stringify(dados),
       }),
     onSuccess: async () => {
       await passouASerOutraPessoa(queryClient, null);

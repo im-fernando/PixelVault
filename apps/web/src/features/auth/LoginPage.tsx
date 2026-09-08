@@ -75,6 +75,20 @@ export function LoginPage({ retorno }: { readonly retorno: string | undefined })
         </BotaoPrincipal>
       </form>
 
+      {/*
+        Abaixo do botão e não ao lado do campo de senha: quem esqueceu a
+        senha só descobre isso depois de tentar, e um atalho colado no campo
+        rouba o foco de quem sabe a senha e está só digitando.
+      */}
+      <p className="mt-4 text-xs text-ink-500">
+        <Link
+          to="/recuperar-senha"
+          className="text-label-200 underline underline-offset-4 hover:text-label-100"
+        >
+          Esqueci minha senha
+        </Link>
+      </p>
+
       <p className="mt-6 text-xs text-ink-500">
         Ainda não tem conta?{' '}
         <Link
