@@ -69,3 +69,43 @@ export const sramUploadResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 export type SramUploadResponse = z.infer<typeof sramUploadResponseSchema>;
+
+/**
+ * Resposta de sucesso de `GET /api/progress/sram/:romId` quando existe save
+ * na nuvem para aquela ROM.
+ *
+ * Os bytes vêm em base64 no corpo, do mesmo jeito que o upload manda — e
+ * pela mesma razão: `TAMANHO_MAXIMO_DE_SRAM_EM_BYTES` é pequeno o bastante
+ * para caber num corpo de resposta sem o ganho de uma URL assinada (menos
+ * uma viagem de rede, sem o storage precisar ficar acessível ao navegador
+ * para GET). `revision` é o que o cliente vai mandar de volta na próxima
+ * gravação, como `revisaoEsperada` — é o número que fecha o ciclo com
+ * `sramUploadRequestSchema`.
+ */
+export const sramDownloadEncontradoSchema = z.object({
+  status: z.literal('encontrado'),
+  revision: z.number().int().positive(),
+  sizeBytes: z.number().int().positive(),
+  updatedAt: z.iso.datetime(),
+  dataBase64: z.base64(),
+});
+export type SramDownloadEncontrado = z.infer<typeof sramDownloadEncontradoSchema>;
+
+/**
+ * A ROM é da conta, mas não tem save na nuvem ainda — não é erro, é o estado
+ * normal de quem nunca sincronizou aquele jogo. Por isso é `200` com um
+ * `status` próprio, e não `404`: `404` neste módulo significa "esse `romId`
+ * não é seu" (`autorizarOuNaoEncontrado`), e misturar os dois motivos no
+ * mesmo código faria o cliente não conseguir distinguir "posso oferecer a
+ * adoção deste save" de "não posso nem perguntar de quem é essa ROM".
+ */
+export const sramDownloadSemSaveSchema = z.object({
+  status: z.literal('sem-save'),
+});
+export type SramDownloadSemSave = z.infer<typeof sramDownloadSemSaveSchema>;
+
+export const sramDownloadResponseSchema = z.discriminatedUnion('status', [
+  sramDownloadEncontradoSchema,
+  sramDownloadSemSaveSchema,
+]);
+export type SramDownloadResponse = z.infer<typeof sramDownloadResponseSchema>;
