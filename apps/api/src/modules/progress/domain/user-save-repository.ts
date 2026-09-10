@@ -89,6 +89,11 @@ export interface NovoSaveNaNuvem {
   sizeBytes: number;
   /** Só para `kind: 'state'` — a #105 é quem passa a gravar isto de verdade. */
   thumbnailKey?: string;
+  /**
+   * Só para `kind: 'state'` — o tamanho do objeto de `thumbnailKey`, para a
+   * cota (#109) conseguir contar um objeto que `sizeBytes` nunca descreveu.
+   */
+  thumbnailSizeBytes?: number;
   /** A revisão sobre a qual o cliente diz ter baseado esta gravação. `0` = "nenhuma". */
   revisaoEsperada: number;
 }

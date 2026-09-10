@@ -28,6 +28,7 @@ function paraDominio(linha: UserSave): SaveNaNuvem {
     storageKey: linha.storageKey,
     sizeBytes: linha.sizeBytes,
     thumbnailKey: linha.thumbnailKey,
+    thumbnailSizeBytes: linha.thumbnailSizeBytes,
     revision: linha.revision,
     updatedAt: linha.updatedAt,
   };
@@ -69,6 +70,7 @@ export const prismaUserSaveRepository: UserSaveRepository = {
             storageKey: novo.storageKey,
             sizeBytes: novo.sizeBytes,
             thumbnailKey: novo.thumbnailKey ?? null,
+            thumbnailSizeBytes: novo.thumbnailSizeBytes ?? null,
           },
         });
         return { tipo: 'gravado', save: paraDominio(criado) };
@@ -101,6 +103,7 @@ export const prismaUserSaveRepository: UserSaveRepository = {
         storageKey: novo.storageKey,
         sizeBytes: novo.sizeBytes,
         thumbnailKey: novo.thumbnailKey ?? null,
+        thumbnailSizeBytes: novo.thumbnailSizeBytes ?? null,
         revision: { increment: 1 },
       },
     });
@@ -130,10 +133,14 @@ export const prismaUserSaveRepository: UserSaveRepository = {
   },
 
   async medirUso(userId: string): Promise<UsoDoSaveNaNuvem> {
+    // `sizeBytes` sozinho subestimaria quem tem save state: a miniatura é
+    // um segundo objeto no storage, com tamanho próprio em
+    // `thumbnailSizeBytes` (issue #109) — sem somar os dois, a cota nunca
+    // veria o espaço que a miniatura ocupa.
     const soma = await prisma.userSave.aggregate({
       where: { userId },
-      _sum: { sizeBytes: true },
+      _sum: { sizeBytes: true, thumbnailSizeBytes: true },
     });
-    return { bytes: soma._sum.sizeBytes ?? 0 };
+    return { bytes: (soma._sum.sizeBytes ?? 0) + (soma._sum.thumbnailSizeBytes ?? 0) };
   },
 };

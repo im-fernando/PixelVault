@@ -816,6 +816,29 @@ sincronização automática por conta (a #91), o excesso possível é desprezív
 perto do que a cota de ROM já tolera pela mesma razão — não há reserva
 dedicada para este caso.
 
+### Save state entrou no mesmo teto, não ganhou um próprio (#109)
+
+Decidido na #109, quando save state chegou na M5. `COTA_DE_SAVE_NA_NUVEM_EM_BYTES`
+continua sendo os mesmos 32 MiB, agora somando SRAM e save state juntos —
+`medirUso` agrega `sizeBytes` **e** `thumbnailSizeBytes` de toda a conta, sem
+filtrar por tipo. Um teto separado exigiria repartir 32 MiB entre dois usos
+que competem pelo mesmo risco (upload é vetor de abuso), sem nenhum motivo de
+produto para a soma dos dois ultrapassar o que um só já cobre: 1500 ROMs com
+os 4 slots de save state cheios (até 4 MiB cada, mais miniatura) é tão fora do
+uso real quanto 1500 ROMs com SRAM no teto — a folga do número existente já
+foi calibrada pensando no perfil real, não no pior caso teórico.
+
+Save state acrescenta um detalhe que SRAM não tem: a miniatura é um SEGUNDO
+objeto no storage, com tamanho próprio (`thumbnailSizeBytes`, coluna própria
+em `user_saves`) — sem ele, a cota nunca veria o espaço que a imagem ocupa, e
+uma conta poderia estourar 32 MiB de verdade sem a checagem notar. A
+checagem em `POST /api/progress/state/:romId/:slot` (#105/#109) soma os DOIS
+lados de cada gravação — o estado que sai/entra **e** a miniatura que
+sai/entra — antes de decidir se cabe, com a mesma disciplina de "nenhum byte
+toca o storage antes da checagem passar" que a SRAM já usa. O critério de
+aceite cobre explicitamente o caso em que só a miniatura estoura a cota,
+ainda que o estado sozinho coubesse.
+
 ## O que falta
 
 - **Poda das sessões de quem nunca mais volta** — ver acima: a limpeza

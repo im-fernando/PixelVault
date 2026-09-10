@@ -264,21 +264,38 @@ enum SaveKind {
 /// separada dos bytes do estado (ADR 0020, `readThumbnail`) é exatamente o
 /// que motiva ela morar numa chave própria em vez de ir dentro do mesmo
 /// objeto do estado.
+///
+/// ## `thumbnailSizeBytes`: por que existe uma coluna só para isto (issue #109)
+///
+/// `medirUso` (cota, #93/#109) soma `sizeBytes` de todas as linhas da conta —
+/// mas a miniatura de um save state é um SEGUNDO objeto no storage, com
+/// tamanho próprio, que `sizeBytes` nunca descreveu (ele é sempre o tamanho
+/// do estado ou da SRAM, nunca da miniatura). Sem uma coluna para o tamanho
+/// dela, a cota subestimaria o uso real de quem tem save state — e o
+/// critério de aceite da #109 pede explicitamente recusar upload quando SÓ a
+/// miniatura estoura, o que não tem como acontecer sem o número dela em
+/// algum lugar consultável sem baixar o objeto do storage. Nulo para `sram`
+/// e para `state` sem miniatura (não existe hoje — a #105 já torna a
+/// miniatura obrigatória no contrato, mas a coluna sendo nullable evita
+/// acoplar essa regra de aplicação a uma constraint de banco, mesmo
+/// raciocínio do `thumbnailKey`).
 model UserSave {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  sha256       String
-  kind         SaveKind @default(sram)
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  sha256             String
+  kind               SaveKind @default(sram)
   /// `-1` para `sram` (sem slot); `0` a `3` para `state`. Ver o comentário do
   /// model — nunca `null`, de propósito.
-  slot         Int      @default(-1)
-  storageKey   String   @map("storage_key")
-  sizeBytes    Int      @map("size_bytes")
+  slot               Int      @default(-1)
+  storageKey         String   @map("storage_key")
+  sizeBytes          Int      @map("size_bytes")
   /// Só para `kind = state`. Ver o comentário do model.
-  thumbnailKey String?  @map("thumbnail_key")
-  revision     Int      @default(1)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  thumbnailKey       String?  @map("thumbnail_key")
+  /// Só para `kind = state` com miniatura. Ver o comentário do model.
+  thumbnailSizeBytes Int?     @map("thumbnail_size_bytes")
+  revision           Int      @default(1)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   userRom UserRom @relation(fields: [userId, sha256], references: [userId, sha256], onDelete: Cascade)
 
