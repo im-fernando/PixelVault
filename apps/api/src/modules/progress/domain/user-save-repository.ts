@@ -11,7 +11,8 @@ import type { SaveNaNuvem, SlotDeSaveState, TipoDeSaveNaNuvem } from './user-sav
  * condicional por revisão (regra 4 do ADR 0020); `medirUso` chega na #93,
  * para a cota de `domain/cota.ts`. O eixo `slot` chega na #104, para
  * `kind: 'state'` — omitido (`undefined`), é a mesma pergunta de sempre
- * sobre a SRAM única da conta. Porta cresce com quem a usa; método sem
+ * sobre a SRAM única da conta. `listarPorRom` chega na #106, para a galeria
+ * de slots ver os 4 de uma vez. Porta cresce com quem a usa; método sem
  * chamador é código morto com aparência de arquitetura.
  */
 export interface UserSaveRepository {
@@ -30,6 +31,17 @@ export interface UserSaveRepository {
     kind: TipoDeSaveNaNuvem,
     slot?: SlotDeSaveState,
   ): Promise<SaveNaNuvem | null>;
+
+  /**
+   * Todos os saves da conta para aquele conteúdo e tipo — os até 4 slots de
+   * save state de uma ROM, de uma vez (#106).
+   *
+   * Existe porque `buscarPorRom` é por slot único, e a galeria
+   * (`GaleriaDeSlots`) precisa ver o estado dos 4 juntos para desenhar cada
+   * botão sem 4 requisições. SRAM não tem por que chamar isto — ela só tem
+   * uma linha por ROM, e `buscarPorRom` já responde sozinho.
+   */
+  listarPorRom(userId: string, sha256: string, kind: TipoDeSaveNaNuvem): Promise<SaveNaNuvem[]>;
 
   /**
    * Grava um save só se a revisão em que o cliente se baseou ainda for a

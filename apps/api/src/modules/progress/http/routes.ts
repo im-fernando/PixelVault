@@ -8,6 +8,8 @@ import {
   sramDownloadResponseSchema,
   sramUploadRequestSchema,
   sramUploadResponseSchema,
+  stateDownloadResponseSchema,
+  stateListResponseSchema,
   stateUploadRequestSchema,
   stateUploadResponseSchema,
   TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES,
@@ -22,7 +24,9 @@ import { prismaUserRomRepository } from '../../library/index.js';
 import type { Sessoes } from '../../sessions/index.js';
 import { gravarSaveState } from '../application/gravar-save-state.js';
 import { gravarSram } from '../application/gravar-sram.js';
+import { lerSaveState } from '../application/ler-save-state.js';
 import { lerSram } from '../application/ler-sram.js';
+import { listarSaveStates } from '../application/listar-save-states.js';
 import { prismaUserSaveRepository } from '../infrastructure/prisma-user-save-repository.js';
 
 export interface OpcoesDeProgress extends FastifyPluginOptions {
@@ -174,6 +178,80 @@ export const progressRoutes: FastifyPluginAsyncZod<OpcoesDeProgress> = async (ap
         request.params.romId,
         request.params.slot as SlotDeSaveState,
         { revision: request.body.revision, bytes, thumbnailBytes },
+      );
+    },
+  );
+
+  app.get(
+    '/progress/state/:romId',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['progress'],
+        summary: 'Lista os save states na nuvem de uma ROM, com miniatura',
+        description:
+          'Os até 4 slots de save state que a conta já sincronizou para esta ROM, com a ' +
+          'miniatura de cada um embutida em base64 — o suficiente para a galeria desenhar ' +
+          'os 4 quadros sem baixar o estado inteiro de nenhum. Slot sem save simplesmente ' +
+          'não aparece no array; nenhum sincronizado ainda é um array vazio, não erro. Só ' +
+          'quem tem o `romId` na própria biblioteca pode listar o save state dele — o ' +
+          'mesmo 404 uniforme que a SRAM já usa.',
+        params: z.object({ romId: uuidSchema }),
+        response: {
+          200: stateListResponseSchema,
+          401: apiErrorSchema,
+          403: apiErrorSchema,
+          404: apiErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const userId = sessoes.usuarioAutenticado(request);
+      const habilidades = await habilidadesDoUsuario(userId);
+
+      return listarSaveStates(
+        { roms: prismaUserRomRepository, saves: prismaUserSaveRepository, armazenamento },
+        habilidades,
+        userId,
+        request.params.romId,
+      );
+    },
+  );
+
+  app.get(
+    '/progress/state/:romId/:slot',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['progress'],
+        summary: 'Assina a leitura do save state de um slot específico',
+        description:
+          'Devolve uma URL de GET assinada para os bytes do estado (não bytes diretos, ' +
+          'diferente da SRAM — o teto de save state é grande o bastante para não caber ' +
+          'folgado num corpo de resposta em base64) e a `revision` atual, o número que a ' +
+          'próxima gravação manda de volta como base. `status: "sem-save"` é resposta de ' +
+          'sucesso, não erro: a ROM é da conta que pediu, só aquele slot ainda não foi ' +
+          'sincronizado. Só quem tem o `romId` na própria biblioteca pode ler o save state ' +
+          'dele — o mesmo 404 uniforme que a SRAM já usa.',
+        params: z.object({ romId: uuidSchema, slot: slotDeSaveStateParamSchema }),
+        response: {
+          200: stateDownloadResponseSchema,
+          401: apiErrorSchema,
+          403: apiErrorSchema,
+          404: apiErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const userId = sessoes.usuarioAutenticado(request);
+      const habilidades = await habilidadesDoUsuario(userId);
+
+      return lerSaveState(
+        { roms: prismaUserRomRepository, saves: prismaUserSaveRepository, armazenamento },
+        habilidades,
+        userId,
+        request.params.romId,
+        request.params.slot as SlotDeSaveState,
       );
     },
   );
