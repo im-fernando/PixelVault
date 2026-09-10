@@ -16,10 +16,7 @@ import {
   type SaveSlotView,
   type SaveStorage,
 } from './storage/index.js';
-import {
-  gravarRevisaoDeSaveStateSincronizada,
-  lerRevisaoDeSaveStateSincronizada,
-} from './storage/state-sync-pointer.js';
+import { gravarPointerDeSaveState, lerPointerDeSaveState } from './storage/state-sync-pointer.js';
 
 export type EstadoDoSlotNaNuvem = 'apenas-local' | 'apenas-nuvem' | 'sincronizado' | 'divergente';
 
@@ -66,11 +63,23 @@ export interface SincronizacaoDeSaveStates {
  * A SRAM tem um vínculo só por `romId` (#92: "existe algo na nuvem" já basta,
  * porque só há uma SRAM). Save state tem 4 slots independentes — sincronizar
  * o A não pode fazer o B parecer sincronizado. O ponteiro de
- * `storage/state-sync-pointer.ts` é por `romId` **e** `slot`, e é ele que
- * decide `sincronizado` vs. `divergente` quando os dois lados têm conteúdo:
- * pointer bate com a revisão da nuvem → rotina; não bate (inclusive nunca
- * sincronizado, pointer `0`) → colisão, abre a tela da #107. Nunca resolve
- * uma divergência por conta própria.
+ * `storage/state-sync-pointer.ts` é por `romId` **e** `slot`, e guarda dois
+ * números: a `revision` da nuvem que este aparelho já viu, e o `updatedAt`
+ * do save LOCAL no momento daquela sincronização. Os dois lados têm
+ * conteúdo e:
+ *
+ * - pointer inexistente, ou `revision` não bate com a da nuvem agora → a
+ *   nuvem mudou (ou nunca sincronizou) → `divergente`, abre a tela da #107;
+ * - `revision` bate mas `updatedAt` local não bate com o que o pointer
+ *   guardou → só o LOCAL mudou desde então (a pessoa salvou de novo no
+ *   mesmo slot) → `apenas-local`, não é conflito nenhum, só falta reenviar;
+ * - os dois batem → `sincronizado`.
+ *
+ * Sem o segundo número, salvar de novo num slot já sincronizado continuaria
+ * classificado como `sincronizado` (a nuvem não mudou) e a galeria escondia
+ * o botão de enviar — o save novo ficava preso no aparelho sem nenhum
+ * caminho de UI para subir. Nunca resolve uma divergência de verdade por
+ * conta própria.
  *
  * ## Por que não lê o storage local sozinho
  *
@@ -111,24 +120,30 @@ export function useSincronizacaoDeSaveStates(
     if (romId === null || nuvem.data === undefined) return mapa;
 
     for (const vista of slotsLocais) {
-      const local = vista.metadata !== null;
+      const metadataLocal = vista.metadata;
       const remoto = resumoDaNuvem(vista.slot);
 
-      if (!local && remoto === undefined) continue; // nada em nenhum lado
-      if (local && remoto === undefined) {
+      if (metadataLocal === null && remoto === undefined) continue; // nada em nenhum lado
+      if (metadataLocal !== null && remoto === undefined) {
         mapa.set(vista.slot, 'apenas-local');
         continue;
       }
-      if (!local && remoto !== undefined) {
+      if (metadataLocal === null && remoto !== undefined) {
         mapa.set(vista.slot, 'apenas-nuvem');
         continue;
       }
-      // Os dois têm conteúdo: o ponteiro deste aparelho decide se é rotina.
-      const pointer = lerRevisaoDeSaveStateSincronizada(romId, vista.slot);
-      mapa.set(
-        vista.slot,
-        pointer !== 0 && pointer === remoto?.revision ? 'sincronizado' : 'divergente',
-      );
+      // Os dois têm conteúdo (`metadataLocal !== null && remoto !== undefined`
+      // pelas duas checagens acima) — o ponteiro deste aparelho decide entre
+      // rotina, "só o local mudou" e colisão de verdade. Ver o cabeçalho da
+      // função para as três leituras.
+      const pointer = lerPointerDeSaveState(romId, vista.slot);
+      if (pointer === null || pointer.revision !== remoto!.revision) {
+        mapa.set(vista.slot, 'divergente');
+      } else if (pointer.updatedAtLocal !== metadataLocal!.updatedAt) {
+        mapa.set(vista.slot, 'apenas-local');
+      } else {
+        mapa.set(vista.slot, 'sincronizado');
+      }
     }
     return mapa;
   }, [romId, slotsLocais, nuvem.data]);
@@ -145,11 +160,22 @@ export function useSincronizacaoDeSaveStates(
         setErro('Este slot não tem miniatura — não é possível enviar para a nuvem.');
         return;
       }
-      await enviarSaveState(romId!, slot, {
-        dataBase64: bytesParaBase64(guardado.data),
-        thumbnailBase64: await blobParaBase64(miniatura),
-        revision: 0,
-      });
+      // A revisão de base é a que a nuvem tinha quando este hook classificou
+      // o slot como "apenas-local" — `0` se nunca existiu save neste slot,
+      // ou a revisão que o pointer conhecia se a nuvem não mudou desde
+      // então (é exatamente o caso que torna isto "apenas-local" e não
+      // "divergente": só o local andou).
+      const pointerAtual = lerPointerDeSaveState(romId!, slot);
+      await enviarSaveState(
+        romId!,
+        slot,
+        {
+          dataBase64: bytesParaBase64(guardado.data),
+          thumbnailBase64: await blobParaBase64(miniatura),
+          revision: pointerAtual?.revision ?? 0,
+        },
+        guardado.metadata.updatedAt,
+      );
       void nuvem.refetch();
     } catch {
       setErro('Falha ao enviar o save state. Tente de novo.');
@@ -183,7 +209,7 @@ export function useSincronizacaoDeSaveStates(
         updatedAt: Date.parse(resumo.updatedAt),
         thumbnail: base64ParaBlob(resumo.thumbnailBase64),
       });
-      gravarRevisaoDeSaveStateSincronizada(romId!, slot, resumo.revision);
+      gravarPointerDeSaveState(romId!, slot, resumo.revision, Date.parse(resumo.updatedAt));
       await recarregarLocal();
     } catch {
       setErro('Falha ao baixar o save state. Tente de novo.');
@@ -240,7 +266,12 @@ export function useSincronizacaoDeSaveStates(
         // `enviarSaveState`, que é quem grava o ponteiro do lado de envio) e
         // reler a galeria local, que não sabe da gravação por fora do
         // `SaveManager`.
-        gravarRevisaoDeSaveStateSincronizada(romId!, conflito.slot, conflito.nuvem.revision);
+        gravarPointerDeSaveState(
+          romId!,
+          conflito.slot,
+          conflito.nuvem.revision,
+          Date.parse(conflito.nuvem.updatedAt),
+        );
         void recarregarLocal();
       }
       // 'local': o upload que `ResolucaoDeConflitoDeSaveState` disparou já

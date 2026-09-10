@@ -9,7 +9,7 @@ import {
 } from '@pixelvault/contracts';
 import { apiFetch } from '../../lib/api.js';
 import { toArrayBuffer } from './storage/bytes.js';
-import { gravarRevisaoDeSaveStateSincronizada } from './storage/state-sync-pointer.js';
+import { gravarPointerDeSaveState } from './storage/state-sync-pointer.js';
 
 /**
  * Client HTTP do save state na nuvem (`progress`, M5) — mesma convenção de
@@ -80,11 +80,18 @@ export interface EnvioDeSaveState {
  * execução, e chamar o hook uma vez por slot dentro de um loop violaria a
  * regra de hooks. `useEnviarSaveStateParaNuvem`, abaixo, é o wrapper para
  * quem já sabe o slot no momento de montar o componente (`ResolucaoDeConflitoDeSaveState`).
+ *
+ * `updatedAtLocal` é um parâmetro à parte, não um campo de `entrada`: ele
+ * nunca vai no corpo da requisição (a API não pede, nem devia — é o
+ * `updatedAt` do save LOCAL que foi lido para montar este envio, e serve só
+ * para o ponteiro de sincronização (issue #108, ver o comentário de
+ * `gravarPointerDeSaveState` sobre por que a revisão sozinha não basta).
  */
 export async function enviarSaveState(
   romId: string,
   slot: SlotDeSaveState,
   entrada: EnvioDeSaveState,
+  updatedAtLocal: number,
 ): Promise<StateUploadResponse> {
   const resposta = await apiFetch(
     `/api/progress/state/${encodeURIComponent(romId)}/${slot}`,
@@ -92,18 +99,20 @@ export async function enviarSaveState(
     { method: 'POST', body: JSON.stringify(entrada) },
   );
   // Toda gravação bem-sucedida marca ESTE aparelho como reconciliado com
-  // essa revisão, naquele slot — issue #108. É o que faz o próximo boot (ou
-  // a próxima leitura da listagem) tratar o slot como sincronizado, e não
-  // como colisão de novo. Ver `storage/state-sync-pointer.ts`.
-  gravarRevisaoDeSaveStateSincronizada(romId, slot, resposta.revision);
+  // essa revisão E com o `updatedAt` local que gerou o envio — issue #108.
+  // É o que faz o próximo boot (ou a próxima leitura da listagem) tratar o
+  // slot como sincronizado, e não como colisão de novo — até a próxima vez
+  // que o local mudar. Ver `storage/state-sync-pointer.ts`.
+  gravarPointerDeSaveState(romId, slot, resposta.revision, updatedAtLocal);
   return resposta;
 }
 
 export function useEnviarSaveStateParaNuvem(romId: string, slot: SlotDeSaveState) {
   const queryClient = useQueryClient();
 
-  return useMutation<StateUploadResponse, unknown, EnvioDeSaveState>({
-    mutationFn: (entrada) => enviarSaveState(romId, slot, entrada),
+  return useMutation<StateUploadResponse, unknown, EnvioDeSaveState & { updatedAtLocal: number }>({
+    mutationFn: ({ updatedAtLocal, ...entrada }) =>
+      enviarSaveState(romId, slot, entrada, updatedAtLocal),
     onSuccess: () => {
       // Refaz a listagem: é dela que a galeria (#108) vai ler o estado de
       // sincronização de cada slot depois de uma escolha.

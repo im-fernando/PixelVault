@@ -138,6 +138,7 @@ export function ResolucaoDeConflitoDeSaveState({
           dataBase64: bytesParaBase64(local.data),
           thumbnailBase64: await blobParaBase64(local.thumbnail),
           revision: nuvem.revision,
+          updatedAtLocal: local.metadata.updatedAt,
         });
       } else {
         const bytes = await baixarBytesDoSaveState(romId, slot);

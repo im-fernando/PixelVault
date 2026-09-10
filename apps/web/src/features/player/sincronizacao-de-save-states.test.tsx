@@ -3,7 +3,7 @@ import { cleanup, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemorySaveStorage, stateKey, type SaveSlotView } from './storage/index.js';
-import { gravarRevisaoDeSaveStateSincronizada } from './storage/state-sync-pointer.js';
+import { gravarPointerDeSaveState } from './storage/state-sync-pointer.js';
 import { useSincronizacaoDeSaveStates } from './sincronizacao-de-save-states.js';
 
 const ROM_ID = 'b'.repeat(64);
@@ -85,7 +85,11 @@ afterEach(() => {
 
 describe('useSincronizacaoDeSaveStates', () => {
   it('classifica cada slot independente: local sem nuvem, nuvem sem local, sincronizado e divergente', async () => {
-    gravarRevisaoDeSaveStateSincronizada(ROM_ID, 2, 5); // slot 2 já reconciliado com a revisão 5
+    const updatedAtSlot2 = Date.now();
+    // Slot 2 já reconciliado com a revisão 5, no mesmo `updatedAt` local que
+    // a vista abaixo tem agora — é isso que classifica como "sincronizado",
+    // e não só a revisão bater.
+    gravarPointerDeSaveState(ROM_ID, 2, 5, updatedAtSlot2);
 
     vi.stubGlobal(
       'fetch',
@@ -99,7 +103,7 @@ describe('useSincronizacaoDeSaveStates', () => {
     const slotsLocais: SaveSlotView[] = [
       vistaCheia(0, Date.now()), // só local — slot 0
       vistaVazia(1), // só nuvem — slot 1
-      vistaCheia(2, Date.now()), // sincronizado — slot 2
+      vistaCheia(2, updatedAtSlot2), // sincronizado — slot 2
       vistaCheia(3, Date.now()), // divergente — slot 3 (pointer nunca gravado)
     ];
 
@@ -268,5 +272,54 @@ describe('useSincronizacaoDeSaveStates', () => {
 
     await waitFor(() => expect(result.current.conflito).toBeNull());
     expect(recarregar).toHaveBeenCalled();
+  });
+
+  it('salvar de novo um slot já sincronizado volta a marcá-lo "apenas-local" — o botão de enviar reaparece', async () => {
+    const revisaoNaNuvem = 4;
+    const updatedAtDaUltimaSincronizacao = Date.parse('2026-09-01T10:00:00Z');
+    gravarPointerDeSaveState(ROM_ID, 0, revisaoNaNuvem, updatedAtDaUltimaSincronizacao);
+
+    vi.stubGlobal(
+      'fetch',
+      // A nuvem não muda em nenhum momento deste teste — só o local andou.
+      vi.fn(async () => respostaJson({ slots: [resumoDaNuvem(0, revisaoNaNuvem)] })),
+    );
+
+    const storage = new MemorySaveStorage();
+    const { result, rerender } = renderHook(
+      ({ slotsLocais }: { slotsLocais: readonly SaveSlotView[] }) =>
+        useSincronizacaoDeSaveStates(ROM_ID, slotsLocais, 'snes', 'teste-1', vi.fn(), storage),
+      {
+        wrapper,
+        initialProps: {
+          slotsLocais: [
+            vistaCheia(0, updatedAtDaUltimaSincronizacao),
+            vistaVazia(1),
+            vistaVazia(2),
+            vistaVazia(3),
+          ],
+        },
+      },
+    );
+
+    // De início, o `updatedAt` local bate com o que o ponteiro guardou:
+    // rotina, sincronizado, sem botão de ação na galeria.
+    await waitFor(() => expect(result.current.estadoPorSlot.get(0)).toBe('sincronizado'));
+
+    // A pessoa joga mais um pouco e salva de novo no slot 0. A nuvem não
+    // sabe disso — só o `updatedAt` local muda.
+    rerender({
+      slotsLocais: [
+        vistaCheia(0, updatedAtDaUltimaSincronizacao + 60_000),
+        vistaVazia(1),
+        vistaVazia(2),
+        vistaVazia(3),
+      ],
+    });
+
+    // Deixa de ser "sincronizado": há progresso novo esperando para subir, e
+    // é isso que faz `GaleriaDeSlots` voltar a mostrar o botão de enviar
+    // (`estadoNaNuvem !== 'sincronizado'` é a condição que a galeria usa).
+    await waitFor(() => expect(result.current.estadoPorSlot.get(0)).toBe('apenas-local'));
   });
 });
