@@ -1,4 +1,11 @@
-import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Link,
+  Outlet,
+  useRouterState,
+} from '@tanstack/react-router';
 import { CadastroPage } from '../features/auth/CadastroPage.js';
 import { ConfiguracoesPage } from '../features/auth/ConfiguracoesPage.js';
 import { ContaNoCabecalho } from '../features/auth/ContaNoCabecalho.js';
@@ -6,6 +13,7 @@ import { LoginPage } from '../features/auth/LoginPage.js';
 import { RecuperarSenhaPage } from '../features/auth/RecuperarSenhaPage.js';
 import { RedefinirSenhaPage } from '../features/auth/RedefinirSenhaPage.js';
 import { exigirSessao, retornoSeguro } from '../features/auth/rota-protegida.js';
+import { ConsolePage } from '../features/console/ConsolePage.js';
 import { EnviarRomPage } from '../features/library/EnviarRomPage.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
@@ -15,7 +23,37 @@ import { BibliotecaPlayPage } from '../features/player/BibliotecaPlayPage.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
 
+/**
+ * O modo console (#116) é para ser "tela cheia, tipo ligar um console de
+ * verdade" — pedido explícito do Fernando, não estética nossa. Isso significa
+ * sem o cabeçalho do site por cima, mas toda rota hoje é filha de `rootRoute`
+ * e passa por este `Shell` via `<Outlet />` — não existe (ainda) uma segunda
+ * raiz de layout no TanStack Router aqui.
+ *
+ * A saída mais simples e correta dado como o roteador está montado: o próprio
+ * `Shell` decide, pelo path atual (`useRouterState`), se desenha o
+ * `<header>`. Alternativas consideradas e descartadas:
+ * - Duas árvores de rota com `createRootRoute` diferentes: o TanStack Router
+ *   só aceita UMA raiz por `router`; teria que trocar para layout routes
+ *   (`_layout`), uma reestruturação grande para uma tela só.
+ *   `beforeLoad`/`context` para "avisar" o Shell também não existe como
+ *   mecanismo pronto no `Register` daqui.
+ * - CSS escondendo o `<header>` com `:has()` ou seletor de rota: a marcação
+ *   do cabeçalho continuaria no DOM, e o modo console já tem o próprio
+ *   `.topbar` cobrindo o topo — duas barras competindo por z-index é pior do
+ *   que checar o path.
+ *
+ * O preço desta escolha é o `Shell` conhecer a existência da rota `/console`
+ * (uma pontinha de acoplamento na direção "errada"). É pequeno e local a este
+ * arquivo — o `ConsolePage` em si não sabe nada sobre o `Shell`.
+ */
 function Shell() {
+  const emModoConsole = useRouterState({
+    select: (state) => state.location.pathname.startsWith('/console'),
+  });
+
+  if (emModoConsole) return <Outlet />;
+
   return (
     <div className="min-h-screen">
       {/*
@@ -39,6 +77,9 @@ function Shell() {
             chegar deslogado é levado ao login pelo `exigirSessao` da rota, com
             o `retorno` que traz a pessoa de volta para cá — o mesmo caminho
             que `/configuracoes` já usa.
+
+            "Modo console" só faz sentido para quem já tem biblioteca —
+            `exigirSessao` cuida disso na própria rota, do mesmo jeito.
           */}
           <nav className="flex gap-4 text-sm text-ink-500">
             <Link to="/" className="hover:text-label-100">
@@ -46,6 +87,9 @@ function Shell() {
             </Link>
             <Link to="/enviar-rom" className="hover:text-label-100">
               Enviar ROM
+            </Link>
+            <Link to="/console" className="hover:text-label-100">
+              Modo console
             </Link>
           </nav>
           <span className="leitura hidden text-ink-700 lg:block">snes · o save fica</span>
@@ -217,12 +261,26 @@ const enviarRomRoute = createRoute({
   component: EnviarRomPage,
 });
 
+/**
+ * O modo console (#116): tela cheia, navegável 100% por joystick — ver o
+ * comentário do `Shell` para como a rota escapa do cabeçalho do site.
+ * Exige sessão porque não existe modo console sem biblioteca pessoal para
+ * navegar; mesma porta que `/enviar-rom` e `/biblioteca/$romId` usam.
+ */
+const consoleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/console',
+  beforeLoad: exigirSessao,
+  component: ConsolePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   playRoute,
   bibliotecaPlayRoute,
   meusJogosRoute,
   enviarRomRoute,
+  consoleRoute,
   loginRoute,
   cadastroRoute,
   recuperarSenhaRoute,

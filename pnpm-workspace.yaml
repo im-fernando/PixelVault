@@ -14,6 +14,9 @@ allowBuilds:
   workerd: true
   argon2: true
 
+minimumReleaseAgeExclude:
+  - lucide-react@1.44.0
+
 # typescript-eslint aceita >=4.8.4 <6.1.0. A TS 7 (compilador nativo) ainda não
 # é suportada pelo ecossistema de lint. Ver docs/adr/0007.
 overrides:
