@@ -11,6 +11,7 @@ import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
 import { LocalLibrary } from '../features/library/LocalLibrary.js';
 import { MinhaBiblioteca } from '../features/library/MinhaBiblioteca.js';
+import { BibliotecaPlayPage } from '../features/player/BibliotecaPlayPage.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
 
@@ -91,6 +92,25 @@ const playRoute = createRoute({
     return (
       <div className="mx-auto max-w-6xl px-6">
         <PlayPage key={slug} slug={slug} />
+      </div>
+    );
+  },
+});
+
+/**
+ * Joga uma ROM da própria biblioteca — o caminho real que a #99 entrega,
+ * ao lado do catálogo público (`playRoute`) e do ensaio local
+ * (`meusJogosRoute`). Exige sessão: a ROM é privada da conta (BYOR).
+ */
+const bibliotecaPlayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/biblioteca/$romId',
+  beforeLoad: exigirSessao,
+  component: function JogarDaBiblioteca() {
+    const { romId } = bibliotecaPlayRoute.useParams();
+    return (
+      <div className="mx-auto max-w-6xl px-6">
+        <BibliotecaPlayPage key={romId} romId={romId} />
       </div>
     );
   },
@@ -200,6 +220,7 @@ const enviarRomRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   playRoute,
+  bibliotecaPlayRoute,
   meusJogosRoute,
   enviarRomRoute,
   loginRoute,
