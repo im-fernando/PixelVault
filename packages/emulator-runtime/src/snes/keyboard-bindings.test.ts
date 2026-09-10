@@ -29,7 +29,9 @@ describe('configDeTecladoDoRetroArch', () => {
   });
 
   it('usa o mapa padrão quando nenhum é passado — é o que o adapter chama no boot', () => {
-    expect(configDeTecladoDoRetroArch()).toEqual(configDeTecladoDoRetroArch(MAPA_PADRAO_DE_TECLADO));
+    expect(configDeTecladoDoRetroArch()).toEqual(
+      configDeTecladoDoRetroArch(MAPA_PADRAO_DE_TECLADO),
+    );
   });
 
   it('cobre os doze botões do SNES, nem um a mais nem a menos', () => {

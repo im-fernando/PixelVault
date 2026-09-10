@@ -65,7 +65,7 @@ Em concreto:
 2. `configDeTecladoDoRetroArch(mapa)`, no mesmo arquivo, traduz
    `KeyboardEvent.code` → nome de tecla do RetroArch (`ArrowUp` → `up`,
    `KeyZ` → `z`, ...) e devolve `{ input_player1_up: 'up', input_player1_b:
-   'z', ... }`.
+'z', ... }`.
 3. `SnesEmulatorAdapter#prepararMaquina` manda
    `...configDeTecladoDoRetroArch()` no `retroarchConfig` de todo boot, antes
    de `...this.#retroarchConfig` — quem passar `retroarchConfig` nas opções
