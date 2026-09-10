@@ -37,6 +37,9 @@ function armazenamentoFalso(): ArmazenamentoFalso {
       chamadas.push(`assinarLeitura ${chave}`);
       return `https://storage.exemplo.test/${chave}`;
     },
+    escrever: async () => {
+      throw new Error('a autorização de envio não escreve nada');
+    },
     ler: async () => {
       throw new Error('a autorização de envio não lê nada');
     },

@@ -13,6 +13,7 @@ import {
   VALIDADE_PADRAO_EM_SEGUNDOS,
   type ArmazenamentoDeObjetos,
   type OpcoesDeEnvioAssinado,
+  type OpcoesDeEscrita,
   type OpcoesDeUrlAssinada,
 } from './armazenamento-de-objetos.js';
 
@@ -88,6 +89,17 @@ export function criarArmazenamentoS3(opcoes: OpcoesDoArmazenamentoS3): Armazenam
           ? { signableHeaders: new Set(['content-type']) }
           : {}),
       });
+    },
+
+    async escrever(chave: string, bytes: Uint8Array, ajustes?: OpcoesDeEscrita): Promise<void> {
+      await cliente.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: chave,
+          Body: bytes,
+          ...(ajustes?.tipoDeConteudo !== undefined ? { ContentType: ajustes.tipoDeConteudo } : {}),
+        }),
+      );
     },
 
     async assinarLeitura(chave: string, ajustes?: OpcoesDeUrlAssinada): Promise<string> {

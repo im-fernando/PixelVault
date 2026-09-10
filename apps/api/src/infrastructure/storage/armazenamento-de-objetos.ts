@@ -50,11 +50,22 @@
  *
  * ## O que a porta não faz
  *
- * Listar o bucket, e escrever nele sem ser por URL assinada. Não há caso de
- * uso: quem escreve é o cliente, pela URL que a API assina, e a limpeza de
- * quarentena abandonada apaga por chave conhecida, nunca por varredura. Porta
- * cresce com consumidor; método sem chamador é código morto com aparência de
+ * Listar o bucket. Não há caso de uso: a limpeza de quarentena abandonada
+ * apaga por chave conhecida, nunca por varredura. Porta cresce com
+ * consumidor; método sem chamador é código morto com aparência de
  * arquitetura.
+ *
+ * ## `escrever`: o segundo consumidor não seguiu o roteiro do primeiro
+ *
+ * O plano original era o BYOR inteiro de novo — URL assinada, cliente
+ * envia direto ao storage. Não serve para a SRAM da M4 (#89): a gravação
+ * precisa da resposta síncrona da checagem de conflito por revisão (ADR
+ * 0020, regra 4) antes de qualquer byte se mover, e URL assinada tira a API
+ * do meio do caminho — o cliente escreveria no storage sem o servidor saber
+ * se aquela revisão ainda valia. SRAM também é pequena o bastante (teto de
+ * `TAMANHO_MAXIMO_DE_SRAM_EM_BYTES`, bem menor que o de ROM) para caber num
+ * corpo de requisição sem o Fastify sentir. Por isso a porta ganhou escrita
+ * direta no servidor — o mesmo raciocínio de `ler`, ao contrário.
  */
 
 /**
@@ -118,13 +129,20 @@ export interface OpcoesDeEnvioAssinado extends OpcoesDeUrlAssinada {
   tamanhoEmBytes?: number;
 }
 
+/** O que `escrever` aceita ajustar. Sem TTL nem tamanho: não há URL nem assinatura aqui. */
+export interface OpcoesDeEscrita {
+  /** Vai como `Content-Type` do objeto. */
+  tipoDeConteudo?: string;
+}
+
 /**
- * As seis operações de que o BYOR inteiro (#71 a #77) precisa.
+ * As operações de que o BYOR (#71 a #77) e o save na nuvem (#88 a #90)
+ * precisam.
  *
- * A chave é o caminho do objeto dentro do bucket — `roms/<sha256>` ou
- * `quarentena/<userId>/<uuid>`, conforme as ADRs 0013 e 0014. A porta não
- * conhece esse vocabulário: ela move bytes, e quem decide onde eles moram é o
- * módulo dono do fluxo.
+ * A chave é o caminho do objeto dentro do bucket — `roms/<sha256>`,
+ * `quarentena/<userId>/<uuid>` ou `saves/<userId>/<sha256>/<kind>/<uuid>`,
+ * conforme as ADRs 0013, 0014 e 0020. A porta não conhece esse vocabulário:
+ * ela move bytes, e quem decide onde eles moram é o módulo dono do fluxo.
  */
 export interface ArmazenamentoDeObjetos {
   /**
@@ -132,6 +150,17 @@ export interface ArmazenamentoDeObjetos {
    * API. É o que permite a um Fastify modesto lidar com ROM grande (ADR 0014).
    */
   assinarEnvio(chave: string, opcoes?: OpcoesDeEnvioAssinado): Promise<string>;
+
+  /**
+   * Escreve o objeto **a partir do servidor**, com o corpo já na memória do
+   * processo — o oposto de `assinarEnvio`. Existe para a SRAM (#89): pequena
+   * o bastante para chegar no corpo da requisição, e a gravação precisa da
+   * checagem de conflito por revisão respondendo antes de qualquer byte
+   * tocar o storage, o que uma URL assinada não permite (o cliente escreveria
+   * direto, sem o servidor no meio para recusar). Não serve para ROM — o
+   * motivo de `assinarEnvio` existir continua valendo para arquivo grande.
+   */
+  escrever(chave: string, bytes: Uint8Array, opcoes?: OpcoesDeEscrita): Promise<void>;
 
   /** URL para o cliente ler o objeto direto do storage. */
   assinarLeitura(chave: string, opcoes?: OpcoesDeUrlAssinada): Promise<string>;
