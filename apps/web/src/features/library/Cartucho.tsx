@@ -47,8 +47,11 @@ interface Props {
    *
    * É um espaço, e não uma lista de ações: o cartucho não sabe o que se faz
    * com ele. Quem sabe é a prateleira que o desenhou. Repare que quem usa isto
-   * NÃO pode embrulhar o cartucho num link: botão dentro de âncora é HTML
-   * inválido, e a estante pessoal por enquanto não navega para lugar nenhum.
+   * NÃO pode embrulhar o cartucho inteiro num link: o rodapé já é o lugar de
+   * elemento interativo (favoritar, remover, e desde a #99 também "Jogar"), e
+   * um `<a>` por cima de tudo seria elemento interativo dentro de elemento
+   * interativo — HTML inválido. Quem precisa navegar entra como mais um item
+   * do rodapé, ao lado dos botões, não como moldura deles.
    */
   readonly rodape?: ReactNode;
 }

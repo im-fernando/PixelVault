@@ -27,10 +27,12 @@ import { useBiblioteca, useFavoritarRom, useRemoverRom } from './use-biblioteca.
  *
  * ## O que o cartucho faz quando clicado
  *
- * Nada, por enquanto — e é honesto que seja assim. Jogar uma ROM enviada
- * precisa do player lendo a URL assinada de `/library/roms/:romId/download`, e
- * isso não existe ainda. Um cartucho que parece link e não leva a lugar nenhum
- * seria pior que um cartucho que não parece link.
+ * O botão "Jogar" da etiqueta leva a `/biblioteca/:romId` (#99), que lê a URL
+ * assinada de `/library/roms/:romId/download` e monta o player. Não é o
+ * cartucho inteiro que virou link — `Cartucho` já documenta por que
+ * (`rodape` fica dentro do mesmo grupo dos botões de favoritar/remover, e um
+ * `<a>` por cima dos três seria elemento interativo dentro de elemento
+ * interativo). O botão mora no rodapé, ao lado dos outros dois.
  */
 export function MinhaBiblioteca() {
   const sessao = useSessao();
@@ -176,6 +178,13 @@ function NaEstante({
           // etiqueta sem virar abreviação, e abreviar o rótulo de um botão que
           // já é pequeno é pedir para a pessoa adivinhar o que ele faz.
           <div className="flex flex-col gap-1">
+            <Link
+              to="/biblioteca/$romId"
+              params={{ romId: rom.id }}
+              className="block w-full border border-ink-700 px-1 py-0.5 text-center text-[0.6rem] uppercase tracking-wide text-label-100 outline-none transition-colors hover:bg-label-100 hover:text-ink-950 focus-visible:bg-label-100 focus-visible:text-ink-950"
+            >
+              Jogar
+            </Link>
             <BotaoDaEtiqueta
               rotulo={rom.isFavorite ? 'Desfavoritar' : 'Favoritar'}
               ocupado={favoritar.isPending}

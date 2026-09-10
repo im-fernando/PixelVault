@@ -11,10 +11,16 @@ interface Props {
 }
 
 /**
- * Joga uma ROM da biblioteca pessoal.
+ * Ensaio de desenvolvimento: joga uma ROM listada em
+ * `apps/web/public/roms-local/manifest.json`, sem API e sem conta.
  *
- * Não passa pela API de propósito: a ROM é da pessoa e está na máquina dela.
- * O caminho do catálogo público (`/play/$slug`) continua servindo só homebrew.
+ * Desde a #99 existe o caminho real para a biblioteca pessoal de verdade —
+ * `/biblioteca/$romId` (`BibliotecaPlayPage`), que lê a ROM autenticada da
+ * API. Esta rota continua existindo ao lado dele, de propósito: é o jeito
+ * mais rápido de testar o player contra uma ROM sem precisar de conta, envio
+ * nem servidor no ar — só um arquivo em `public/roms-local`. Não é o caminho
+ * que a M4 (save na nuvem) usa; a adoção de save (#92) e a sincronização
+ * automática (#91) vivem em `BibliotecaPlayPage`.
  */
 export function LocalPlayPage({ id }: Props) {
   const { data: rom, isPending } = useRomLocal(id);
