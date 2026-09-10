@@ -5,23 +5,31 @@ import type { SaveMetadata, SaveWriteInput, StoredSave } from './save-record.js'
 export type SaveStorageDriver = 'opfs' | 'indexeddb' | 'memory';
 
 /**
- * A porta de persistência de save. **É esta a interface que a M4 troca.**
+ * A porta de persistência do save LOCAL, do navegador.
  *
- * O player não conhece OPFS, não conhece IndexedDB e não vai conhecer o
- * endpoint da nuvem: ele conhece isto. Trocar o save local por save
- * sincronizado é escrever mais um implementador — do mesmo jeito que trocar o
- * core de emulação é escrever mais um `EmulatorAdapter`. Ver docs/adr/0004.
+ * **A M4 não troca esta interface — o save da nuvem fica ao lado dela, nunca
+ * no lugar.** O ADR 0020 decidiu isso depois deste comentário ter sido
+ * escrito de outro jeito: a adoção é cópia, não mudança de lugar (regra 3), e
+ * o save local continua sendo lido e gravado normalmente durante o jogo
+ * (latência, funciona offline). A nuvem é sincronização à parte — outro
+ * mecanismo, no módulo `progress` da API — e não um novo implementador de
+ * `SaveStorage` que substitui o de dentro do navegador.
  *
- * Três decisões que existem só para a M4 caber sem reescrita:
+ * O player não conhece OPFS nem IndexedDB: ele conhece isto. Trocar de OPFS
+ * para IndexedDB (ou para memória, no pior caso) é escrever mais um
+ * implementador — do mesmo jeito que trocar o core de emulação é escrever
+ * mais um `EmulatorAdapter`. Ver docs/adr/0004.
  *
- * - **Tudo é assíncrono**, inclusive o que o OPFS resolveria na hora. Uma
- *   porta com método síncrono não aceita implementação em rede depois.
+ * Duas decisões da porta continuam servindo à M4, mesmo sem trocar quem a
+ * implementa:
+ *
  * - **A miniatura se lê separada dos bytes** (`readThumbnail`). Uma galeria de
  *   quatro slots não pode precisar baixar quatro save states inteiros de
- *   megabytes para desenhar quatro imagens de alguns KB.
- * - **A porta não conhece usuário.** Save local é do navegador; save na nuvem é
- *   da conta. O implementador da M4 fecha a conta no construtor dele, e a
- *   chave (`romId` + tipo + slot) continua a mesma dos dois lados.
+ *   megabytes para desenhar quatro imagens de alguns KB — e é a mesma
+ *   necessidade do lado da nuvem, na tela de adoção.
+ * - **`write` recebe `updatedAt` de fora**, em vez de chamar `Date.now()` por
+ *   conta própria (ver `save-record.ts`). É o que permite a nuvem carimbar o
+ *   relógio do servidor no que sobe, sem mexer nesta porta.
  */
 export interface SaveStorage {
   readonly driver: SaveStorageDriver;
