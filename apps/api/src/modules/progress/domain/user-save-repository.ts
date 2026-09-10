@@ -1,3 +1,4 @@
+import type { UsoDoSaveNaNuvem } from './cota.js';
 import type { SaveNaNuvem, TipoDeSaveNaNuvem } from './user-save.js';
 
 /**
@@ -7,8 +8,9 @@ import type { SaveNaNuvem, TipoDeSaveNaNuvem } from './user-save.js';
  * que precisa, a infraestrutura resolve como. Ver docs/adr/0004.
  *
  * `buscarPorRom` nasceu na #88; `gravar` chega na #89, com a gravação
- * condicional por revisão (regra 4 do ADR 0020). Porta cresce com quem a
- * usa; método sem chamador é código morto com aparência de arquitetura.
+ * condicional por revisão (regra 4 do ADR 0020); `medirUso` chega na #93,
+ * para a cota de `domain/cota.ts`. Porta cresce com quem a usa; método sem
+ * chamador é código morto com aparência de arquitetura.
  */
 export interface UserSaveRepository {
   /**
@@ -44,6 +46,18 @@ export interface UserSaveRepository {
    * de base nunca as duas vencerem.
    */
   gravar(novo: NovoSaveNaNuvem): Promise<ResultadoDaGravacao>;
+
+  /**
+   * Quanto a conta já ocupa de save na nuvem, somado de todos os `romId` —
+   * o que `estouraCotaDeSave` (`domain/cota.ts`) precisa para decidir uma
+   * gravação.
+   *
+   * Uma agregação sobre `user_saves`, e não uma coluna de acumulador em
+   * `users`: mesmo raciocínio de `UserRomRepository.medirUso` — o dado já
+   * existe linha a linha, e um acumulador seria uma segunda cópia da mesma
+   * verdade, capaz de divergir.
+   */
+  medirUso(userId: string): Promise<UsoDoSaveNaNuvem>;
 }
 
 export interface NovoSaveNaNuvem {

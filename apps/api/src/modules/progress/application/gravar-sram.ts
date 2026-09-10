@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { SramUploadResponse } from '@pixelvault/contracts';
+import { COTA_DE_SAVE_NA_NUVEM_EM_BYTES, type SramUploadResponse } from '@pixelvault/contracts';
 import type {
   ArmazenamentoDeObjetos,
   OpcoesDeEscrita,
@@ -8,6 +8,7 @@ import { ConflictError, NotFoundError } from '../../../infrastructure/errors.js'
 import { autorizarOuNaoEncontrado, recurso, type Habilidades } from '../../identity/index.js';
 import type { UserRomRepository } from '../../library/index.js';
 import { caminhoDoSave } from '../domain/caminho-do-save.js';
+import { estouraCotaDeSave } from '../domain/cota.js';
 import type { SaveNaNuvem } from '../domain/user-save.js';
 import type { UserSaveRepository } from '../domain/user-save-repository.js';
 
@@ -15,6 +16,15 @@ import type { UserSaveRepository } from '../domain/user-save-repository.js';
 const NOME_DO_RECURSO = 'ROM';
 
 const TIPO_DE_CONTEUDO_DA_SRAM = 'application/octet-stream';
+
+/**
+ * A frase da recusa por cota — #93. Único eixo, ao contrário da cota de ROM:
+ * ver o raciocínio completo em `domain/cota.ts` e no comentário de
+ * `COTA_DE_SAVE_NA_NUVEM_EM_BYTES`.
+ */
+const MENSAGEM_DE_COTA_DE_SAVE =
+  `Sua conta chegou ao limite de ${COTA_DE_SAVE_NA_NUVEM_EM_BYTES / 1024 ** 2} MiB de save ` +
+  'na nuvem. Remover uma ROM da biblioteca libera o save dela também.';
 
 export interface DependenciasDaGravacaoDeSram {
   roms: UserRomRepository;
@@ -34,8 +44,10 @@ export interface EntradaDaGravacaoDeSram {
  *
  * ## A ordem das operações não é arbitrária
  *
- * Autoriza → escreve os bytes num objeto novo → grava a linha condicionada
- * à revisão → limpa o objeto que deixou de ser referenciado.
+ * Autoriza → confere a cota (#93) → escreve os bytes num objeto novo → grava
+ * a linha condicionada à revisão → limpa o objeto que deixou de ser
+ * referenciado. A cota vem antes da escrita pelo mesmo motivo da cota de ROM:
+ * é o ponto barato do fluxo, e nenhum byte toca o storage se não couber.
  *
  * Escrever antes de gravar é o mesmo raciocínio de
  * `confirmar-envio-de-rom.ts`: a linha em `user_saves` é a promessa de que o
@@ -76,8 +88,17 @@ export async function gravarSram(
   );
 
   // Capturado antes de escrever: é o objeto que a gravação, se vencer, deixa
-  // de referenciar.
+  // de referenciar — e o tamanho que a cota (#93) desconta da soma, para não
+  // penalizar duas vezes quem regrava o próprio save.
   const antes = await deps.saves.buscarPorRom(userId, rom.sha256, 'sram');
+
+  // Antes de gastar qualquer escrita: mesma disciplina da cota de ROM (#76,
+  // `solicitar-envio-de-rom.ts`) — a recusa é o ponto barato do fluxo, e
+  // nenhum byte deste upload toca o storage se não couber.
+  const uso = await deps.saves.medirUso(userId);
+  if (estouraCotaDeSave(uso, antes?.sizeBytes ?? 0, entrada.bytes.length)) {
+    throw new ConflictError(MENSAGEM_DE_COTA_DE_SAVE, { cota: ['LIMITE_DE_BYTES'] });
+  }
 
   const chave = caminhoDoSave(userId, rom.sha256, 'sram', randomUUID());
   const opcoesDeEscrita: OpcoesDeEscrita = { tipoDeConteudo: TIPO_DE_CONTEUDO_DA_SRAM };
