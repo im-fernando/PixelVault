@@ -1,51 +1,24 @@
+import {
+  BOTOES_DO_SNES,
+  MAPA_PADRAO_DE_TECLADO,
+  type BotaoDoSnes,
+} from '@pixelvault/emulator-runtime';
+
 /**
  * O gamepad de SNES e o mapa padrão de teclado.
  *
  * Os doze botões são a linguagem do console; a tecla é só o dialeto do
  * teclado. A separação existe porque o remapeamento configurável da M7 e o
  * gamepad USB vão falar a mesma linguagem — só trocam o dialeto.
- */
-export const BOTOES_DO_SNES = [
-  'up',
-  'down',
-  'left',
-  'right',
-  'b',
-  'a',
-  'y',
-  'x',
-  'l',
-  'r',
-  'select',
-  'start',
-] as const;
-
-export type BotaoDoSnes = (typeof BOTOES_DO_SNES)[number];
-
-/**
- * Mapa padrão, indexado por `KeyboardEvent.code` e não por `key`.
  *
- * `code` é a posição física da tecla. Com `key`, quem joga num teclado ABNT2,
- * AZERTY ou Dvorak descobre que "Z" ficou do outro lado do teclado — e o
- * layout do teclado não deveria mudar onde fica o botão B do controle.
- *
- * As escolhas seguem o padrão do RetroArch, que é o que quem já emula espera:
- * setas no direcional, Z/X/A/S nos quatro botões de ação, Q/W nos gatilhos.
+ * `BOTOES_DO_SNES` e `MAPA_PADRAO_DE_TECLADO` vêm de `@pixelvault/emulator-runtime`,
+ * e não são definidos aqui: é o mesmo mapa que o `SnesEmulatorAdapter` traduz
+ * para `retroarchConfig` no boot (ver `keyboard-bindings.ts` no pacote). A
+ * legenda que este arquivo desenha e o que o core obedece são o mesmo objeto —
+ * é o que a issue #36 e a ADR 0023 resolveram. Reexportado aqui para não
+ * mudar quem já importa `./snes-keymap.js`.
  */
-export const MAPA_PADRAO_DE_TECLADO: Readonly<Record<string, BotaoDoSnes>> = Object.freeze({
-  ArrowUp: 'up',
-  ArrowDown: 'down',
-  ArrowLeft: 'left',
-  ArrowRight: 'right',
-  KeyZ: 'b',
-  KeyX: 'a',
-  KeyA: 'y',
-  KeyS: 'x',
-  KeyQ: 'l',
-  KeyW: 'r',
-  ShiftRight: 'select',
-  Enter: 'start',
-});
+export { BOTOES_DO_SNES, MAPA_PADRAO_DE_TECLADO, type BotaoDoSnes };
 
 export interface DescricaoDeBotao {
   readonly botao: BotaoDoSnes;

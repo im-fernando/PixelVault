@@ -42,6 +42,7 @@ import {
   type ModuloDoRetroArch,
   type SistemaDeArquivosDoEmscripten,
 } from './retroarch.js';
+import { configDeTecladoDoRetroArch } from './keyboard-bindings.js';
 import { lerRomDeSnes, type RomDeSnes } from './snes-rom.js';
 import { desempacotarEstado, empacotarEstado } from './state-envelope.js';
 
@@ -490,6 +491,12 @@ export class SnesEmulatorAdapter implements EmulatorAdapter {
           audio_rate_control: true,
           audio_resampler: 'sinc',
           audio_latency: LATENCIA_DE_AUDIO_MS,
+          // Teclado (ADR 0023, issue #36): manda `input_player1_*` a partir do
+          // mesmo mapa que a legenda da UI desenha, em vez de deixar o core
+          // escutar o DOM com o keymap padrão dele por conta própria. É o que
+          // faz a legenda parar de poder mentir, e o que a M7 usa para remapear
+          // — gerar este objeto a partir de um mapa diferente.
+          ...configDeTecladoDoRetroArch(),
           ...this.#retroarchConfig,
         },
         ...(sram === null ? {} : { sram }),

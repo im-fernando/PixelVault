@@ -10,8 +10,6 @@ import {
   type EmulatorStatus,
   type RomSource,
 } from '@pixelvault/emulator-runtime';
-import { suportaEntrada } from './adapter-extras.js';
-import type { EstadoDoGamepad } from './input/snes-keymap.js';
 import { emulatorRegistry } from './emulator-registry.js';
 import { SessaoDeEmulacao, type EstadoDeAudio } from './session.js';
 
@@ -45,7 +43,6 @@ export interface ComandosDoEmulador {
   definirMudo(mudo: boolean): void;
   /** Deve ser chamado de dentro do manipulador do clique. Diz se destravou. */
   destravarAudio(): Promise<boolean>;
-  definirGamepad(estado: EstadoDoGamepad): void;
 }
 
 export interface MarcoDeStatus {
@@ -286,13 +283,6 @@ export function useEmulator({ systemId, rom, registry }: OpcoesDoEmulador): Emul
       // gesto do usuário o navegador recusa, e é por isso que o retorno diz
       // se destravou em vez de resolver calado.
       destravarAudio: async () => (await adapter?.audio.unlock()) ?? false,
-      definirGamepad: (estado) => {
-        const atual = adapter;
-        if (atual === null || !suportaEntrada(atual)) return;
-        for (const [botao, pressionado] of Object.entries(estado)) {
-          atual.setButtonState(botao as keyof EstadoDoGamepad, pressionado);
-        }
-      },
     }),
     [adapter, exigirAdapter],
   );
