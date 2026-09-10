@@ -37,7 +37,10 @@ export type SlotDeSaveState = 0 | 1 | 2 | 3;
  * comentário do model `UserSave` em schema.prisma, sobre por que não é
  * `NULL` ali) não atravessa para o domínio: aqui `null` volta a significar
  * "não se aplica", e é a `PrismaUserSaveRepository` quem faz a tradução dos
- * dois lados. `thumbnailKey` segue a mesma regra — só existe para `state`.
+ * dois lados. `thumbnailKey`/`thumbnailSizeBytes` seguem a mesma regra — só
+ * existem para `state` (issue #109: sem o tamanho da miniatura em algum
+ * lugar consultável, a cota não tem como contar um objeto que `sizeBytes`
+ * nunca descreveu).
  */
 export interface SaveNaNuvem {
   readonly id: string;
@@ -48,6 +51,7 @@ export interface SaveNaNuvem {
   readonly storageKey: string;
   readonly sizeBytes: number;
   readonly thumbnailKey: string | null;
+  readonly thumbnailSizeBytes: number | null;
   readonly revision: number;
   readonly updatedAt: Date;
 }

@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
-import type { StateUploadResponse } from '@pixelvault/contracts';
+import { COTA_DE_SAVE_NA_NUVEM_EM_BYTES, type StateUploadResponse } from '@pixelvault/contracts';
 import type {
   ArmazenamentoDeObjetos,
   OpcoesDeEscrita,
@@ -9,6 +9,7 @@ import { ConflictError, NotFoundError } from '../../../infrastructure/errors.js'
 import { autorizarOuNaoEncontrado, recurso, type Habilidades } from '../../identity/index.js';
 import type { UserRomRepository } from '../../library/index.js';
 import { caminhoDoSave } from '../domain/caminho-do-save.js';
+import { estouraCotaDeSave } from '../domain/cota.js';
 import type { SaveNaNuvem, SlotDeSaveState } from '../domain/user-save.js';
 import type { UserSaveRepository } from '../domain/user-save-repository.js';
 
@@ -17,6 +18,15 @@ const NOME_DO_RECURSO = 'ROM';
 
 const TIPO_DE_CONTEUDO_DO_ESTADO = 'application/octet-stream';
 const TIPO_DE_CONTEUDO_DA_MINIATURA = 'image/webp';
+
+/**
+ * A frase da recusa por cota — #109, mesmo teto compartilhado de
+ * `gravar-sram.ts` (#93). Ver o raciocínio completo em `domain/cota.ts` e no
+ * comentário desta issue sobre por que save state soma no mesmo eixo.
+ */
+const MENSAGEM_DE_COTA_DE_SAVE =
+  `Sua conta chegou ao limite de ${COTA_DE_SAVE_NA_NUVEM_EM_BYTES / 1024 ** 2} MiB de save ` +
+  'na nuvem. Remover uma ROM da biblioteca libera o save dela também.';
 
 export interface DependenciasDaGravacaoDeSaveState {
   roms: UserRomRepository;
@@ -56,12 +66,30 @@ export interface EntradaDaGravacaoDeSaveState {
  * novo"), a decisão e a UX são dela; esta rota não presume nem impede isso —
  * ela só recebe uma gravação por vez, do jeito que a SRAM já recebe.
  *
+ * ## Cota: mesmo teto de SRAM, não um separado (issue #109)
+ *
+ * `COTA_DE_SAVE_NA_NUVEM_EM_BYTES` (32 MiB) já soma SRAM e save state juntos
+ * — `medirUso` agrega `sizeBytes` **e** `thumbnailSizeBytes` de toda a conta,
+ * sem filtrar por `kind`. Um teto separado exigiria decidir como repartir 32
+ * MiB entre dois usos que competem pelo mesmo risco (upload é vetor de
+ * abuso), sem nenhum motivo de produto para a soma dos dois ser maior que a
+ * de um só: 1500 ROMs com os 4 slots cheios de save state de 4 MiB é um
+ * cenário tão fora do uso real quanto 1500 ROMs com SRAM de 256 KiB cada — a
+ * folga de `COTA_DE_SAVE_NA_NUVEM_EM_BYTES` já foi calibrada pensando no
+ * perfil real (poucos slots preenchidos, poucas ROMs com save state), e
+ * reaproveitar o número existente evita duas constantes que a mesma pergunta
+ * ("quanto uma conta pode guardar de progresso na nuvem?") teria que manter
+ * em sincronia.
+ *
+ * A checagem soma os DOIS objetos de cada lado — o estado que sai/entra e a
+ * miniatura que sai/entra — porque `estouraCotaDeSave` não distingue de onde
+ * vêm os bytes, só quanto a gravação desloca no total.
+ *
  * ## O resto é igual a `gravar-sram.ts`
  *
- * Autoriza → escreve os dois objetos novos (estado e miniatura) → grava a
- * linha condicionada à revisão → limpa os objetos anteriores. A cota (#93
- * para SRAM) fica fora desta issue de propósito — é a #109 quem decide se
- * save state soma no mesmo teto ou tem um próprio.
+ * Autoriza → confere a cota → escreve os dois objetos novos (estado e
+ * miniatura) → grava a linha condicionada à revisão → limpa os objetos
+ * anteriores.
  */
 export async function gravarSaveState(
   deps: DependenciasDaGravacaoDeSaveState,
@@ -87,6 +115,16 @@ export async function gravarSaveState(
   // gravação, se vencer, deixa de referenciar.
   const antes = await deps.saves.buscarPorRom(userId, rom.sha256, 'state', slot);
 
+  // Soma os dois objetos de cada lado — ver o cabeçalho da função. O tamanho
+  // antigo inclui a miniatura anterior (0 se não existia, primeira gravação
+  // deste slot); o novo inclui a miniatura que está chegando agora.
+  const uso = await deps.saves.medirUso(userId);
+  const tamanhoAntigo = (antes?.sizeBytes ?? 0) + (antes?.thumbnailSizeBytes ?? 0);
+  const tamanhoNovo = entrada.bytes.length + entrada.thumbnailBytes.length;
+  if (estouraCotaDeSave(uso, tamanhoAntigo, tamanhoNovo)) {
+    throw new ConflictError(MENSAGEM_DE_COTA_DE_SAVE, { cota: ['LIMITE_DE_BYTES'] });
+  }
+
   // Dois UUIDs, não um com sufixo: `caminhoDoSave` exige UUID estrito em
   // `tentativa` — cada objeto (estado e miniatura) é uma tentativa própria,
   // mesmo nascendo da mesma chamada.
@@ -106,6 +144,7 @@ export async function gravarSaveState(
     storageKey: chaveDoEstado,
     sizeBytes: entrada.bytes.length,
     thumbnailKey: chaveDaMiniatura,
+    thumbnailSizeBytes: entrada.thumbnailBytes.length,
     revisaoEsperada: entrada.revision,
   });
 
