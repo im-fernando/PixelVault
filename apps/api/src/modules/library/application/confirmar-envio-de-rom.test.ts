@@ -56,6 +56,9 @@ function armazenamentoFalso(objetos: Map<string, Uint8Array>): ArmazenamentoFals
     assinarLeitura: async () => {
       throw new Error('a confirmação não assina nada');
     },
+    escrever: async () => {
+      throw new Error('a confirmação não escreve nada');
+    },
     ler: async (chave: string) => {
       chamadas.push(`ler ${chave}`);
       const bytes = objetos.get(chave);
