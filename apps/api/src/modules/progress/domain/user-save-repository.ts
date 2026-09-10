@@ -1,5 +1,5 @@
 import type { UsoDoSaveNaNuvem } from './cota.js';
-import type { SaveNaNuvem, TipoDeSaveNaNuvem } from './user-save.js';
+import type { SaveNaNuvem, SlotDeSaveState, TipoDeSaveNaNuvem } from './user-save.js';
 
 /**
  * Porta de persistência do save na nuvem.
@@ -9,20 +9,26 @@ import type { SaveNaNuvem, TipoDeSaveNaNuvem } from './user-save.js';
  *
  * `buscarPorRom` nasceu na #88; `gravar` chega na #89, com a gravação
  * condicional por revisão (regra 4 do ADR 0020); `medirUso` chega na #93,
- * para a cota de `domain/cota.ts`. Porta cresce com quem a usa; método sem
+ * para a cota de `domain/cota.ts`. O eixo `slot` chega na #104, para
+ * `kind: 'state'` — omitido (`undefined`), é a mesma pergunta de sempre
+ * sobre a SRAM única da conta. Porta cresce com quem a usa; método sem
  * chamador é código morto com aparência de arquitetura.
  */
 export interface UserSaveRepository {
   /**
-   * O save daquela conta para aquela ROM e tipo, ou `null`.
+   * O save daquela conta para aquela ROM, tipo e slot, ou `null`.
    *
-   * A chave é a mesma do `@@unique([userId, sha256, kind])` da tabela — um
+   * `slot` só faz sentido para `kind: 'state'` — omita para `'sram'`. A
+   * chave é a mesma do `@@unique([userId, sha256, kind, slot])` da tabela
+   * (a implementação traduz a ausência de `slot` para a sentinela `-1` do
+   * banco — ver o comentário do model `UserSave` em schema.prisma) — um
    * acerto de índice, não uma varredura.
    */
   buscarPorRom(
     userId: string,
     sha256: string,
     kind: TipoDeSaveNaNuvem,
+    slot?: SlotDeSaveState,
   ): Promise<SaveNaNuvem | null>;
 
   /**
@@ -64,9 +70,13 @@ export interface NovoSaveNaNuvem {
   userId: string;
   sha256: string;
   kind: TipoDeSaveNaNuvem;
+  /** Só para `kind: 'state'` — omita para `'sram'` (vira a sentinela `-1` no banco). */
+  slot?: SlotDeSaveState;
   /** A chave já escrita no storage — quem chama grava os bytes antes. */
   storageKey: string;
   sizeBytes: number;
+  /** Só para `kind: 'state'` — a #105 é quem passa a gravar isto de verdade. */
+  thumbnailKey?: string;
   /** A revisão sobre a qual o cliente diz ter baseado esta gravação. `0` = "nenhuma". */
   revisaoEsperada: number;
 }

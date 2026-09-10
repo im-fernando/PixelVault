@@ -167,7 +167,7 @@ function shaDaRom(): string {
 async function limparSaveDoTeste(): Promise<void> {
   const sha256 = shaDaRom();
   const linha = await prisma.userSave.findUnique({
-    where: { userId_sha256_kind: { userId: donoId, sha256, kind: 'sram' } },
+    where: { userId_sha256_kind_slot: { userId: donoId, sha256, kind: 'sram', slot: -1 } },
     select: { storageKey: true },
   });
   if (linha !== null) chavesDeSave.add(linha.storageKey);

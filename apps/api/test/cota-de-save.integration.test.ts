@@ -234,7 +234,14 @@ describe('POST /api/progress/sram/:romId, contra a cota de save na nuvem', () =>
     // Nenhuma linha nova: a recusa aconteceu antes de qualquer escrita.
     expect(
       await prisma.userSave.findUnique({
-        where: { userId_sha256_kind: { userId: cheiaId, sha256: semSave.sha256, kind: 'sram' } },
+        where: {
+          userId_sha256_kind_slot: {
+            userId: cheiaId,
+            sha256: semSave.sha256,
+            kind: 'sram',
+            slot: -1,
+          },
+        },
       }),
     ).toBeNull();
   }, 30_000);
@@ -275,7 +282,14 @@ describe('POST /api/progress/sram/:romId, contra a cota de save na nuvem', () =>
       await prisma.userRom.findUniqueOrThrow({ where: { id: romProprioDoNoTeto } })
     ).sha256;
     const linha = await prisma.userSave.findUniqueOrThrow({
-      where: { userId_sha256_kind: { userId: noTetoId, sha256: shaDaRomPropria, kind: 'sram' } },
+      where: {
+        userId_sha256_kind_slot: {
+          userId: noTetoId,
+          sha256: shaDaRomPropria,
+          kind: 'sram',
+          slot: -1,
+        },
+      },
     });
     expect(linha.revision).toBe(2);
     expect(linha.sizeBytes).toBe(cemKib);

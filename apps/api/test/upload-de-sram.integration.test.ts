@@ -156,7 +156,7 @@ function shaDaRom(): string {
 async function limparSaveDoTeste(): Promise<void> {
   const sha256 = shaDaRom();
   const linha = await prisma.userSave.findUnique({
-    where: { userId_sha256_kind: { userId: donoId, sha256, kind: 'sram' } },
+    where: { userId_sha256_kind_slot: { userId: donoId, sha256, kind: 'sram', slot: -1 } },
     select: { storageKey: true },
   });
   if (linha !== null) chavesDeSave.add(linha.storageKey);
@@ -245,10 +245,11 @@ describe('POST /api/progress/sram/:romId', () => {
     // Nada mudou: a revisão vigente continua a 2, com os bytes da segunda gravação.
     const linha = await prisma.userSave.findUniqueOrThrow({
       where: {
-        userId_sha256_kind: {
+        userId_sha256_kind_slot: {
           userId: donoId,
           sha256: createHash('sha256').update(ROM).digest('hex'),
           kind: 'sram',
+          slot: -1,
         },
       },
     });
