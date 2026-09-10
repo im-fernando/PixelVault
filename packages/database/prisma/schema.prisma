@@ -178,6 +178,9 @@ model UserRom {
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   game Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  /// A M4: a FK composta de `user_saves` para `[userId, sha256]` exige que a
+  /// ROM esteja na biblioteca antes de ter save na nuvem. Ver o model lá.
+  saves UserSave[]
 
   @@unique([userId, sha256])
   @@index([userId])
@@ -206,6 +209,51 @@ model UserGame {
   @@id([userId, gameId])
   @@index([userId, lastPlayedAt])
   @@map("user_games")
+}
+
+/// Tipo de save guardado na nuvem. Só `sram` tem caminho de aplicação nesta
+/// milestone — save state é a M5 (ver issue #88), e ganha o próprio valor
+/// quando a M5 escrever a migration dele, em vez de existir aqui sem
+/// nenhuma linha que o use.
+enum SaveKind {
+  sram
+}
+
+/// O save da conta na nuvem (M4). Ao lado do save local do navegador, nunca
+/// no lugar dele — a nuvem é sincronização por escolha explícita, não a
+/// porta de save do player. Ver docs/adr/0020.
+///
+/// A FK composta `[userId, sha256]` aponta para `user_roms.[userId, sha256]`
+/// (não para `users` diretamente) de propósito: exige a ROM na biblioteca da
+/// própria conta antes de existir save dela na nuvem. Sem isso não há como
+/// baixar e jogar em outro aparelho, que é o próprio critério de aceite da
+/// milestone — um save sem ROM correspondente não serve para nada. A
+/// cascata de remoção sai de graça pelo mesmo caminho: apagar a ROM da
+/// biblioteca apaga o save que dependia dela, sem uma segunda relação para
+/// `users` que duplicaria a mesma cascata.
+///
+/// `revision` é contador, não timestamp: o relógio do cliente não decide
+/// conflito (ADR 0020, regra 4). `updatedAt` é `@updatedAt`, carimbado pelo
+/// Prisma no momento em que o SERVIDOR grava — o cliente nunca manda esse
+/// valor, e se mandar é ignorado (issue #89).
+model UserSave {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  sha256     String
+  kind       SaveKind @default(sram)
+  storageKey String   @map("storage_key")
+  sizeBytes  Int      @map("size_bytes")
+  revision   Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  userRom UserRom @relation(fields: [userId, sha256], references: [userId, sha256], onDelete: Cascade)
+
+  /// Um save por conta, por conteúdo, por tipo — a chave que `buscarPorRom`
+  /// e a gravação da #89 batem.
+  @@unique([userId, sha256, kind])
+  @@index([userId])
+  @@map("user_saves")
 }
 
 /// Papel de uma chave contada em `auth_attempts`. Dois eixos que não se
