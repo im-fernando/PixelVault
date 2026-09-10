@@ -29,6 +29,7 @@ referencia a antiga.
 | [0020](0020-adotar-o-progresso-local-so-por-escolha-explicita.md) | Adotar o progresso local só por escolha explícita, item a item         | aceita |
 | [0021](0021-usar-resend-para-email-transacional.md)               | Usar Resend para e-mail transacional                                   | aceita |
 | [0022](0022-banco-de-teste-pelo-compose-do-projeto.md)            | Subir o banco de teste pelo compose do projeto, não por Testcontainers | aceita |
+| [0023](0023-input-do-teclado-por-configuracao-do-retroarch.md)    | Configurar o teclado do RetroArch no boot, em vez de simular estado por quadro | aceita |
 
 O código de investigação que sustenta os números da 0008 e da 0011 está em
 [docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por
