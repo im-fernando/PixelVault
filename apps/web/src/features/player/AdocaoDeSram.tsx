@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSramLocal, type SaveStorage } from './storage/index.js';
+import { gravarRevisaoSincronizada } from './storage/sram-sync-revision.js';
 import { bytesParaBase64, useEnviarSramParaNuvem, useSramNaNuvem } from './sram-nuvem.js';
 
 interface Props {
@@ -146,6 +147,17 @@ export function AdocaoDeSram({ romId, storage }: Props) {
             // regra 4 do ADR 0020 (nunca sobrescrever sem escolha explícita)
             // vista do lado que não muda nada. O painel continua à mostra:
             // a pessoa pode mudar de ideia sem recarregar a tela.
+            //
+            // Mas a escolha em si É o vínculo (#91): a pessoa acabou de dizer
+            // "esta é a minha SRAM de referência para este jogo", então este
+            // aparelho passa a reconciliar essa revisão em silêncio dali em
+            // diante, sem perguntar de novo a cada boot. `refetch` (em vez de
+            // só gravar o ponteiro local) é o que avisa
+            // `useSincronizacaoDeSram` AGORA, na mesma sessão — sem ele, o
+            // vínculo só apareceria no próximo boot, quando a consulta
+            // refizesse sozinha.
+            gravarRevisaoSincronizada(romId, dadosDaNuvem.revision);
+            void nuvem.refetch();
             setMantidoNaNuvem(true);
             return;
           }

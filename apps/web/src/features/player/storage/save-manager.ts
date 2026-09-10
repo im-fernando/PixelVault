@@ -59,6 +59,13 @@ export interface SaveManagerOptions {
    * promessa, então sem isto a falha vira `unhandledrejection` e some.
    */
   readonly onError?: (erro: SaveStorageError) => void;
+  /**
+   * Dispara depois de cada gravação automática de SRAM bem-sucedida — o
+   * gancho que a sincronização com a nuvem (#91) usa para saber quando há
+   * algo novo para mandar. Não muda o fluxo existente: a gravação local
+   * continua acontecendo do mesmo jeito, isto só avisa quem quiser ouvir.
+   */
+  readonly onSramWritten?: (metadata: SaveMetadata) => void;
   /** Relógio, injetável para teste. */
   readonly now?: () => number;
 }
@@ -94,6 +101,7 @@ export class SaveManager {
   readonly #debounceMs: number;
   readonly #thumbnail: ThumbnailOptions | false;
   readonly #onError: (erro: SaveStorageError) => void;
+  readonly #onSramWritten: ((metadata: SaveMetadata) => void) | undefined;
   readonly #agora: () => number;
 
   #cancelarInscricao: Unsubscribe | null = null;
@@ -109,6 +117,7 @@ export class SaveManager {
     this.#storage = options.storage;
     this.#debounceMs = options.sramDebounceMs ?? SRAM_DEBOUNCE_PADRAO_MS;
     this.#thumbnail = options.thumbnail ?? {};
+    this.#onSramWritten = options.onSramWritten;
     this.#agora = options.now ?? Date.now;
     this.#onError =
       options.onError ??
@@ -345,6 +354,7 @@ export class SaveManager {
       updatedAt: this.#agora(),
     });
     this.#ultimaSramGravada = data.slice();
+    this.#onSramWritten?.(metadata);
     return metadata;
   }
 

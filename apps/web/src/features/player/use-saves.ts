@@ -5,6 +5,7 @@ import {
   createSaveManager,
   isSaveStorageError,
   type SaveManager,
+  type SaveMetadata,
   type SaveSlot,
   type SaveSlotView,
   type SaveStorageDriver,
@@ -40,8 +41,18 @@ const SLOTS_VAZIOS: readonly SaveSlotView[] = SAVE_SLOTS.map((slot) => ({
   incompatibleReason: null,
 }));
 
-export function useSaves(adapter: EmulatorAdapter | null, romId: string | null): Saves {
+export function useSaves(
+  adapter: EmulatorAdapter | null,
+  romId: string | null,
+  onSramWritten?: (metadata: SaveMetadata) => void,
+): Saves {
   const gerenteRef = useRef<SaveManager | null>(null);
+  // Ref, não dependência do efeito: um `onSramWritten` recriado a cada
+  // render (comum em callback inline) não pode reabrir o `SaveManager` —
+  // fechar e abrir o storage por causa de uma closure nova perderia o
+  // debounce de SRAM em voo.
+  const onSramWrittenRef = useRef(onSramWritten);
+  onSramWrittenRef.current = onSramWritten;
   const [pronto, setPronto] = useState(false);
   const [driver, setDriver] = useState<SaveStorageDriver | null>(null);
   const [volatil, setVolatil] = useState(false);
@@ -65,6 +76,7 @@ export function useSaves(adapter: EmulatorAdapter | null, romId: string | null):
         emulator: adapter,
         romId,
         onError: () => setUltimaSram(null),
+        onSramWritten: (metadata) => onSramWrittenRef.current?.(metadata),
       });
       if (cancelado) {
         await gerente.dispose();
