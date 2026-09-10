@@ -5,10 +5,15 @@
  * pode importar progress/domain, progress/application ou progress/infrastructure.
  * A regra é verificada no CI pelo dependency-cruiser. Ver docs/adr/0003.
  *
- * A M4 (save na nuvem) começa aqui: a tabela `user_saves` e a porta de
- * leitura (`domain/user-save-repository.ts`, `infrastructure/prisma-user-save-repository.ts`)
- * já existem (#88), mas ninguém fora do módulo precisa delas ainda — não há
- * rota. `export {}` some quando a #89 (upload) e a #90 (download) trouxerem
- * a primeira coisa que outro código precisa importar daqui.
+ * O módulo é dono do save na conta na nuvem — hoje só SRAM (M4); save state
+ * chega na M5. A #88 trouxe a tabela e a leitura; a #89 traz a primeira rota
+ * (`POST /progress/sram/:romId`, com a gravação condicionada por revisão do
+ * ADR 0020). Ele não é dono da sessão (pede ao `sessions`), da autorização
+ * (pergunta ao `identity`), do storage (porta compartilhada da aplicação) nem
+ * da ROM em si (pergunta ao `library` se aquele `romId` é de quem está
+ * pedindo, pela fachada dele).
  */
-export {};
+export { progressRoutes } from './http/routes.js';
+export type { OpcoesDeProgress } from './http/routes.js';
+export type { SaveNaNuvem, TipoDeSaveNaNuvem } from './domain/user-save.js';
+export type { UserSaveRepository } from './domain/user-save-repository.js';

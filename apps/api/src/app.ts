@@ -23,6 +23,7 @@ import {
   identityRoutes,
 } from './modules/identity/index.js';
 import { libraryRoutes } from './modules/library/index.js';
+import { progressRoutes } from './modules/progress/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
 /**
@@ -165,6 +166,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // `/auth`: quem lista e revoga sessão é o dono do ciclo de vida dela.
   await app.register(sessionsRoutes, { prefix: '/api', sessoes });
   await app.register(libraryRoutes, { prefix: '/api', sessoes, armazenamento });
+  await app.register(progressRoutes, { prefix: '/api', sessoes, armazenamento });
 
   return app;
 }
