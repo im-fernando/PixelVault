@@ -4,16 +4,23 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   apiErrorSchema,
+  slotDeSaveStateParamSchema,
   sramDownloadResponseSchema,
   sramUploadRequestSchema,
   sramUploadResponseSchema,
+  stateUploadRequestSchema,
+  stateUploadResponseSchema,
+  TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES,
+  TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES,
   TAMANHO_MAXIMO_DE_SRAM_EM_BYTES,
   uuidSchema,
+  type SlotDeSaveState,
 } from '@pixelvault/contracts';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
 import { habilidadesDoUsuario } from '../../identity/index.js';
 import { prismaUserRomRepository } from '../../library/index.js';
 import type { Sessoes } from '../../sessions/index.js';
+import { gravarSaveState } from '../application/gravar-save-state.js';
 import { gravarSram } from '../application/gravar-sram.js';
 import { lerSram } from '../application/ler-sram.js';
 import { prismaUserSaveRepository } from '../infrastructure/prisma-user-save-repository.js';
@@ -111,6 +118,62 @@ export const progressRoutes: FastifyPluginAsyncZod<OpcoesDeProgress> = async (ap
         habilidades,
         userId,
         request.params.romId,
+      );
+    },
+  );
+
+  app.post(
+    '/progress/state/:romId/:slot',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['progress'],
+        summary: 'Grava o save state de um slot, com checagem de conflito por revisão',
+        description:
+          'Mesma disciplina da SRAM (`POST /progress/sram/:romId`), agora por slot (0 a ' +
+          '3) e com uma miniatura obrigatória ao lado do estado — a `revision` do corpo ' +
+          'é a que o cliente leu por último (`0` para "nenhum save state ainda neste ' +
+          'slot"); batendo com a do servidor, grava e incrementa; divergindo, recusa com ' +
+          '409 e devolve em `details` a revisão, o tamanho, o `updatedAt` e a miniatura ' +
+          '(`thumbnailBase64`) atuais do servidor — o bastante para a interface de ' +
+          `conflito desenhar os dois lados sem uma segunda viagem. Teto de ` +
+          `${TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES} bytes para o estado e ` +
+          `${TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES} para a miniatura. Só quem tem o ` +
+          '`romId` na própria biblioteca pode gravar save nele — o mesmo 404 uniforme ' +
+          'que a SRAM já usa.',
+        params: z.object({ romId: uuidSchema, slot: slotDeSaveStateParamSchema }),
+        body: stateUploadRequestSchema,
+        response: {
+          200: stateUploadResponseSchema,
+          400: apiErrorSchema,
+          401: apiErrorSchema,
+          403: apiErrorSchema,
+          404: apiErrorSchema,
+          409: apiErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const userId = sessoes.usuarioAutenticado(request);
+      const habilidades = await habilidadesDoUsuario(userId);
+
+      // Tamanhos já conferidos pelo `.refine` do contrato, sobre as mesmas
+      // strings — decodificar aqui não pode estourar teto nenhum de novo.
+      const bytes = Buffer.from(request.body.dataBase64, 'base64');
+      const thumbnailBytes = Buffer.from(request.body.thumbnailBase64, 'base64');
+
+      // A rota já validou `0..3` (`slotDeSaveStateParamSchema`); o cast é só
+      // para o `number` genérico da coerção de URL virar a união fechada que
+      // o domínio espera — ver o comentário do schema em
+      // `@pixelvault/contracts` para o porquê de não ser `SlotDeSaveState`
+      // desde a validação.
+      return gravarSaveState(
+        { roms: prismaUserRomRepository, saves: prismaUserSaveRepository, armazenamento },
+        habilidades,
+        userId,
+        request.params.romId,
+        request.params.slot as SlotDeSaveState,
+        { revision: request.body.revision, bytes, thumbnailBytes },
       );
     },
   );

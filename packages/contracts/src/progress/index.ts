@@ -14,3 +14,13 @@ export type {
   SramUploadRequest,
   SramUploadResponse,
 } from './sram.js';
+export {
+  SLOTS_DE_SAVE_STATE,
+  slotDeSaveStateParamSchema,
+  slotDeSaveStateSchema,
+  stateUploadRequestSchema,
+  stateUploadResponseSchema,
+  TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES,
+  TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES,
+} from './state.js';
+export type { SlotDeSaveState, StateUploadRequest, StateUploadResponse } from './state.js';
