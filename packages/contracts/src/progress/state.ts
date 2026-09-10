@@ -97,3 +97,74 @@ export const stateUploadResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 export type StateUploadResponse = z.infer<typeof stateUploadResponseSchema>;
+
+/**
+ * Um slot preenchido, na listagem de `GET /api/progress/state/:romId` —
+ * issue #106.
+ *
+ * A miniatura vem embutida em base64, e não o estado: a galeria
+ * (`GaleriaDeSlots`) desenha 4 quadros de uma vez, e baixar até 4 MiB por
+ * slot (`TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES`) só para pintar algumas
+ * dezenas de KB de imagem seria o mesmo desperdício que o ADR 0020 já evitou
+ * do lado local (`readThumbnail` sem os bytes do estado). O estado em si se
+ * pede à parte, por `GET /api/progress/state/:romId/:slot`, só quando a
+ * pessoa carrega aquele slot de verdade.
+ */
+export const stateSlotResumoSchema = z.object({
+  slot: slotDeSaveStateSchema,
+  revision: z.number().int().positive(),
+  sizeBytes: z.number().int().positive(),
+  updatedAt: z.iso.datetime(),
+  thumbnailBase64: z.base64(),
+});
+export type StateSlotResumo = z.infer<typeof stateSlotResumoSchema>;
+
+/**
+ * Resposta de `GET /api/progress/state/:romId`: os slots que têm save,
+ * nenhum marcador para os que não têm.
+ *
+ * Diferente da SRAM (uma linha só, que existe ou não — daí o
+ * `status: 'sem-save'` de `sramDownloadResponseSchema`), esta resposta já é
+ * uma coleção. Slot sem save simplesmente não aparece no array; os quatro
+ * vazios viram um array vazio, sem precisar de um `status` para dizer o que
+ * o próprio array já diz.
+ */
+export const stateListResponseSchema = z.object({
+  slots: z.array(stateSlotResumoSchema),
+});
+export type StateListResponse = z.infer<typeof stateListResponseSchema>;
+
+/**
+ * Resposta de sucesso de `GET /api/progress/state/:romId/:slot` quando
+ * existe save state naquele slot.
+ *
+ * URL assinada, não bytes no corpo como a SRAM: o teto de save state (4 MiB)
+ * é dezesseis vezes o da SRAM (256 KiB) — em base64 isso passaria de 5 MiB
+ * de payload JSON, o mesmo problema de tamanho que já separa ROM (URL
+ * assinada) de SRAM (bytes diretos). O tamanho decide o formato, não o tipo
+ * de dado.
+ */
+export const stateDownloadEncontradoSchema = z.object({
+  status: z.literal('encontrado'),
+  revision: z.number().int().positive(),
+  sizeBytes: z.number().int().positive(),
+  updatedAt: z.iso.datetime(),
+  url: z.url(),
+  expiresInSeconds: z.number().int().positive(),
+});
+export type StateDownloadEncontrado = z.infer<typeof stateDownloadEncontradoSchema>;
+
+/**
+ * O slot é da conta, mas não tem save state ainda — sucesso, não erro. Mesmo
+ * raciocínio de `sramDownloadSemSaveSchema`.
+ */
+export const stateDownloadSemSaveSchema = z.object({
+  status: z.literal('sem-save'),
+});
+export type StateDownloadSemSave = z.infer<typeof stateDownloadSemSaveSchema>;
+
+export const stateDownloadResponseSchema = z.discriminatedUnion('status', [
+  stateDownloadEncontradoSchema,
+  stateDownloadSemSaveSchema,
+]);
+export type StateDownloadResponse = z.infer<typeof stateDownloadResponseSchema>;

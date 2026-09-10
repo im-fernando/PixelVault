@@ -46,6 +46,15 @@ export const prismaUserSaveRepository: UserSaveRepository = {
     return linha === null ? null : paraDominio(linha);
   },
 
+  async listarPorRom(
+    userId: string,
+    sha256: string,
+    kind: TipoDeSaveNaNuvem,
+  ): Promise<SaveNaNuvem[]> {
+    const linhas = await prisma.userSave.findMany({ where: { userId, sha256, kind } });
+    return linhas.map(paraDominio);
+  },
+
   async gravar(novo: NovoSaveNaNuvem): Promise<ResultadoDaGravacao> {
     const slot = slotNoBanco(novo.slot);
 
