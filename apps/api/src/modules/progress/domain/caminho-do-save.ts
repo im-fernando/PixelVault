@@ -1,16 +1,20 @@
-import type { TipoDeSaveNaNuvem } from './user-save.js';
+import type { SlotDeSaveState, TipoDeSaveNaNuvem } from './user-save.js';
 
 /**
  * Onde o save de uma conta mora no bucket.
  *
- * `saves/<userId>/<sha256>/<kind>/<uuid>` — o prefixo carrega o dono, como a
- * quarentena da ROM (`library/domain/quarentena.ts`): objeto de outra
- * pessoa nem existe no seu caminho. O `<uuid>` no fim é o que faz cada
- * tentativa de gravação escrever num objeto novo, nunca por cima do save
- * atual — é isso que evita que uma gravação perdedora (revisão desatualizada,
- * `gravar-sram.ts`) corrompa os bytes de quem venceu a corrida antes de o
- * banco decidir quem venceu. Quem limpa o objeto órfão é o caso de uso,
- * depois de saber o resultado.
+ * `saves/<userId>/<sha256>/<kind>/<uuid>` (SRAM) ou
+ * `saves/<userId>/<sha256>/<kind>/<slot>/<uuid>` (save state, #105) — o
+ * prefixo carrega o dono, como a quarentena da ROM
+ * (`library/domain/quarentena.ts`): objeto de outra pessoa nem existe no seu
+ * caminho. O `slot` entra como segmento próprio, e não dentro do `<uuid>`,
+ * porque é dado que descreve o objeto (qual dos quatro slots), não uma
+ * tentativa de gravação. O `<uuid>` no fim é o que faz cada tentativa de
+ * gravação escrever num objeto novo, nunca por cima do save atual — é isso
+ * que evita que uma gravação perdedora (revisão desatualizada,
+ * `gravar-sram.ts`/`gravar-save-state.ts`) corrompa os bytes de quem venceu
+ * a corrida antes de o banco decidir quem venceu. Quem limpa o objeto órfão
+ * é o caso de uso, depois de saber o resultado.
  */
 export const PREFIXO_DOS_SAVES = 'saves';
 
@@ -22,6 +26,7 @@ export function caminhoDoSave(
   sha256: string,
   kind: TipoDeSaveNaNuvem,
   tentativa: string,
+  slot?: SlotDeSaveState,
 ): string {
   if (!UUID.test(userId) || !UUID.test(tentativa)) {
     throw new TypeError('Caminho de save só se monta com UUID — ver caminho-do-save.ts');
@@ -32,5 +37,6 @@ export function caminhoDoSave(
     );
   }
 
-  return `${PREFIXO_DOS_SAVES}/${userId}/${sha256}/${kind}/${tentativa}`;
+  const sufixoDoSlot = slot === undefined ? '' : `/${slot}`;
+  return `${PREFIXO_DOS_SAVES}/${userId}/${sha256}/${kind}${sufixoDoSlot}/${tentativa}`;
 }
