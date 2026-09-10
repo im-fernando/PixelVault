@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { EstadoDoSlotNaNuvem } from './sincronizacao-de-save-states.js';
 import {
   revokeThumbnailUrl,
   thumbnailUrl,
@@ -31,9 +32,28 @@ interface Props {
   readonly aoSalvar: (slot: SaveSlot) => void;
   readonly aoCarregar: (slot: SaveSlot) => void;
   readonly aoApagar: (slot: SaveSlot) => void;
+  /**
+   * O estado de cada slot na nuvem — issue #108. Sem isto (ou sem entrada
+   * para um slot) a galeria se comporta exatamente como antes: sem badge,
+   * sem botão de sincronizar. `PlayPage` e `LocalPlayPage` (homebrew e
+   * ensaio local, sem conta) nunca passam isto.
+   */
+  readonly estadoNaNuvem?: ReadonlyMap<SaveSlot, EstadoDoSlotNaNuvem> | undefined;
+  /** Slot com upload/download em voo — desabilita o botão daquele slot só. */
+  readonly sincronizandoSlot?: SaveSlot | null | undefined;
+  readonly aoSincronizar?: ((slot: SaveSlot) => void) | undefined;
 }
 
-export function GaleriaDeSlots({ slots, volatil, aoSalvar, aoCarregar, aoApagar }: Props) {
+export function GaleriaDeSlots({
+  slots,
+  volatil,
+  aoSalvar,
+  aoCarregar,
+  aoApagar,
+  estadoNaNuvem,
+  sincronizandoSlot,
+  aoSincronizar,
+}: Props) {
   return (
     <section>
       <div className="mb-2 flex items-baseline gap-3 border-b border-ink-850 pb-1.5">
@@ -51,7 +71,15 @@ export function GaleriaDeSlots({ slots, volatil, aoSalvar, aoCarregar, aoApagar 
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {slots.map((vista) => (
           <li key={vista.slot}>
-            <Slot vista={vista} aoSalvar={aoSalvar} aoCarregar={aoCarregar} aoApagar={aoApagar} />
+            <Slot
+              vista={vista}
+              aoSalvar={aoSalvar}
+              aoCarregar={aoCarregar}
+              aoApagar={aoApagar}
+              estadoNaNuvem={estadoNaNuvem?.get(vista.slot)}
+              sincronizando={sincronizandoSlot === vista.slot}
+              aoSincronizar={aoSincronizar}
+            />
           </li>
         ))}
       </ul>
@@ -59,16 +87,29 @@ export function GaleriaDeSlots({ slots, volatil, aoSalvar, aoCarregar, aoApagar 
   );
 }
 
+const ROTULO_DO_ESTADO: Record<EstadoDoSlotNaNuvem, string> = {
+  'apenas-local': 'não sincronizado',
+  'apenas-nuvem': 'só na nuvem',
+  sincronizado: 'sincronizado',
+  divergente: 'divergente',
+};
+
 function Slot({
   vista,
   aoSalvar,
   aoCarregar,
   aoApagar,
+  estadoNaNuvem,
+  sincronizando,
+  aoSincronizar,
 }: {
   readonly vista: SaveSlotView;
   readonly aoSalvar: (slot: SaveSlot) => void;
   readonly aoCarregar: (slot: SaveSlot) => void;
   readonly aoApagar: (slot: SaveSlot) => void;
+  readonly estadoNaNuvem: EstadoDoSlotNaNuvem | undefined;
+  readonly sincronizando: boolean;
+  readonly aoSincronizar: ((slot: SaveSlot) => void) | undefined;
 }) {
   const botao = BOTOES[vista.slot];
   const gravado = vista.metadata;
@@ -129,6 +170,32 @@ function Slot({
         >
           apagar
         </button>
+      )}
+
+      {estadoNaNuvem !== undefined && (
+        <div className="mt-1 flex items-center justify-between gap-1">
+          <span
+            className={`leitura ${estadoNaNuvem === 'divergente' ? 'text-alert' : 'text-ink-700'}`}
+          >
+            {ROTULO_DO_ESTADO[estadoNaNuvem]}
+          </span>
+          {estadoNaNuvem !== 'sincronizado' && aoSincronizar !== undefined && (
+            <button
+              type="button"
+              onClick={() => aoSincronizar(vista.slot)}
+              disabled={sincronizando}
+              className="leitura text-label-200 underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              {sincronizando
+                ? '…'
+                : estadoNaNuvem === 'apenas-nuvem'
+                  ? 'baixar'
+                  : estadoNaNuvem === 'divergente'
+                    ? 'resolver'
+                    : 'enviar'}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

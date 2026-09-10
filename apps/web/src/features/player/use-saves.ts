@@ -32,6 +32,14 @@ export interface Saves {
   salvar(slot: SaveSlot): Promise<string>;
   carregar(slot: SaveSlot): Promise<string>;
   apagar(slot: SaveSlot): Promise<string>;
+  /**
+   * Relê os 4 slots do storage local — issue #108. Uma gravação feita por
+   * fora do `SaveManager` (baixar um save state da nuvem, ou aplicar a
+   * escolha "manter a nuvem" de um conflito) não passa por `comGerente`, e
+   * sem isto a galeria continuaria mostrando o slot como estava antes do
+   * download até a próxima ação local.
+   */
+  recarregar(): Promise<void>;
 }
 
 const SLOTS_VAZIOS: readonly SaveSlotView[] = SAVE_SLOTS.map((slot) => ({
@@ -152,5 +160,5 @@ export function useSaves(
     [comGerente],
   );
 
-  return { pronto, driver, volatil, slots, ultimaSram, salvar, carregar, apagar };
+  return { pronto, driver, volatil, slots, ultimaSram, salvar, carregar, apagar, recarregar };
 }

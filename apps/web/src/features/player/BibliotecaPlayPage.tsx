@@ -142,6 +142,8 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
           romId={item.sha256}
           registry={registry}
           onSramWritten={sincronizacao.registrarGravacaoLocal}
+          sincronizarSaveStateNaNuvem
+          saveStateStorage={storage}
         />
       </PlayerErrorBoundary>
     </div>

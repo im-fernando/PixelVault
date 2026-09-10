@@ -9,6 +9,7 @@ import {
 } from '@pixelvault/contracts';
 import { apiFetch } from '../../lib/api.js';
 import { toArrayBuffer } from './storage/bytes.js';
+import { gravarRevisaoDeSaveStateSincronizada } from './storage/state-sync-pointer.js';
 
 /**
  * Client HTTP do save state na nuvem (`progress`, M5) — mesma convenção de
@@ -72,16 +73,37 @@ export interface EnvioDeSaveState {
   readonly revision: number;
 }
 
+/**
+ * O upload em si, sem hook — a #108 chama isto de dentro de um efeito
+ * assíncrono próprio (upload de slot "apenas local", disparado por clique,
+ * não por render), onde um `useMutation` não serve: o slot varia em tempo de
+ * execução, e chamar o hook uma vez por slot dentro de um loop violaria a
+ * regra de hooks. `useEnviarSaveStateParaNuvem`, abaixo, é o wrapper para
+ * quem já sabe o slot no momento de montar o componente (`ResolucaoDeConflitoDeSaveState`).
+ */
+export async function enviarSaveState(
+  romId: string,
+  slot: SlotDeSaveState,
+  entrada: EnvioDeSaveState,
+): Promise<StateUploadResponse> {
+  const resposta = await apiFetch(
+    `/api/progress/state/${encodeURIComponent(romId)}/${slot}`,
+    stateUploadResponseSchema,
+    { method: 'POST', body: JSON.stringify(entrada) },
+  );
+  // Toda gravação bem-sucedida marca ESTE aparelho como reconciliado com
+  // essa revisão, naquele slot — issue #108. É o que faz o próximo boot (ou
+  // a próxima leitura da listagem) tratar o slot como sincronizado, e não
+  // como colisão de novo. Ver `storage/state-sync-pointer.ts`.
+  gravarRevisaoDeSaveStateSincronizada(romId, slot, resposta.revision);
+  return resposta;
+}
+
 export function useEnviarSaveStateParaNuvem(romId: string, slot: SlotDeSaveState) {
   const queryClient = useQueryClient();
 
   return useMutation<StateUploadResponse, unknown, EnvioDeSaveState>({
-    mutationFn: (entrada) =>
-      apiFetch(
-        `/api/progress/state/${encodeURIComponent(romId)}/${slot}`,
-        stateUploadResponseSchema,
-        { method: 'POST', body: JSON.stringify(entrada) },
-      ),
+    mutationFn: (entrada) => enviarSaveState(romId, slot, entrada),
     onSuccess: () => {
       // Refaz a listagem: é dela que a galeria (#108) vai ler o estado de
       // sincronização de cada slot depois de uma escolha.

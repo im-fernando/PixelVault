@@ -8,9 +8,11 @@ import { PlayerHud, type AcoesDoHud } from './PlayerHud.js';
 import { useEntradaDoJogador } from './input/use-player-input.js';
 import { useAreaDeExibicao } from './use-display-area.js';
 import { GaleriaDeSlots } from './GaleriaDeSlots.js';
+import { ResolucaoDeConflitoDeSaveState } from './ResolucaoDeConflitoDeSaveState.js';
+import { useSincronizacaoDeSaveStates } from './sincronizacao-de-save-states.js';
 import { useEmulator } from './use-emulator.js';
 import { useSaves } from './use-saves.js';
-import type { SaveMetadata } from './storage/index.js';
+import type { SaveMetadata, SaveStorage } from './storage/index.js';
 import { useFullscreen } from './use-fullscreen.js';
 
 export interface PropsDoPlayer {
@@ -32,6 +34,16 @@ export interface PropsDoPlayer {
    * como antes: isto só avisa, nunca decide nada por conta própria.
    */
   readonly onSramWritten?: ((metadata: SaveMetadata) => void) | undefined;
+  /**
+   * Liga a galeria de slots à nuvem (#108). `false`/ausente por padrão: o
+   * catálogo público (`PlayPage`) e o ensaio local (`LocalPlayPage`) rodam
+   * sem conta, e chamar a API de save state ali seria requisição fadada a
+   * 401. Só `BibliotecaPlayPage` liga isto, e o comportamento sem ele é
+   * idêntico ao de antes desta issue.
+   */
+  readonly sincronizarSaveStateNaNuvem?: boolean | undefined;
+  /** Injetável para teste — a mesma porta que `useSincronizacaoDeSaveStates` aceita. */
+  readonly saveStateStorage?: SaveStorage | undefined;
 }
 
 /** Tempo sem mexer o mouse até o HUD sair da frente do jogo. */
@@ -52,10 +64,25 @@ export function EmulatorPlayer({
   romId,
   registry,
   onSramWritten,
+  sincronizarSaveStateNaNuvem,
+  saveStateStorage,
 }: PropsDoPlayer) {
   const emulador = useEmulator({ systemId, rom, registry });
   const saves = useSaves(emulador.adapter, romId ?? null, onSramWritten);
   const { status, capabilities, comandos } = emulador;
+
+  // Chamado incondicionalmente (regra dos hooks): o hook mesmo fica parado
+  // (sem buscar nada, `estadoPorSlot` vazio) quando `romId` é `null` — é o
+  // que faz `PlayPage`/`LocalPlayPage`, que nunca ligam
+  // `sincronizarSaveStateNaNuvem`, se comportarem exatamente como antes.
+  const sincronizacaoDeSaveState = useSincronizacaoDeSaveStates(
+    sincronizarSaveStateNaNuvem === true ? (romId ?? null) : null,
+    saves.slots,
+    systemId,
+    emulador.coreVersion,
+    saves.recarregar,
+    saveStateStorage,
+  );
 
   const palcoRef = useRef<HTMLDivElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
@@ -289,7 +316,34 @@ export function EmulatorPlayer({
           aoSalvar={(slot) => void saves.salvar(slot).then(setAviso)}
           aoCarregar={(slot) => void saves.carregar(slot).then(setAviso)}
           aoApagar={(slot) => void saves.apagar(slot).then(setAviso)}
+          estadoNaNuvem={sincronizacaoDeSaveState.estadoPorSlot}
+          sincronizandoSlot={sincronizacaoDeSaveState.ocupado}
+          aoSincronizar={sincronizacaoDeSaveState.aoClicarSincronizar}
         />
+      )}
+
+      {sincronizacaoDeSaveState.erro !== null && (
+        <p className="text-xs text-alert">{sincronizacaoDeSaveState.erro}</p>
+      )}
+
+      {sincronizacaoDeSaveState.conflito !== null && romId !== undefined && (
+        <div className="space-y-1">
+          <ResolucaoDeConflitoDeSaveState
+            romId={romId}
+            slot={sincronizacaoDeSaveState.conflito.slot}
+            local={sincronizacaoDeSaveState.conflito.local}
+            nuvem={sincronizacaoDeSaveState.conflito.nuvem}
+            storage={saveStateStorage}
+            aoResolver={sincronizacaoDeSaveState.aoResolverConflito}
+          />
+          <button
+            type="button"
+            onClick={sincronizacaoDeSaveState.fecharConflito}
+            className="leitura text-ink-700 hover:underline"
+          >
+            decidir depois
+          </button>
+        </div>
       )}
 
       <GamepadLegend estado={gamepad} ativo={teclado} controle={controle} />
