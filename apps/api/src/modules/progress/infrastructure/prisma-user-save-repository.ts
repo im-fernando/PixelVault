@@ -1,4 +1,5 @@
 import { Prisma, prisma } from '@pixelvault/database';
+import type { UsoDoSaveNaNuvem } from '../domain/cota.js';
 import type {
   NovoSaveNaNuvem,
   ResultadoDaGravacao,
@@ -84,5 +85,13 @@ export const prismaUserSaveRepository: UserSaveRepository = {
       throw new Error('user_saves sumiu entre o UPDATE e a releitura — não deveria acontecer');
     }
     return { tipo: 'gravado', save: atualizado };
+  },
+
+  async medirUso(userId: string): Promise<UsoDoSaveNaNuvem> {
+    const soma = await prisma.userSave.aggregate({
+      where: { userId },
+      _sum: { sizeBytes: true },
+    });
+    return { bytes: soma._sum.sizeBytes ?? 0 };
   },
 };

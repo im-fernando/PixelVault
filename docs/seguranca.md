@@ -747,6 +747,75 @@ limpeza de upload abandonado da
 precisar. As duas andam juntas, na mesma issue futura; adiantar uma tabela de
 reserva agora seria construir metade dela duas vezes.
 
+## Cota de save na nuvem por conta
+
+Decidida na #93. O [ADR 0020](adr/0020-adotar-o-progresso-local-so-por-escolha-explicita.md)
+deixou a pergunta em aberto ao descartar antecipar a M4 — "cota de save por
+usuário, tamanho máximo" — com o mesmo raciocínio da cota de ROM acima: upload
+é vetor de abuso. A escala aqui é outra: SRAM é dezenas de KB, não dezenas de
+MB.
+
+Um **eixo só**, ao contrário da cota de ROM:
+
+| eixo             | teto   | onde mora                                                    |
+| ---------------- | ------ | ------------------------------------------------------------ |
+| bytes acumulados | 32 MiB | `COTA_DE_SAVE_NA_NUVEM_EM_BYTES`, em `@pixelvault/contracts` |
+
+Convive com o teto **por arquivo** de 256 KiB (`TAMANHO_MAXIMO_DE_SRAM_EM_BYTES`,
+#89), que responde a mesma pergunta que o teto de ROM: aquele arquivo cabe
+numa SRAM de verdade?
+
+### Por que não existe um segundo eixo de "quantidade de saves"
+
+Porque ele já vem de graça. Um `UserSave` só existe amarrado a um `UserRom` —
+a FK composta `[userId, sha256]` do model, em `schema.prisma` — e essa
+amarração já limita a contagem de saves à contagem de ROMs da conta, que tem
+teto próprio (`COTA_DE_ROMS_POR_CONTA`, 1500). Ao teto por arquivo, 32 MiB
+compram no máximo cento e vinte e oito saves do tamanho máximo — uma fração
+da biblioteca inteira que a cota de ROM permite. O eixo de bytes sempre
+recusa primeiro; um segundo eixo não pegaria nenhum caso que o primeiro já
+não pegasse.
+
+### De onde sai o 32 MiB
+
+Da mesma biblioteca generosa que calibra a cota de ROM (cem de NES, cem de
+Game Boy, cem de Mega Drive, cento e cinquenta de SNES, cem de GBA), mas com
+save bem menor que cartucho. Com folga por sistema — 8 KiB para NES, 32 KiB
+para Game Boy e Mega Drive, 8 KiB para SNES, 128 KiB para GBA (o único com
+flash save perto do teto por arquivo) — a soma fica perto de 21 MiB. Os
+32 MiB são cerca de 1,5 vez isso, e também 1/128 dos 4 GiB da cota de ROM:
+mesmo quem enche a biblioteca inteira de ROM não chega perto de gastar o
+espaço equivalente em save.
+
+### Regravar o próprio save não pode custar cota em dobro
+
+`user_saves` tem uma linha por `(userId, sha256, kind)` — regravar a SRAM de
+uma ROM que a conta já sincroniza **substitui** a linha, não soma outra. A
+checagem desconta o tamanho do save anterior daquele `romId` antes de somar o
+novo: sem isso, uma conta exatamente na cota nunca mais conseguiria salvar o
+próprio jogo de novo, nem trocando um save de 2 KiB por outro de 2 KiB. Ver
+`domain/cota.ts` do módulo `progress`.
+
+### Onde a checagem acontece, e o que ela recusa
+
+Em `POST /api/progress/sram/:romId` (#89), **antes de escrever no storage**.
+Mesmo raciocínio da cota de ROM: nenhum byte toca o storage se a gravação não
+couber. A recusa é **409**, com `details.cota: ["LIMITE_DE_BYTES"]` — o mesmo
+desenho da cota de ROM, ainda que com um eixo só; o front decide o fluxo pelo
+`code`, a frase explica o que fazer.
+
+Diferente da ROM, não há fluxo de duas fases (assinar → PUT → confirmar):
+SRAM é pequena o bastante para a API escrever direto, então a checagem e a
+escrita acontecem na mesma requisição — não existe um passo de "autorizar" que
+a checagem possa vir antes de, como o `POST /library/uploads` tem para ROM. A
+mesma janela de corrida da cota de ROM continua existindo, pelo mesmo motivo:
+a checagem lê o uso de agora, e duas gravações simultâneas para `romId`
+diferentes podem passar juntas antes de qualquer uma virar linha nova. Dado o
+tamanho do eixo (32 MiB, contra os 4 GiB de ROM) e o volume esperado de
+sincronização automática por conta (a #91), o excesso possível é desprezível
+perto do que a cota de ROM já tolera pela mesma razão — não há reserva
+dedicada para este caso.
+
 ## O que falta
 
 - **Poda das sessões de quem nunca mais volta** — ver acima: a limpeza
