@@ -48,10 +48,12 @@ function tamanhoDecodificadoDeBase64(base64: string): number {
  */
 export const sramUploadRequestSchema = z.object({
   revision: z.number().int().min(0),
-  dataBase64: z.base64().refine(
-    (valor) => tamanhoDecodificadoDeBase64(valor) <= TAMANHO_MAXIMO_DE_SRAM_EM_BYTES,
-    `SRAM maior que o teto de ${TAMANHO_MAXIMO_DE_SRAM_EM_BYTES} bytes`,
-  ),
+  dataBase64: z
+    .base64()
+    .refine(
+      (valor) => tamanhoDecodificadoDeBase64(valor) <= TAMANHO_MAXIMO_DE_SRAM_EM_BYTES,
+      `SRAM maior que o teto de ${TAMANHO_MAXIMO_DE_SRAM_EM_BYTES} bytes`,
+    ),
 });
 export type SramUploadRequest = z.infer<typeof sramUploadRequestSchema>;
 

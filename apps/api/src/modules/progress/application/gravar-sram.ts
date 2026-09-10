@@ -5,11 +5,7 @@ import type {
   OpcoesDeEscrita,
 } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
 import { ConflictError, NotFoundError } from '../../../infrastructure/errors.js';
-import {
-  autorizarOuNaoEncontrado,
-  recurso,
-  type Habilidades,
-} from '../../identity/index.js';
+import { autorizarOuNaoEncontrado, recurso, type Habilidades } from '../../identity/index.js';
 import type { UserRomRepository } from '../../library/index.js';
 import { caminhoDoSave } from '../domain/caminho-do-save.js';
 import type { SaveNaNuvem } from '../domain/user-save.js';
