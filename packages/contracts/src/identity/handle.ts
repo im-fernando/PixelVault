@@ -20,6 +20,7 @@ export const HANDLES_RESERVADOS = [
   'play',
   'meus-jogos',
   'enviar-rom',
+  'console',
   'login',
   'cadastro',
   'configuracoes',
