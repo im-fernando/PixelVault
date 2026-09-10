@@ -5,7 +5,6 @@ import { PROPORCOES, RESOLUCAO_NATIVA, type ProporcaoDeTela } from './aspect-rat
 import { ATALHO_DE_DIAGNOSTICO, DiagnosticsOverlay, useDiagnostico } from './debug/index.js';
 import { GamepadLegend } from './GamepadLegend.js';
 import { PlayerHud, type AcoesDoHud } from './PlayerHud.js';
-import type { EstadoDoGamepad } from './input/snes-keymap.js';
 import { useEntradaDoJogador } from './input/use-player-input.js';
 import { useAreaDeExibicao } from './use-display-area.js';
 import { GaleriaDeSlots } from './GaleriaDeSlots.js';
@@ -66,11 +65,6 @@ export function EmulatorPlayer({ systemId, rom, titulo, romId, registry }: Props
     lerMarcos: emulador.lerMarcos,
   });
 
-  const aoMudarGamepad = useCallback(
-    (estado: EstadoDoGamepad) => comandos.definirGamepad(estado),
-    [comandos],
-  );
-
   /*
     O atalho grava sempre no slot A. Quem quer escolher usa a galeria — atalho
     que pede para escolher slot não é atalho.
@@ -115,7 +109,6 @@ export function EmulatorPlayer({ systemId, rom, titulo, romId, registry }: Props
     alvo: palcoRef,
     tecladoAtivo: teclado,
     controleAtivo: rodando && emulador.abaVisivel,
-    aoMudar: aoMudarGamepad,
     atalhos,
     aoConectarControle: (perfil) => setAviso(`Controle conectado: ${perfil.nome}.`),
     aoDesconectarControle: (perfil) => setAviso(`${perfil.nome} desconectado — o teclado assume.`),

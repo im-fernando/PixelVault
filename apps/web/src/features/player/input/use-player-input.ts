@@ -11,8 +11,14 @@ export interface OpcoesDaEntrada {
   readonly tecladoAtivo: boolean;
   /** O controle vale com o jogo andando — foco não entra na conta. */
   readonly controleAtivo: boolean;
-  /** Recebe o estado combinado. Só é chamado quando algum botão muda. */
-  readonly aoMudar: (estado: EstadoDoGamepad) => void;
+  /**
+   * Recebe o estado combinado. Só é chamado quando algum botão muda.
+   *
+   * Opcional: o teclado dirige o core direto (ADR 0023), então quem só
+   * precisa do estado para desenhar a legenda lê o retorno do hook — não
+   * precisa deste callback.
+   */
+  readonly aoMudar?: ((estado: EstadoDoGamepad) => void) | undefined;
   readonly atalhos?: Readonly<Record<string, () => void>> | undefined;
   readonly aoConectarControle?: ((perfil: PerfilDoControle) => void) | undefined;
   readonly aoDesconectarControle?: ((perfil: PerfilDoControle) => void) | undefined;
@@ -61,7 +67,7 @@ export function useEntradaDoJogador({
   const aoMudarRef = useRef(aoMudar);
   aoMudarRef.current = aoMudar;
   useEffect(() => {
-    aoMudarRef.current(estado);
+    aoMudarRef.current?.(estado);
   }, [estado]);
 
   return { estado, controle };

@@ -1,3 +1,4 @@
+import { Nostalgist } from 'nostalgist';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CapabilityUnsupportedError,
@@ -9,8 +10,19 @@ import { romFromBytes } from '../adapter/rom-source.js';
 import type { EmulatorStatus } from '../adapter/status.js';
 import { EmulatorRegistry } from '../registry/registry.js';
 import { VERSAO_DO_CORE, assetsDoCoreDeSnes } from './core-assets.js';
+import { configDeTecladoDoRetroArch } from './keyboard-bindings.js';
 import { registrarAdapterDeSnes } from './register.js';
 import { SnesEmulatorAdapter, interpretarLeitura } from './snes-emulator-adapter.js';
+
+/**
+ * `Nostalgist.prepare` de verdade sobe WASM — não existe fora de um
+ * navegador. O duplo aqui só precisa devolver algo com a forma mínima que
+ * `SnesEmulatorAdapter` guarda; o que o teste examina é **com que
+ * `retroarchConfig`** o boot foi chamado, não o que ele devolve.
+ */
+vi.mock('nostalgist', () => ({
+  Nostalgist: { prepare: vi.fn(() => Promise.resolve({})) },
+}));
 
 /**
  * O adapter só toca o canvas para escutar perda de contexto WebGL; nada aqui
@@ -144,6 +156,39 @@ describe('SnesEmulatorAdapter — ciclo de vida', () => {
     expect(canvas.removeEventListener).toHaveBeenCalledWith(
       'webglcontextlost',
       expect.any(Function),
+    );
+  });
+
+  it('manda o teclado configurado no boot, e não um input simulado (ADR 0023)', async () => {
+    fingirDownloadDoCore();
+    const adapter = new SnesEmulatorAdapter();
+    await adapter.mount(canvasFalso());
+
+    await adapter.loadGame(romFromBytes(romValida()));
+
+    expect(Nostalgist.prepare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        retroarchConfig: expect.objectContaining(configDeTecladoDoRetroArch()),
+      }),
+    );
+  });
+
+  it('deixa quem construiu o adapter sobrescrever o teclado do boot', async () => {
+    fingirDownloadDoCore();
+    const adapter = new SnesEmulatorAdapter({
+      retroarchConfig: { input_player1_b: 'k' },
+    });
+    await adapter.mount(canvasFalso());
+
+    await adapter.loadGame(romFromBytes(romValida()));
+
+    expect(Nostalgist.prepare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        retroarchConfig: expect.objectContaining({
+          ...configDeTecladoDoRetroArch(),
+          input_player1_b: 'k',
+        }),
+      }),
     );
   });
 
