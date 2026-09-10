@@ -5,6 +5,7 @@ import { romFromUrl } from '@pixelvault/emulator-runtime';
 import { ApiRequestError } from '../../lib/api.js';
 import { useDownloadDeRom } from '../library/download-de-rom.js';
 import { useBiblioteca } from '../library/use-biblioteca.js';
+import { AdocaoDeSram } from './AdocaoDeSram.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
 import { FichaDeAcervo } from './FichaDeAcervo.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
@@ -92,6 +93,8 @@ export function BibliotecaPlayPage({ romId, registry }: Props) {
           { rotulo: 'sha-256', valor: `${item.sha256.slice(0, 12)}…`, maquina: true },
         ]}
       />
+
+      <AdocaoDeSram romId={item.sha256} />
 
       <PlayerErrorBoundary>
         <EmulatorPlayer
