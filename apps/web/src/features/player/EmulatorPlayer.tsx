@@ -10,6 +10,7 @@ import { useAreaDeExibicao } from './use-display-area.js';
 import { GaleriaDeSlots } from './GaleriaDeSlots.js';
 import { useEmulator } from './use-emulator.js';
 import { useSaves } from './use-saves.js';
+import type { SaveMetadata } from './storage/index.js';
 import { useFullscreen } from './use-fullscreen.js';
 
 export interface PropsDoPlayer {
@@ -24,6 +25,13 @@ export interface PropsDoPlayer {
   readonly romId?: string | undefined;
   /** Injetável para teste. Em produção, o registry da aplicação. */
   readonly registry?: EmulatorRegistry | undefined;
+  /**
+   * Avisa quando a SRAM local acaba de ser regravada automaticamente — o
+   * gancho que a sincronização com a nuvem (#91) usa para saber quando há
+   * algo novo para mandar. Sem consumidor, o player se comporta exatamente
+   * como antes: isto só avisa, nunca decide nada por conta própria.
+   */
+  readonly onSramWritten?: ((metadata: SaveMetadata) => void) | undefined;
 }
 
 /** Tempo sem mexer o mouse até o HUD sair da frente do jogo. */
@@ -37,9 +45,16 @@ const MILISSEGUNDOS_DO_AVISO = 4000;
  * HUD sabem que existe um adapter. É o que permite trocar o runtime inteiro —
  * ou rodar a tela contra o adapter falso — sem tocar em mais nada.
  */
-export function EmulatorPlayer({ systemId, rom, titulo, romId, registry }: PropsDoPlayer) {
+export function EmulatorPlayer({
+  systemId,
+  rom,
+  titulo,
+  romId,
+  registry,
+  onSramWritten,
+}: PropsDoPlayer) {
   const emulador = useEmulator({ systemId, rom, registry });
-  const saves = useSaves(emulador.adapter, romId ?? null);
+  const saves = useSaves(emulador.adapter, romId ?? null, onSramWritten);
   const { status, capabilities, comandos } = emulador;
 
   const palcoRef = useRef<HTMLDivElement | null>(null);

@@ -6,6 +6,7 @@ import {
   type SramUploadResponse,
 } from '@pixelvault/contracts';
 import { apiFetch } from '../../lib/api.js';
+import { gravarRevisaoSincronizada } from './storage/sram-sync-revision.js';
 
 /**
  * Client HTTP da SRAM na nuvem (`progress`, M4) — mesma convenção de
@@ -62,6 +63,16 @@ export function bytesParaBase64(bytes: Uint8Array): string {
   return btoa(binario);
 }
 
+/** O inverso de {@link bytesParaBase64} — a #91 usa para escrever a SRAM da nuvem no storage local. */
+export function base64ParaBytes(base64: string): Uint8Array {
+  const binario = atob(base64);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) {
+    bytes[i] = binario.charCodeAt(i);
+  }
+  return bytes;
+}
+
 export function useEnviarSramParaNuvem(romId: string) {
   const queryClient = useQueryClient();
 
@@ -71,10 +82,16 @@ export function useEnviarSramParaNuvem(romId: string) {
         method: 'POST',
         body: JSON.stringify({ dataBase64, revision }),
       }),
-    onSuccess: () => {
+    onSuccess: (resposta) => {
       // Refaz a leitura: é o `useSramNaNuvem` atualizado que vira o "vínculo"
-      // visível para o resto da tela (e, depois, para a #91).
+      // visível para o resto da tela.
       void queryClient.invalidateQueries({ queryKey: chaveDoSramNaNuvem(romId) });
+      // Toda gravação bem-sucedida — adoção manual (#92) ou sincronização
+      // automática em segundo plano (#91) — marca ESTE aparelho como
+      // reconciliado com essa revisão. É o que faz o próximo boot tratar a
+      // nuvem como rotina, não como colisão nova (ver
+      // `storage/sram-sync-revision.ts`).
+      gravarRevisaoSincronizada(romId, resposta.revision);
     },
   });
 }

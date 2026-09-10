@@ -8,12 +8,17 @@ import { useBiblioteca } from '../library/use-biblioteca.js';
 import { AdocaoDeSram } from './AdocaoDeSram.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
 import { FichaDeAcervo } from './FichaDeAcervo.js';
+import { IndicadorDeSincronizacao } from './IndicadorDeSincronizacao.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
+import type { SaveStorage } from './storage/index.js';
+import { useSincronizacaoDeSram } from './sram-sincronizacao.js';
 
 interface Props {
   readonly romId: string;
   /** Injetável para teste, do mesmo jeito que `EmulatorPlayer` aceita. */
   readonly registry?: EmulatorRegistry | undefined;
+  /** Injetável para teste — mesma porta que `AdocaoDeSram` e `useSincronizacaoDeSram` aceitam. */
+  readonly storage?: SaveStorage | undefined;
 }
 
 /**
@@ -33,7 +38,7 @@ interface Props {
  * lista já está no cache do React Query por causa da estante na home
  * (`useBiblioteca`). Este componente só filtra a linha certa nela.
  */
-export function BibliotecaPlayPage({ romId, registry }: Props) {
+export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
   const biblioteca = useBiblioteca();
   const download = useDownloadDeRom(romId);
 
@@ -46,6 +51,15 @@ export function BibliotecaPlayPage({ romId, registry }: Props) {
       byteLength: download.data.sizeBytes,
     });
   }, [download.data]);
+
+  // Chamado incondicionalmente (regra dos hooks), mesmo com `item` ainda
+  // nulo — `systemId: null` faz o hook ficar parado (`pronto: false`) até a
+  // ROM resolver. Isso é seguro mesmo quando a ROM nunca vai resolver (dona
+  // de outra conta, id inexistente): os `return` abaixo, que tratam esses
+  // casos, vêm antes de qualquer checagem de `sincronizacao.pronto`, então
+  // eles nunca ficam presos esperando por um `systemId` que não vai vir. Ver
+  // `sram-sincronizacao.ts` para o que `pronto` significa.
+  const sincronizacao = useSincronizacaoDeSram(romId, item?.systemId ?? null, storage);
 
   if (biblioteca.isPending || download.isPending) {
     return (
@@ -82,6 +96,19 @@ export function BibliotecaPlayPage({ romId, registry }: Props) {
     );
   }
 
+  // Só a partir daqui o `systemId` passado para o hook é real, então só
+  // daqui em diante faz sentido esperar por ele — a #91 pode precisar puxar
+  // uma SRAM mais nova da nuvem antes de montar o player (ver o cabeçalho de
+  // `useSincronizacaoDeSram`).
+  if (!sincronizacao.pronto) {
+    return (
+      <div className="space-y-4">
+        <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
+        <div className="aspect-video w-full animate-pulse rounded-xl bg-ink-850" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <FichaDeAcervo
@@ -94,7 +121,18 @@ export function BibliotecaPlayPage({ romId, registry }: Props) {
         ]}
       />
 
-      <AdocaoDeSram romId={item.sha256} />
+      {/*
+        Nunca as duas ao mesmo tempo (#91): sem vínculo, a oferta de adoção
+        da #92 decide o que fazer com a colisão entre local e nuvem; com
+        vínculo, a sincronização já assumiu e o indicador é só informação de
+        rodapé. `sincronizacao.estado` só é `null` quando `vinculado` é
+        `false` (ver `sram-sincronizacao.ts`), daí o `!` abaixo ser seguro.
+      */}
+      {sincronizacao.vinculado ? (
+        <IndicadorDeSincronizacao estado={sincronizacao.estado!} />
+      ) : (
+        <AdocaoDeSram romId={item.sha256} storage={storage} />
+      )}
 
       <PlayerErrorBoundary>
         <EmulatorPlayer
@@ -103,6 +141,7 @@ export function BibliotecaPlayPage({ romId, registry }: Props) {
           titulo={item.title}
           romId={item.sha256}
           registry={registry}
+          onSramWritten={sincronizacao.registrarGravacaoLocal}
         />
       </PlayerErrorBoundary>
     </div>
