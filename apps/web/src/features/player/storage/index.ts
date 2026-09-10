@@ -23,6 +23,9 @@ export type { SaveCapableEmulator, SaveManagerOptions, SaveSlotView } from './sa
 export { createSaveManager } from './create-save-manager.js';
 export type { CreateSaveManagerOptions } from './create-save-manager.js';
 
+export { useSramLocal } from './use-sram-local.js';
+export type { EstadoDoSramLocal } from './use-sram-local.js';
+
 export { createSaveStorage, defaultEnvironment } from './create-save-storage.js';
 export type { SaveStorageEnvironment } from './create-save-storage.js';
 

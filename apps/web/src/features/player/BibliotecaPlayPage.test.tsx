@@ -113,6 +113,13 @@ describe('BibliotecaPlayPage', () => {
         if (url.includes('/library/roms')) {
           return respostaJson([itemDaBiblioteca()]);
         }
+        // `AdocaoDeSram` (#92) consulta isto ao montar. Sem save local
+        // nenhum (jsdom sem OPFS/IndexedDB cai no storage em memória, vazio),
+        // o componente não mostra nada — a resposta aqui só existe para o
+        // fetch não sobrar como "não esperado".
+        if (url.includes('/progress/sram/')) {
+          return respostaJson({ status: 'sem-save' });
+        }
         throw new Error(`fetch não esperado: ${url}`);
       }),
     );
