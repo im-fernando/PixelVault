@@ -1,14 +1,36 @@
-import { Prisma, prisma } from '@pixelvault/database';
+import { Prisma, prisma, type UserSave } from '@pixelvault/database';
 import type { UsoDoSaveNaNuvem } from '../domain/cota.js';
 import type {
   NovoSaveNaNuvem,
   ResultadoDaGravacao,
   UserSaveRepository,
 } from '../domain/user-save-repository.js';
-import type { SaveNaNuvem, TipoDeSaveNaNuvem } from '../domain/user-save.js';
+import type { SaveNaNuvem, SlotDeSaveState, TipoDeSaveNaNuvem } from '../domain/user-save.js';
 
 function ehViolacaoDeUnicidade(erro: unknown): boolean {
   return erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002';
+}
+
+/** `undefined` (domínio) ↔ `-1` (banco) — ver o comentário do model `UserSave` em schema.prisma. */
+const SEM_SLOT_NO_BANCO = -1;
+
+function slotNoBanco(slot: SlotDeSaveState | undefined): number {
+  return slot ?? SEM_SLOT_NO_BANCO;
+}
+
+function paraDominio(linha: UserSave): SaveNaNuvem {
+  return {
+    id: linha.id,
+    userId: linha.userId,
+    sha256: linha.sha256,
+    kind: linha.kind,
+    slot: linha.slot === SEM_SLOT_NO_BANCO ? null : (linha.slot as SlotDeSaveState),
+    storageKey: linha.storageKey,
+    sizeBytes: linha.sizeBytes,
+    thumbnailKey: linha.thumbnailKey,
+    revision: linha.revision,
+    updatedAt: linha.updatedAt,
+  };
 }
 
 export const prismaUserSaveRepository: UserSaveRepository = {
@@ -16,13 +38,17 @@ export const prismaUserSaveRepository: UserSaveRepository = {
     userId: string,
     sha256: string,
     kind: TipoDeSaveNaNuvem,
+    slot?: SlotDeSaveState,
   ): Promise<SaveNaNuvem | null> {
-    return prisma.userSave.findUnique({
-      where: { userId_sha256_kind: { userId, sha256, kind } },
+    const linha = await prisma.userSave.findUnique({
+      where: { userId_sha256_kind_slot: { userId, sha256, kind, slot: slotNoBanco(slot) } },
     });
+    return linha === null ? null : paraDominio(linha);
   },
 
   async gravar(novo: NovoSaveNaNuvem): Promise<ResultadoDaGravacao> {
+    const slot = slotNoBanco(novo.slot);
+
     if (novo.revisaoEsperada === 0) {
       try {
         const criado = await prisma.userSave.create({
@@ -30,11 +56,13 @@ export const prismaUserSaveRepository: UserSaveRepository = {
             userId: novo.userId,
             sha256: novo.sha256,
             kind: novo.kind,
+            slot,
             storageKey: novo.storageKey,
             sizeBytes: novo.sizeBytes,
+            thumbnailKey: novo.thumbnailKey ?? null,
           },
         });
-        return { tipo: 'gravado', save: criado };
+        return { tipo: 'gravado', save: paraDominio(criado) };
       } catch (erro) {
         if (!ehViolacaoDeUnicidade(erro)) throw erro;
 
@@ -46,6 +74,7 @@ export const prismaUserSaveRepository: UserSaveRepository = {
           novo.userId,
           novo.sha256,
           novo.kind,
+          novo.slot,
         );
         return { tipo: 'conflito', atual };
       }
@@ -56,11 +85,13 @@ export const prismaUserSaveRepository: UserSaveRepository = {
         userId: novo.userId,
         sha256: novo.sha256,
         kind: novo.kind,
+        slot,
         revision: novo.revisaoEsperada,
       },
       data: {
         storageKey: novo.storageKey,
         sizeBytes: novo.sizeBytes,
+        thumbnailKey: novo.thumbnailKey ?? null,
         revision: { increment: 1 },
       },
     });
@@ -70,6 +101,7 @@ export const prismaUserSaveRepository: UserSaveRepository = {
         novo.userId,
         novo.sha256,
         novo.kind,
+        novo.slot,
       );
       return { tipo: 'conflito', atual };
     }
@@ -80,6 +112,7 @@ export const prismaUserSaveRepository: UserSaveRepository = {
       novo.userId,
       novo.sha256,
       novo.kind,
+      novo.slot,
     );
     if (atualizado === null) {
       throw new Error('user_saves sumiu entre o UPDATE e a releitura — não deveria acontecer');

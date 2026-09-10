@@ -211,17 +211,17 @@ model UserGame {
   @@map("user_games")
 }
 
-/// Tipo de save guardado na nuvem. Só `sram` tem caminho de aplicação nesta
-/// milestone — save state é a M5 (ver issue #88), e ganha o próprio valor
-/// quando a M5 escrever a migration dele, em vez de existir aqui sem
-/// nenhuma linha que o use.
+/// Tipo de save guardado na nuvem. `sram` chegou na M4; `state` chega na M5
+/// (issue #104) — quatro slots por ROM, cada um com miniatura própria,
+/// contra o save único da SRAM.
 enum SaveKind {
   sram
+  state
 }
 
-/// O save da conta na nuvem (M4). Ao lado do save local do navegador, nunca
-/// no lugar dele — a nuvem é sincronização por escolha explícita, não a
-/// porta de save do player. Ver docs/adr/0020.
+/// O save da conta na nuvem (M4 para `sram`, M5 para `state`). Ao lado do
+/// save local do navegador, nunca no lugar dele — a nuvem é sincronização
+/// por escolha explícita, não a porta de save do player. Ver docs/adr/0020.
 ///
 /// A FK composta `[userId, sha256]` aponta para `user_roms.[userId, sha256]`
 /// (não para `users` diretamente) de propósito: exige a ROM na biblioteca da
@@ -236,22 +236,55 @@ enum SaveKind {
 /// conflito (ADR 0020, regra 4). `updatedAt` é `@updatedAt`, carimbado pelo
 /// Prisma no momento em que o SERVIDOR grava — o cliente nunca manda esse
 /// valor, e se mandar é ignorado (issue #89).
+///
+/// ## `slot`: sentinela `-1`, nunca `null` (issue #104)
+///
+/// Save state tem até 4 slots por ROM (`SaveSlot` em
+/// `apps/web/.../save-key.ts`, 0 a 3); SRAM não tem slot nenhum — é o save
+/// único da bateria do cartucho. A tentação óbvia era deixar `slot` nulo
+/// para `sram`, mas o Postgres trata cada `NULL` como distinto dentro de um
+/// índice único: duas linhas de SRAM da mesma conta e do mesmo conteúdo, com
+/// `slot` nulo nas duas, NÃO colidiriam no `@@unique` abaixo — a garantia
+/// que a M4 inteira depende (`buscarPorRom`/`gravar` batendo numa chave só)
+/// quebraria silenciosamente sob corrida. `-1` é um inteiro de verdade, o
+/// índice único o compara por igualdade normal, e a garantia volta a valer.
+/// A disciplina de intervalo (`-1` para `sram`, `0..3` para `state`) é da
+/// aplicação, não do banco — um `CHECK` pegaria a violação um pouco antes,
+/// mas editar SQL de migration à mão, fora do que `schema.prisma` declara, se
+/// perde na próxima vez que alguém rodar `prisma migrate dev` e o shadow
+/// database recalcular o diff sem saber do `CHECK` manual. A aplicação
+/// (`UserSaveRepository.gravar`) é o lugar que já valida isso.
+///
+/// ## `thumbnailKey`: nulo para `sram`, populado por upload de `state`
+///
+/// A miniatura é imagem — não cabe embutida na linha como os poucos bytes de
+/// SRAM cabem. `thumbnailKey` aponta pro mesmo storage de objeto que
+/// `storageKey` já usa (reaproveitado, não uma segunda porta); fica nulo
+/// enquanto não existir upload de `state` nenhum, e a leitura da miniatura
+/// separada dos bytes do estado (ADR 0020, `readThumbnail`) é exatamente o
+/// que motiva ela morar numa chave própria em vez de ir dentro do mesmo
+/// objeto do estado.
 model UserSave {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  sha256     String
-  kind       SaveKind @default(sram)
-  storageKey String   @map("storage_key")
-  sizeBytes  Int      @map("size_bytes")
-  revision   Int      @default(1)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  sha256       String
+  kind         SaveKind @default(sram)
+  /// `-1` para `sram` (sem slot); `0` a `3` para `state`. Ver o comentário do
+  /// model — nunca `null`, de propósito.
+  slot         Int      @default(-1)
+  storageKey   String   @map("storage_key")
+  sizeBytes    Int      @map("size_bytes")
+  /// Só para `kind = state`. Ver o comentário do model.
+  thumbnailKey String?  @map("thumbnail_key")
+  revision     Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   userRom UserRom @relation(fields: [userId, sha256], references: [userId, sha256], onDelete: Cascade)
 
-  /// Um save por conta, por conteúdo, por tipo — a chave que `buscarPorRom`
-  /// e a gravação da #89 batem.
-  @@unique([userId, sha256, kind])
+  /// Um save por conta, por conteúdo, por tipo, por slot — a chave que
+  /// `buscarPorRom` e a gravação (#89 para SRAM, #105 para state) batem.
+  @@unique([userId, sha256, kind, slot])
   @@index([userId])
   @@map("user_saves")
 }
