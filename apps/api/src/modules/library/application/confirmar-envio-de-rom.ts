@@ -4,6 +4,7 @@ import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/arm
 import { caminhoDaRom } from '../domain/caminho-da-rom.js';
 import type { IdentificarRomNoCatalogo } from '../domain/catalogo-de-roms.js';
 import { RomRecusada } from '../domain/erros.js';
+import type { AvisarPrimeiraRomEnviada } from '../domain/eventos-de-gamificacao.js';
 import { caminhoNaQuarentena } from '../domain/quarentena.js';
 import type { UserRomRepository } from '../domain/user-rom-repository.js';
 import { verificarRom, type RomVerificada } from '../domain/verificacao-de-rom.js';
@@ -13,6 +14,14 @@ export interface DependenciasDaConfirmacao {
   roms: UserRomRepository;
   /** O match de hash contra o catálogo, que quem monta o caso de uso liga. */
   catalogo: IdentificarRomNoCatalogo;
+  /**
+   * Avisa `achievements` de que esta conta enviou uma ROM — chamado sempre
+   * que a promoção termina, mesmo quando a linha já existia (`registrar` é
+   * idempotente). Quem decide se é a "primeira" é o outro lado da fachada,
+   * pela constraint única de `user_achievements`; este caso de uso não
+   * pergunta, só avisa (issue #120).
+   */
+  avisarEnvioDeRom: AvisarPrimeiraRomEnviada;
 }
 
 /**
@@ -83,6 +92,12 @@ export async function confirmarEnvioDeRom(
     fileName: verificada.fileName,
     gameId,
   });
+
+  // Depois de registrar, nunca antes: uma ROM que falhasse a verificação não
+  // pode acender conquista de envio que não aconteceu. O aviso vale mesmo
+  // numa retentativa que caiu no dedupe do `registrar` — `achievements` é
+  // quem decide que aquilo não é novidade, não este caso de uso.
+  await deps.avisarEnvioDeRom(userId);
 
   return {
     status: 'na-biblioteca',

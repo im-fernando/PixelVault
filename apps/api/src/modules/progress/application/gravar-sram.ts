@@ -9,6 +9,7 @@ import { autorizarOuNaoEncontrado, recurso, type Habilidades } from '../../ident
 import type { UserRomRepository } from '../../library/index.js';
 import { caminhoDoSave } from '../domain/caminho-do-save.js';
 import { estouraCotaDeSave } from '../domain/cota.js';
+import type { AvisarPrimeiraSincronizacao } from '../domain/eventos-de-gamificacao.js';
 import type { SaveNaNuvem } from '../domain/user-save.js';
 import type { UserSaveRepository } from '../domain/user-save-repository.js';
 
@@ -30,6 +31,13 @@ export interface DependenciasDaGravacaoDeSram {
   roms: UserRomRepository;
   saves: UserSaveRepository;
   armazenamento: ArmazenamentoDeObjetos;
+  /**
+   * Avisa `achievements` de que esta conta sincronizou SRAM com a nuvem —
+   * issue #120. "Primeira sincronização", não "primeira SRAM": é o mesmo
+   * evento que já existe (SRAM sincroniza sozinha, ver o cabeçalho desta
+   * função), só ganhando um observador novo.
+   */
+  avisarSincronizacao: AvisarPrimeiraSincronizacao;
 }
 
 export interface EntradaDaGravacaoDeSram {
@@ -124,6 +132,8 @@ export async function gravarSram(
   if (antes !== null && antes.storageKey !== chave) {
     await limparMelhorEsforco(deps.armazenamento, antes.storageKey);
   }
+
+  await deps.avisarSincronizacao(userId);
 
   return {
     status: 'gravado',

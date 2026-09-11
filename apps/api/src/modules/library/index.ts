@@ -22,6 +22,12 @@
  * já respondia dentro deste módulo, agora reaproveitada por outro. É a
  * instância mesmo, não só o tipo: o `progress` não monta repositório
  * nenhum, só pergunta ao dono dos dados.
+ *
+ * `contarRomsNaBiblioteca` sai daqui desde a #120: `achievements` pergunta
+ * quantas ROMs a conta tem para a conquista de coleção (ADR 0010), pela
+ * composition root — não por import direto, para não fechar um ciclo com o
+ * aviso de evento que `library` já faz na direção contrária (ver o
+ * cabeçalho de `achievements/domain/portas-de-agregacao.ts`).
  */
 export { libraryRoutes } from './http/routes.js';
 export type { OpcoesDeLibrary } from './http/routes.js';
@@ -30,4 +36,6 @@ export type {
   RomDoUsuarioParaDownload,
   UserRomRepository,
 } from './domain/user-rom-repository.js';
+export type { AvisarPrimeiraRomEnviada } from './domain/eventos-de-gamificacao.js';
 export { prismaUserRomRepository } from './infrastructure/prisma-user-rom-repository.js';
+export { contarRomsNaBiblioteca } from './application/contar-roms-na-biblioteca.js';

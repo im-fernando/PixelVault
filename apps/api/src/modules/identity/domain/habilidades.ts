@@ -102,6 +102,10 @@ export function definirRegrasDeHabilidade(usuario: UsuarioParaHabilidades | null
       subject: 'Progress',
       conditions: { userId: usuario.id },
     },
+    // Conquista não se cria, não se atualiza e não se apaga por aqui: quem
+    // desbloqueia é o servidor, a partir de evento de outro módulo — a conta
+    // só lê a própria lista (issue #120).
+    { action: 'read', subject: 'Achievement', conditions: { userId: usuario.id } },
     // Perfil não se cria nem se apaga por aqui: criar é o cadastro, e apagar
     // a conta é fluxo próprio, com regra própria, quando existir.
     { action: ['read', 'update'], subject: 'Profile', conditions: { userId: usuario.id } },

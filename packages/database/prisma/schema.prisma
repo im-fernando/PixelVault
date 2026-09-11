@@ -52,6 +52,7 @@ model User {
   userRoms            UserRom[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  userAchievements    UserAchievement[]
 
   @@map("users")
 }
@@ -347,4 +348,46 @@ model AuthAttempt {
   /// Poda por idade, que não passa por chave nenhuma.
   @@index([createdAt])
   @@map("auth_attempts")
+}
+
+/// As conquistas de plataforma da M6 (ADR 0008, plano B; ADR 0010, a lista e
+/// os limites). Evento (primeira ROM, primeiro save state, primeira
+/// sincronização) e agregação (coleção, jogos distintos, horas jogadas) usam
+/// o mesmo código — a diferença é só QUANDO alguém chama
+/// `ConquistaDesbloqueadaRepository.desbloquear`, nunca o formato da linha.
+enum AchievementCode {
+  primeira_rom_enviada
+  primeiro_save_state
+  primeira_sincronizacao
+  colecionista_bronze
+  colecionista_prata
+  colecionista_ouro
+  explorador_bronze
+  explorador_prata
+  explorador_ouro
+  dedicacao_bronze
+  dedicacao_prata
+  dedicacao_ouro
+}
+
+/// Uma conquista que uma conta desbloqueou. `unlockedAt` é o relógio do
+/// SERVIDOR, nunca o do cliente — a mesma disciplina do playtime (ADR 0009):
+/// o que credita é o servidor, e o que ele credita é o momento em que ELE
+/// viu o evento, não o que o cliente diz que aconteceu.
+///
+/// `@@unique([userId, code])` é a idempotência inteira do critério de
+/// aceite: enviar a segunda ROM chama `desbloquear` de novo, a constraint
+/// recusa a segunda linha e o caso de uso trata isso como "já tinha", não
+/// como erro — exatamente como `UserRom.registrar` trata o envio duplicado.
+model UserAchievement {
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @map("user_id") @db.Uuid
+  code       AchievementCode
+  unlockedAt DateTime        @default(now()) @map("unlocked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@index([userId])
+  @@map("user_achievements")
 }

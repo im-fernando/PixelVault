@@ -16,8 +16,20 @@
  * `sessions`), da autorização (pergunta ao `identity`), do storage (porta
  * compartilhada da aplicação) nem da ROM em si (pergunta ao `library` se
  * aquele `romId` é de quem está pedindo, pela fachada dele).
+ *
+ * `agregadoDeJogoDoUsuario` sai daqui desde a #120: `achievements` pergunta
+ * jogos distintos e horas jogadas para as conquistas de agregação (ADR
+ * 0010), pela composition root — mesmo raciocínio de
+ * `contarRomsNaBiblioteca` em `library`, para não fechar ciclo com o aviso
+ * de evento que este módulo já faz na direção contrária.
  */
 export { progressRoutes } from './http/routes.js';
 export type { OpcoesDeProgress } from './http/routes.js';
 export type { SaveNaNuvem, TipoDeSaveNaNuvem } from './domain/user-save.js';
 export type { UserSaveRepository } from './domain/user-save-repository.js';
+export type {
+  AvisarPrimeiraSincronizacao,
+  AvisarPrimeiroSaveState,
+} from './domain/eventos-de-gamificacao.js';
+export type { AgregadoDeJogoDoUsuario } from './domain/agregado-de-jogo.js';
+export { agregadoDeJogoDoUsuario } from './application/agregado-de-jogo-do-usuario.js';

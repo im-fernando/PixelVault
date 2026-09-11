@@ -21,6 +21,7 @@ import {
   VALIDADE_PADRAO_EM_SEGUNDOS,
   type ArmazenamentoDeObjetos,
 } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
+import { avisarPrimeiraRomEnviada } from '../../achievements/index.js';
 import { descreverJogos, identificarRomPorHash } from '../../catalog/index.js';
 import {
   autorizarOuProibido,
@@ -159,7 +160,14 @@ export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app,
       return confirmarEnvioDeRom(
         // O match de hash vem do `catalog` pela fachada dele: `game_roms` é
         // tabela de outro módulo, e o `library` pergunta em vez de consultar.
-        { armazenamento, roms: prismaUserRomRepository, catalogo: identificarRomPorHash },
+        // O aviso de gamificação vai para `achievements` pela mesma fachada
+        // (issue #120) — nenhum dos dois módulos é importado por dentro.
+        {
+          armazenamento,
+          roms: prismaUserRomRepository,
+          catalogo: identificarRomPorHash,
+          avisarEnvioDeRom: avisarPrimeiraRomEnviada,
+        },
         userId,
         request.params.uploadId,
         request.body.fileName,

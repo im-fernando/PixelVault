@@ -179,6 +179,16 @@ export interface UserRomRepository {
   medirUso(userId: string): Promise<UsoDaBiblioteca>;
 
   /**
+   * Quantas ROMs a conta tem — a issue #120 pergunta isto para a conquista
+   * de coleção (ADR 0010), sem precisar do eixo de bytes que `medirUso` já
+   * calcula. Existe como método próprio, e não como `medirUso(...).quantidade`
+   * espalhado pelos chamadores, porque `achievements` não deveria saber que
+   * a contagem de coleção sai da mesma agregação que a cota usa — são duas
+   * perguntas que hoje têm a mesma resposta, e podem deixar de ter.
+   */
+  contar(userId: string): Promise<number>;
+
+  /**
    * A biblioteca inteira de alguém, pronta para virar prateleira.
    *
    * Sem paginação, e o que torna isso seguro é a cota: `COTA_DE_ROMS_POR_CONTA`
