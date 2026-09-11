@@ -40,6 +40,8 @@ export interface Saves {
    * download até a próxima ação local.
    */
   recarregar(): Promise<void>;
+  /** Conclui a escrita pendente da bateria antes de sair da partida. */
+  prepararSaida(): Promise<boolean>;
 }
 
 const SLOTS_VAZIOS: readonly SaveSlotView[] = SAVE_SLOTS.map((slot) => ({
@@ -160,5 +162,25 @@ export function useSaves(
     [comGerente],
   );
 
-  return { pronto, driver, volatil, slots, ultimaSram, salvar, carregar, apagar, recarregar };
+  const prepararSaida = useCallback(async () => {
+    try {
+      await gerenteRef.current?.flushSram();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  return {
+    pronto,
+    driver,
+    volatil,
+    slots,
+    ultimaSram,
+    salvar,
+    carregar,
+    apagar,
+    recarregar,
+    prepararSaida,
+  };
 }

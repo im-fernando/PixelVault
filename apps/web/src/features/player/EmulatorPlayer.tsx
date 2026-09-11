@@ -15,8 +15,11 @@ import { useEmulator } from './use-emulator.js';
 import { useSaves } from './use-saves.js';
 import type { SaveMetadata, SaveStorage } from './storage/index.js';
 import { useFullscreen } from './use-fullscreen.js';
+import { ConsoleGameOverlay, type ModoConsoleDoPlayer } from '../console/ConsoleGameOverlay.js';
+import { useConsoleGameMenu } from '../console/use-console-game-menu.js';
 
 export interface PropsDoPlayer {
+  readonly modoConsole?: ModoConsoleDoPlayer | undefined;
   readonly systemId: SystemId;
   readonly rom: RomSource;
   readonly titulo: string;
@@ -79,6 +82,7 @@ export function EmulatorPlayer({
   sincronizarSaveStateNaNuvem,
   saveStateStorage,
   romIdParaHeartbeat,
+  modoConsole,
 }: PropsDoPlayer) {
   const emulador = useEmulator({ systemId, rom, registry });
   const saves = useSaves(emulador.adapter, romId ?? null, onSramWritten);
@@ -105,7 +109,10 @@ export function EmulatorPlayer({
 
   const palcoRef = useRef<HTMLDivElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
-  const telaCheia = useFullscreen(palcoRef);
+  const paginaRef = useRef<HTMLElement | null>(
+    typeof document === 'undefined' ? null : document.documentElement,
+  );
+  const telaCheia = useFullscreen(modoConsole ? paginaRef : palcoRef);
 
   const [proporcao, setProporcao] = useState<ProporcaoDeTela>('4:3');
   const [escalaInteira, setEscalaInteira] = useState(false);
@@ -115,9 +122,24 @@ export function EmulatorPlayer({
   const [hudVisivel, setHudVisivel] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
   const [volume, setVolume] = useState(0.8);
+  const [consoleOcupado, setConsoleOcupado] = useState(false);
+  const menuConsole = useConsoleGameMenu({
+    ativo: Boolean(modoConsole),
+    disponivel: ['running', 'paused', 'ready'].includes(status) && emulador.erro === null,
+    bloqueado: consoleOcupado || sincronizacaoDeSaveState.ocupado !== null,
+    impedirRetomada: sincronizacaoDeSaveState.conflito !== null,
+    pausar: comandos.pausar,
+    retomar: comandos.retomar,
+    palco: palcoRef,
+  });
+  useEffect(() => {
+    // Reset e visibilidade podem reativar o core. O menu mantém a pausa
+    // até a retomada explícita, inclusive durante operações de save.
+    if (menuConsole.aberto && status === 'running') comandos.pausar();
+  }, [menuConsole.aberto, status, comandos]);
 
   const rodando = status === 'running';
-  const teclado = rodando && emulador.abaVisivel && focado;
+  const teclado = rodando && emulador.abaVisivel && focado && !menuConsole.aberto;
 
   const diagnostico = useDiagnostico({
     status,
@@ -149,6 +171,7 @@ export function EmulatorPlayer({
   );
 
   const atalhos = useMemo<Record<string, () => void>>(() => {
+    if (modoConsole) return {};
     const mapa: Record<string, () => void> = {
       Space: acoes.alternarPausa,
       KeyR: acoes.resetar,
@@ -161,7 +184,7 @@ export function EmulatorPlayer({
       mapa['F4'] = acoes.carregarEstado;
     }
     return mapa;
-  }, [acoes, capabilities.saveState, telaCheia, diagnostico.alternar]);
+  }, [acoes, capabilities.saveState, telaCheia, diagnostico.alternar, modoConsole]);
 
   // O controle não pede foco: ele não é compartilhado com o navegador nem com o
   // resto da página, então exigir clique na tela seria inventar uma trava que só
@@ -169,7 +192,7 @@ export function EmulatorPlayer({
   const { estado: gamepad, controle } = useEntradaDoJogador({
     alvo: palcoRef,
     tecladoAtivo: teclado,
-    controleAtivo: rodando && emulador.abaVisivel,
+    controleAtivo: rodando && emulador.abaVisivel && !menuConsole.aberto,
     atalhos,
     aoConectarControle: (perfil) => setAviso(`Controle conectado: ${perfil.nome}.`),
     aoDesconectarControle: (perfil) => setAviso(`${perfil.nome} desconectado — o teclado assume.`),
@@ -232,8 +255,29 @@ export function EmulatorPlayer({
       ? { width: `${area.largura}px`, height: `${area.altura}px` }
       : { aspectRatio: PROPORCOES[proporcao], maxWidth: '100%', maxHeight: '100%' };
 
+  const conflitoDeSave =
+    sincronizacaoDeSaveState.conflito !== null && romId !== undefined ? (
+      <div className="space-y-1">
+        <ResolucaoDeConflitoDeSaveState
+          romId={romId}
+          slot={sincronizacaoDeSaveState.conflito.slot}
+          local={sincronizacaoDeSaveState.conflito.local}
+          nuvem={sincronizacaoDeSaveState.conflito.nuvem}
+          storage={saveStateStorage}
+          aoResolver={sincronizacaoDeSaveState.aoResolverConflito}
+        />
+        <button
+          type="button"
+          onClick={sincronizacaoDeSaveState.fecharConflito}
+          className="leitura text-ink-700 hover:underline"
+        >
+          decidir depois
+        </button>
+      </div>
+    ) : null;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className={modoConsole ? 'cgp-player' : 'flex flex-col gap-4'}>
       <div
         ref={palcoRef}
         tabIndex={0}
@@ -244,19 +288,28 @@ export function EmulatorPlayer({
           if (evento.currentTarget.contains(evento.relatedTarget)) return;
           setFocado(false);
         }}
-        className={`relative overflow-hidden bg-black outline-none transition-colors ${
-          telaCheia.ativa ? 'h-screen w-screen border-0' : 'rounded-xl border'
-        } ${focado ? 'border-alert' : 'border-ink-850'} ${
-          rodando && !hudVisivel ? 'cursor-none' : ''
-        }`}
+        className={
+          modoConsole
+            ? `cgp-stage ${rodando && !hudVisivel && !menuConsole.aberto ? 'cursor-none' : ''}`
+            : `relative overflow-hidden bg-black outline-none transition-colors ${
+                telaCheia.ativa ? 'h-screen w-screen border-0' : 'rounded-xl border'
+              } ${focado ? 'border-alert' : 'border-ink-850'} ${
+                rodando && !hudVisivel ? 'cursor-none' : ''
+              }`
+        }
       >
         <div
           ref={areaRef}
+          inert={Boolean(modoConsole && menuConsole.aberto)}
           // Em tela cheia a área é a tela inteira. Manter o teto de 70vh aqui
           // seria pedir tela cheia e receber a mesma imagem com tarja preta.
-          className={`flex w-full items-center justify-center ${
-            telaCheia.ativa ? 'h-full' : 'aspect-video max-h-[70vh]'
-          }`}
+          className={
+            modoConsole
+              ? 'cgp-display'
+              : `flex w-full items-center justify-center ${
+                  telaCheia.ativa ? 'h-full' : 'aspect-video max-h-[70vh]'
+                }`
+          }
         >
           <canvas
             ref={emulador.canvasRef}
@@ -270,14 +323,16 @@ export function EmulatorPlayer({
           />
         </div>
 
-        <SobreposicaoDeEstado
-          status={status}
-          erroCode={emulador.erro?.code ?? null}
-          erroMensagem={emulador.erro?.message ?? null}
-          pausadoPelaAba={emulador.pausadoPelaAba}
-          aoJogar={() => comandos.alternarPausa()}
-          aoTentarDeNovo={emulador.reiniciar}
-        />
+        {!modoConsole && (
+          <SobreposicaoDeEstado
+            status={status}
+            erroCode={emulador.erro?.code ?? null}
+            erroMensagem={emulador.erro?.message ?? null}
+            pausadoPelaAba={emulador.pausadoPelaAba}
+            aoJogar={() => comandos.alternarPausa()}
+            aoTentarDeNovo={emulador.reiniciar}
+          />
+        )}
 
         {diagnostico.amostra !== null && (
           <DiagnosticsOverlay amostra={diagnostico.amostra} aoFechar={diagnostico.alternar} />
@@ -286,86 +341,118 @@ export function EmulatorPlayer({
         {aviso !== null && (
           <p
             role="status"
-            className="absolute inset-x-0 top-0 mx-auto mt-3 w-fit rounded-full border border-ink-850 bg-ink-950/90 px-3 py-1 text-xs text-label-100"
+            className={
+              modoConsole
+                ? 'cgp-notice'
+                : 'absolute inset-x-0 top-0 mx-auto mt-3 w-fit rounded-full border border-ink-850 bg-ink-950/90 px-3 py-1 text-xs text-label-100'
+            }
           >
             {aviso}
           </p>
         )}
 
-        <PlayerHud
-          status={status}
-          capabilities={capabilities}
-          visivel={hudVisivel || !rodando}
-          acoes={acoes}
-          temEstadoSalvo={saves.slots.some((slot) => slot.metadata !== null)}
-          proporcao={proporcao}
-          aoTrocarProporcao={setProporcao}
-          escalaInteira={escalaInteira}
-          aoAlternarEscalaInteira={() => setEscalaInteira((valor) => !valor)}
-          telaCheia={telaCheia}
-          volume={volume}
-          aoTrocarVolume={setVolume}
-          mudo={emulador.audio.muted}
-          audioBloqueado={emulador.audio.blocked}
-          aoTrocarMudo={(mudo) => emulador.comandos.definirMudo(mudo)}
-          aoDestravarAudio={() => void emulador.comandos.destravarAudio()}
-          controle={controle?.nome ?? null}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
-        <span>
-          Estado: <strong className="text-ink-500">{ROTULO_DO_STATUS[status]}</strong>
-        </span>
-        {emulador.coreVersion !== null && <span>Core: {emulador.coreVersion}</span>}
-        {emulador.fps !== null && <span>{emulador.fps} fps</span>}
-        {emulador.ultimaGravacaoDeSram !== null && (
-          <span>
-            SRAM gravada às {new Date(emulador.ultimaGravacaoDeSram).toLocaleTimeString('pt-BR')}
-          </span>
-        )}
-        {saves.driver !== null && <span>save: {saves.driver}</span>}
-        {!emulador.abaVisivel && <span>aba oculta — emulação pausada</span>}
-      </div>
-
-      {capabilities.saveState && romId !== undefined && (
-        <GaleriaDeSlots
-          slots={saves.slots}
-          volatil={saves.volatil}
-          aoSalvar={(slot) => void saves.salvar(slot).then(setAviso)}
-          aoCarregar={(slot) => void saves.carregar(slot).then(setAviso)}
-          aoApagar={(slot) => void saves.apagar(slot).then(setAviso)}
-          estadoNaNuvem={sincronizacaoDeSaveState.estadoPorSlot}
-          sincronizandoSlot={sincronizacaoDeSaveState.ocupado}
-          aoSincronizar={sincronizacaoDeSaveState.aoClicarSincronizar}
-        />
-      )}
-
-      {sincronizacaoDeSaveState.erro !== null && (
-        <p className="text-xs text-alert">{sincronizacaoDeSaveState.erro}</p>
-      )}
-
-      {sincronizacaoDeSaveState.conflito !== null && romId !== undefined && (
-        <div className="space-y-1">
-          <ResolucaoDeConflitoDeSaveState
-            romId={romId}
-            slot={sincronizacaoDeSaveState.conflito.slot}
-            local={sincronizacaoDeSaveState.conflito.local}
-            nuvem={sincronizacaoDeSaveState.conflito.nuvem}
-            storage={saveStateStorage}
-            aoResolver={sincronizacaoDeSaveState.aoResolverConflito}
+        {modoConsole ? (
+          <ConsoleGameOverlay
+            titulo={titulo}
+            sistema={systemId}
+            modo={modoConsole}
+            status={status}
+            erro={emulador.erro?.message ?? null}
+            visivel={hudVisivel || !rodando}
+            aberto={menuConsole.aberto}
+            abrir={menuConsole.abrir}
+            fechar={menuConsole.fechar}
+            retomar={comandos.retomar}
+            reiniciar={comandos.resetar}
+            tentar={emulador.reiniciar}
+            saves={saves}
+            podeSalvar={capabilities.saveState && romId !== undefined}
+            nuvem={sincronizacaoDeSaveState}
+            conflito={conflitoDeSave}
+            ocupado={consoleOcupado || sincronizacaoDeSaveState.ocupado !== null}
+            aoOcupar={setConsoleOcupado}
+            sair={async () => {
+              if (!(await saves.prepararSaida()))
+                throw new Error('Falha ao concluir a gravação local.');
+              modoConsole.aoSair();
+            }}
+            proporcao={proporcao}
+            aoTrocarProporcao={setProporcao}
+            escalaInteira={escalaInteira}
+            aoAlternarEscala={() => setEscalaInteira((valor) => !valor)}
+            telaCheia={telaCheia}
+            volume={volume}
+            aoTrocarVolume={setVolume}
+            mudo={emulador.audio.muted}
+            aoTrocarMudo={comandos.definirMudo}
+            audioBloqueado={emulador.audio.blocked}
+            ativarAudio={() => {
+              void comandos.destravarAudio();
+            }}
           />
-          <button
-            type="button"
-            onClick={sincronizacaoDeSaveState.fecharConflito}
-            className="leitura text-ink-700 hover:underline"
-          >
-            decidir depois
-          </button>
-        </div>
-      )}
+        ) : (
+          <PlayerHud
+            status={status}
+            capabilities={capabilities}
+            visivel={hudVisivel || !rodando}
+            acoes={acoes}
+            temEstadoSalvo={saves.slots.some((slot) => slot.metadata !== null)}
+            proporcao={proporcao}
+            aoTrocarProporcao={setProporcao}
+            escalaInteira={escalaInteira}
+            aoAlternarEscalaInteira={() => setEscalaInteira((valor) => !valor)}
+            telaCheia={telaCheia}
+            volume={volume}
+            aoTrocarVolume={setVolume}
+            mudo={emulador.audio.muted}
+            audioBloqueado={emulador.audio.blocked}
+            aoTrocarMudo={(mudo) => emulador.comandos.definirMudo(mudo)}
+            aoDestravarAudio={() => void emulador.comandos.destravarAudio()}
+            controle={controle?.nome ?? null}
+          />
+        )}
+      </div>
 
-      <GamepadLegend estado={gamepad} ativo={teclado} controle={controle} />
+      {!modoConsole && (
+        <>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
+            <span>
+              Estado: <strong className="text-ink-500">{ROTULO_DO_STATUS[status]}</strong>
+            </span>
+            {emulador.coreVersion !== null && <span>Core: {emulador.coreVersion}</span>}
+            {emulador.fps !== null && <span>{emulador.fps} fps</span>}
+            {emulador.ultimaGravacaoDeSram !== null && (
+              <span>
+                SRAM gravada às{' '}
+                {new Date(emulador.ultimaGravacaoDeSram).toLocaleTimeString('pt-BR')}
+              </span>
+            )}
+            {saves.driver !== null && <span>save: {saves.driver}</span>}
+            {!emulador.abaVisivel && <span>aba oculta — emulação pausada</span>}
+          </div>
+
+          {capabilities.saveState && romId !== undefined && (
+            <GaleriaDeSlots
+              slots={saves.slots}
+              volatil={saves.volatil}
+              aoSalvar={(slot) => void saves.salvar(slot).then(setAviso)}
+              aoCarregar={(slot) => void saves.carregar(slot).then(setAviso)}
+              aoApagar={(slot) => void saves.apagar(slot).then(setAviso)}
+              estadoNaNuvem={sincronizacaoDeSaveState.estadoPorSlot}
+              sincronizandoSlot={sincronizacaoDeSaveState.ocupado}
+              aoSincronizar={sincronizacaoDeSaveState.aoClicarSincronizar}
+            />
+          )}
+
+          {sincronizacaoDeSaveState.erro !== null && (
+            <p className="text-xs text-alert">{sincronizacaoDeSaveState.erro}</p>
+          )}
+
+          {conflitoDeSave}
+
+          <GamepadLegend estado={gamepad} ativo={teclado} controle={controle} />
+        </>
+      )}
     </div>
   );
 }

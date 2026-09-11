@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   readonly children: ReactNode;
+  readonly fallback?: ((erro: Error, tentar: () => void) => ReactNode) | undefined;
 }
 
 interface Estado {
@@ -33,6 +34,7 @@ export class PlayerErrorBoundary extends Component<Props, Estado> {
   override render(): ReactNode {
     const { erro } = this.state;
     if (erro === null) return this.props.children;
+    if (this.props.fallback) return this.props.fallback(erro, () => this.setState({ erro: null }));
 
     return (
       <div className="rounded-xl border border-ink-850 bg-ink-900 p-8 text-center">

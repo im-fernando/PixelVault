@@ -12,9 +12,11 @@ import { IndicadorDeSincronizacao } from './IndicadorDeSincronizacao.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
 import type { SaveStorage } from './storage/index.js';
 import { useSincronizacaoDeSram } from './sram-sincronizacao.js';
+import { ConsoleGameStatus } from '../console/ConsoleGameStatus.js';
 
 interface Props {
   readonly romId: string;
+  readonly aoSairDoConsole?: (() => void) | undefined;
   /** Injetável para teste, do mesmo jeito que `EmulatorPlayer` aceita. */
   readonly registry?: EmulatorRegistry | undefined;
   /** Injetável para teste — mesma porta que `AdocaoDeSram` e `useSincronizacaoDeSram` aceitam. */
@@ -38,7 +40,7 @@ interface Props {
  * lista já está no cache do React Query por causa da estante na home
  * (`useBiblioteca`). Este componente só filtra a linha certa nela.
  */
-export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
+export function BibliotecaPlayPage({ romId, registry, storage, aoSairDoConsole }: Props) {
   const biblioteca = useBiblioteca();
   const download = useDownloadDeRom(romId);
 
@@ -62,6 +64,15 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
   const sincronizacao = useSincronizacaoDeSram(romId, item?.systemId ?? null, storage);
 
   if (biblioteca.isPending || download.isPending) {
+    if (aoSairDoConsole)
+      return (
+        <ConsoleGameStatus
+          titulo={item?.title ?? 'Seu próximo universo.'}
+          detalhe="Buscando o jogo na sua biblioteca…"
+          capaUrl={item?.coverUrl}
+          sair={aoSairDoConsole}
+        />
+      );
     return (
       <div className="space-y-4">
         <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
@@ -79,6 +90,18 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
       download.error instanceof ApiRequestError
         ? `${download.error.payload.code}: ${download.error.payload.message}`
         : null;
+    if (aoSairDoConsole)
+      return (
+        <ConsoleGameStatus
+          titulo="ROM não encontrada"
+          detalhe={detalheDoErro ?? 'Nada na sua biblioteca com este id.'}
+          sair={aoSairDoConsole}
+          tentar={() => {
+            void download.refetch();
+            void biblioteca.refetch();
+          }}
+        />
+      );
     return (
       <Recado
         titulo="ROM não encontrada"
@@ -88,6 +111,17 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
   }
 
   if (item.systemId === null || fonte === null) {
+    if (aoSairDoConsole)
+      return (
+        <ConsoleGameStatus
+          titulo="Sistema não identificado"
+          detalhe="Não foi possível reconhecer de qual console é esta ROM."
+          sair={aoSairDoConsole}
+          tentar={() => {
+            void biblioteca.refetch();
+          }}
+        />
+      );
     return (
       <Recado
         titulo="Sistema não identificado"
@@ -101,6 +135,15 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
   // uma SRAM mais nova da nuvem antes de montar o player (ver o cabeçalho de
   // `useSincronizacaoDeSram`).
   if (!sincronizacao.pronto) {
+    if (aoSairDoConsole)
+      return (
+        <ConsoleGameStatus
+          titulo={item.title}
+          detalhe="Preparando seu progresso…"
+          capaUrl={item.coverUrl}
+          sair={aoSairDoConsole}
+        />
+      );
     return (
       <div className="space-y-4">
         <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
@@ -109,17 +152,25 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
     );
   }
 
+  const progresso = sincronizacao.vinculado ? (
+    <IndicadorDeSincronizacao estado={sincronizacao.estado!} />
+  ) : (
+    <AdocaoDeSram romId={item.sha256} storage={storage} />
+  );
+
   return (
-    <div className="space-y-5">
-      <FichaDeAcervo
-        titulo={item.title}
-        systemId={item.systemId}
-        campos={[
-          { rotulo: 'console', valor: item.systemId.toUpperCase(), maquina: true },
-          { rotulo: 'procedência', valor: 'sua ROM' },
-          { rotulo: 'sha-256', valor: `${item.sha256.slice(0, 12)}…`, maquina: true },
-        ]}
-      />
+    <div className={aoSairDoConsole ? 'cgp-library-player' : 'space-y-5'}>
+      {!aoSairDoConsole && (
+        <FichaDeAcervo
+          titulo={item.title}
+          systemId={item.systemId}
+          campos={[
+            { rotulo: 'console', valor: item.systemId.toUpperCase(), maquina: true },
+            { rotulo: 'procedência', valor: 'sua ROM' },
+            { rotulo: 'sha-256', valor: `${item.sha256.slice(0, 12)}…`, maquina: true },
+          ]}
+        />
+      )}
 
       {/*
         Nunca as duas ao mesmo tempo (#91): sem vínculo, a oferta de adoção
@@ -128,13 +179,22 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
         rodapé. `sincronizacao.estado` só é `null` quando `vinculado` é
         `false` (ver `sram-sincronizacao.ts`), daí o `!` abaixo ser seguro.
       */}
-      {sincronizacao.vinculado ? (
-        <IndicadorDeSincronizacao estado={sincronizacao.estado!} />
-      ) : (
-        <AdocaoDeSram romId={item.sha256} storage={storage} />
-      )}
+      {!aoSairDoConsole && progresso}
 
-      <PlayerErrorBoundary>
+      <PlayerErrorBoundary
+        fallback={
+          aoSairDoConsole
+            ? (erro, tentar) => (
+                <ConsoleGameStatus
+                  titulo="A partida parou de responder"
+                  detalhe={erro.message}
+                  sair={aoSairDoConsole}
+                  tentar={tentar}
+                />
+              )
+            : undefined
+        }
+      >
         <EmulatorPlayer
           systemId={item.systemId}
           rom={fonte}
@@ -144,6 +204,11 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
           onSramWritten={sincronizacao.registrarGravacaoLocal}
           sincronizarSaveStateNaNuvem
           saveStateStorage={storage}
+          modoConsole={
+            aoSairDoConsole
+              ? { capaUrl: item.coverUrl, aoSair: aoSairDoConsole, progresso }
+              : undefined
+          }
           // Playtime honesto (#119): só manda heartbeat quando a própria ROM
           // já tem `gameId` — sem isso o servidor não teria onde creditar
           // (docs/adr/0009, decisão 3), e nem vale a viagem de rede. `romId`
