@@ -12,9 +12,16 @@
  *   capa. Se um dia o match vier de outro lugar (uma base externa, um índice
  *   próprio), muda o adaptador e não o caso de uso.
  *
- * A consulta recebe **os dois hashes** — o do arquivo como veio e o de sem o
- * cabeçalho de copiador — porque as bases de metadado catalogam sem cabeçalho,
- * e um dump de SNES com os 512 bytes na frente jamais casaria pelo hash cru.
+ * A consulta recebe **os dois hashes** de cada tipo — o do arquivo como veio e
+ * o de sem o cabeçalho de copiador — porque as bases de metadado catalogam
+ * sem cabeçalho, e um dump de SNES com os 512 bytes na frente jamais casaria
+ * pelo hash cru.
+ *
+ * Desde a issue #134, a pergunta carrega dois tipos de hash, não uma lista
+ * solta: SHA-256 (o endereço do objeto, ADR 0013) e MD5 (o que o banco
+ * No-Intro cataloga). São candidatos tipados, e não uma lista única, porque
+ * misturar os dois tipos num só array ambiguaria o casamento do outro lado —
+ * um SHA-256 candidato não pode casar por acidente contra a coluna `md5`.
  */
 
 import type { SystemId } from '@pixelvault/contracts';
@@ -24,9 +31,13 @@ export interface RomIdentificada {
   gameId: string;
 }
 
-export type IdentificarRomNoCatalogo = (
-  hashes: readonly string[],
-) => Promise<RomIdentificada | null>;
+/** Os hashes candidatos, separados por tipo — nunca misturados. */
+export interface HashesParaCasar {
+  readonly sha256: readonly string[];
+  readonly md5: readonly string[];
+}
+
+export type IdentificarRomNoCatalogo = (hashes: HashesParaCasar) => Promise<RomIdentificada | null>;
 
 /**
  * A segunda pergunta que a biblioteca faz ao catálogo: "como se chamam estes

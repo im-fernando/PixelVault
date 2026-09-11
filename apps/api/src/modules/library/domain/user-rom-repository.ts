@@ -107,6 +107,15 @@ export interface ReferenciaRemovida {
 export interface NovaRomDoUsuario {
   userId: string;
   sha256: string;
+  /**
+   * MD5 do arquivo como enviado (issue #134) — não endereça nada, só serve
+   * de segundo candidato para o reprocessamento (#114) casar contra o
+   * No-Intro depois que o catálogo ganha uma entrada nova. Mesma assimetria
+   * de `sha256SemHeader`: só a variante com cabeçalho é persistida, porque
+   * a de sem cabeçalho não é endereço nem chave de mais nada — é só uma
+   * tentativa extra de match, feita na hora do upload.
+   */
+  md5: string;
   storageKey: string;
   sizeBytes: number;
   fileName: string;
@@ -126,6 +135,8 @@ export interface NovaRomDoUsuario {
 export interface RomSemJogoReconhecido {
   id: string;
   sha256: string;
+  /** Nulo para linhas gravadas antes da issue #134, que não tinham MD5. */
+  md5: string | null;
 }
 
 export interface UserRomRepository {

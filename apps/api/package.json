@@ -38,6 +38,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "no-intro:importar": "tsx scripts/no-intro/importar-no-intro.ts",
+    "no-intro:religar-manuais": "tsx scripts/no-intro/religar-jogos-manuais.ts"
   }
 }

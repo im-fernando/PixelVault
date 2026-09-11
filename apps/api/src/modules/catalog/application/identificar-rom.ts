@@ -1,4 +1,4 @@
-import type { RomDoCatalogo } from '../domain/game-repository.js';
+import type { HashesParaCasar, RomDoCatalogo } from '../domain/game-repository.js';
 import { criarBuscaDeCapa } from '../infrastructure/criar-busca-de-capa.js';
 import { prismaGameRepository } from '../infrastructure/prisma-game-repository.js';
 import { garantirCapaDoJogo } from './garantir-capa-do-jogo.js';
@@ -23,12 +23,11 @@ import { garantirCapaDoJogo } from './garantir-capa-do-jogo.js';
  * catálogo, não da porta que o `library` declarou.
  */
 export async function identificarRomPorHash(
-  hashes: readonly string[],
+  hashes: HashesParaCasar,
 ): Promise<RomDoCatalogo | null> {
-  // O `Set` não é por causa do chamador de hoje, que manda dois hashes
-  // distintos: é porque a assinatura aceita qualquer lista, e repetido dentro
-  // de um `IN` é trabalho que o banco faz à toa.
-  const identificada = await prismaGameRepository.identificarRomPorHash([...new Set(hashes)]);
+  // A deduplicação por tipo já é feita dentro de `prismaGameRepository` — não
+  // duplicar aqui.
+  const identificada = await prismaGameRepository.identificarRomPorHash(hashes);
 
   if (identificada !== null) procurarCapaEmSegundoPlano(identificada.gameId);
 

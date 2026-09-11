@@ -17,6 +17,19 @@ export interface RomDoCatalogo {
 }
 
 /**
+ * Os hashes candidatos, separados por tipo — nunca misturados num array só.
+ *
+ * Desde a issue #134, `game_roms` também guarda `md5` (populado pela
+ * importação do No-Intro, que nunca cataloga SHA-256). Separar por tipo evita
+ * que um SHA-256 candidato case por acidente contra a coluna `md5`, e
+ * vice-versa.
+ */
+export interface HashesParaCasar {
+  readonly sha256: readonly string[];
+  readonly md5: readonly string[];
+}
+
+/**
  * A ficha curta de um jogo, para quem já sabe o `game_id` e só precisa
  * chamá-lo pelo nome.
  *
@@ -36,18 +49,21 @@ export interface GameRepository {
   findBySlug(slug: string): Promise<GameDetail | null>;
 
   /**
-   * O jogo cujo `game_roms.sha256` é um dos hashes, ou `null`.
+   * O jogo cujo `game_roms.sha256` ou `game_roms.md5` é um dos hashes, ou
+   * `null`.
    *
-   * Recebe mais de um hash porque quem pergunta (o BYOR, no `library`) tem
-   * dois: o do arquivo como o usuário enviou e o de sem o cabeçalho de
-   * copiador de SNES. As bases de metadado catalogam sem cabeçalho, então
-   * tentar só o hash cru deixaria de reconhecer metade dos dumps de SNES.
+   * Recebe candidatos separados por tipo porque quem pergunta (o BYOR, no
+   * `library`) tem dois hashes de cada: o do arquivo como o usuário enviou e
+   * o de sem o cabeçalho de copiador de SNES. As bases de metadado catalogam
+   * sem cabeçalho, então tentar só o hash cru deixaria de reconhecer metade
+   * dos dumps de SNES. O MD5 entra desde a issue #134 — é o hash que o
+   * No-Intro cataloga, e o SHA-256 nunca aparece lá.
    *
    * Não devolve o jogo inteiro, e isso é o recorte: quem casa hash quer saber
    * a qual jogo ligar a linha de `user_roms`. Título e capa, quem os quer pede
    * ao catálogo pelo caminho normal.
    */
-  identificarRomPorHash(hashes: readonly string[]): Promise<RomDoCatalogo | null>;
+  identificarRomPorHash(hashes: HashesParaCasar): Promise<RomDoCatalogo | null>;
 
   /**
    * As fichas curtas de vários jogos de uma vez.

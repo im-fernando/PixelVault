@@ -39,6 +39,10 @@ function sha256De(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+function md5De(bytes: Uint8Array): string {
+  return createHash('md5').update(bytes).digest('hex');
+}
+
 interface ArmazenamentoFalso extends ArmazenamentoDeObjetos {
   readonly chamadas: string[];
   readonly objetos: Map<string, Uint8Array>;
@@ -170,6 +174,7 @@ describe('confirmarEnvioDeRom', () => {
       {
         userId: USUARIO,
         sha256: sha256De(rom),
+        md5: md5De(rom),
         storageKey: destino,
         sizeBytes: rom.byteLength,
         fileName: 'zelda.sfc',
@@ -215,10 +220,10 @@ describe('confirmarEnvioDeRom', () => {
     const armazenamento = armazenamentoFalso(new Map([[QUARENTENA, comHeader]]));
     const roms = repositorioFalso();
 
-    const perguntados: string[][] = [];
+    const perguntados: { sha256: string[]; md5: string[] }[] = [];
     const catalogo: IdentificarRomNoCatalogo = async (hashes) => {
-      perguntados.push([...hashes]);
-      return hashes.includes(sha256De(semHeader)) ? { gameId: 'o-jogo' } : null;
+      perguntados.push({ sha256: [...hashes.sha256], md5: [...hashes.md5] });
+      return hashes.sha256.includes(sha256De(semHeader)) ? { gameId: 'o-jogo' } : null;
     };
 
     const resposta = await confirmarEnvioDeRom(
@@ -228,7 +233,12 @@ describe('confirmarEnvioDeRom', () => {
       'zelda.smc',
     );
 
-    expect(perguntados).toEqual([[sha256De(comHeader), sha256De(semHeader)]]);
+    expect(perguntados).toEqual([
+      {
+        sha256: [sha256De(comHeader), sha256De(semHeader)],
+        md5: [md5De(comHeader), md5De(semHeader)],
+      },
+    ]);
     expect(resposta.gameId).toBe('o-jogo');
     // O objeto é o arquivo como a pessoa enviou, cabeçalho e tudo (ADR 0013):
     // o hash sem header serve para reconhecer o jogo, nunca para endereçar.

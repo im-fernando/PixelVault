@@ -2,7 +2,7 @@ import type { RomUploadCompletedResponse } from '@pixelvault/contracts';
 import { DomainError, NotFoundError } from '../../../infrastructure/errors.js';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
 import { caminhoDaRom } from '../domain/caminho-da-rom.js';
-import type { IdentificarRomNoCatalogo } from '../domain/catalogo-de-roms.js';
+import type { HashesParaCasar, IdentificarRomNoCatalogo } from '../domain/catalogo-de-roms.js';
 import { RomRecusada } from '../domain/erros.js';
 import type { AvisarPrimeiraRomEnviada } from '../domain/eventos-de-gamificacao.js';
 import { caminhoNaQuarentena } from '../domain/quarentena.js';
@@ -87,6 +87,7 @@ export async function confirmarEnvioDeRom(
   const rom = await deps.roms.registrar({
     userId,
     sha256: verificada.sha256,
+    md5: verificada.md5,
     storageKey: destino,
     sizeBytes: verificada.sizeBytes,
     fileName: verificada.fileName,
@@ -138,12 +139,16 @@ async function verificarOuLimpar(
 }
 
 /**
- * Os hashes que o catálogo deve tentar.
+ * Os hashes que o catálogo deve tentar, separados por tipo.
  *
- * Os dois quando há cabeçalho de copiador, porque as bases de metadado
- * catalogam sem ele — sem isso, dump de SNES com header nunca reconheceria o
- * jogo, e a capa nunca apareceria sozinha.
+ * Os dois de cada tipo quando há cabeçalho de copiador, porque as bases de
+ * metadado catalogam sem ele — sem isso, dump de SNES com header nunca
+ * reconheceria o jogo, e a capa nunca apareceria sozinha. O MD5 entra desde a
+ * issue #134, pela mesma razão: é o hash que o No-Intro cataloga.
  */
-function hashesParaCasar(rom: RomVerificada): string[] {
-  return rom.sha256SemHeader === null ? [rom.sha256] : [rom.sha256, rom.sha256SemHeader];
+function hashesParaCasar(rom: RomVerificada): HashesParaCasar {
+  return {
+    sha256: rom.sha256SemHeader === null ? [rom.sha256] : [rom.sha256, rom.sha256SemHeader],
+    md5: rom.md5SemHeader === null ? [rom.md5] : [rom.md5, rom.md5SemHeader],
+  };
 }

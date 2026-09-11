@@ -77,7 +77,10 @@ export async function reprocessarReconhecimento(
 
   let reconhecidas = 0;
   for (const rom of semJogo) {
-    const identificada = await deps.catalogo([rom.sha256]);
+    const identificada = await deps.catalogo({
+      sha256: [rom.sha256],
+      md5: rom.md5 === null ? [] : [rom.md5],
+    });
     if (identificada === null) continue;
 
     await deps.roms.atualizarJogoReconhecido(rom.id, identificada.gameId);
