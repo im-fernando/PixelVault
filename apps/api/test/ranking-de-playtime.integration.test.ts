@@ -134,7 +134,12 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await prisma.game.deleteMany({ where: { id: jogoId } });
+  // `jogoId` só existe se o `beforeAll` terminou de atribuí-lo — se ele
+  // lançar no meio, `jogoId` fica `undefined` e
+  // `deleteMany({ where: { id: undefined } })` não filtra por id nenhum: o
+  // Prisma trata a ausência de valor como ausência de condição e apaga a
+  // tabela `games` inteira. Já aconteceu — ver a issue que corrigiu isto.
+  if (jogoId !== undefined) await prisma.game.deleteMany({ where: { id: jogoId } });
   await rastro.limpar();
 });
 

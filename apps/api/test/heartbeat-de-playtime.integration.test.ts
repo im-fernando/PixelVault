@@ -196,14 +196,21 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await prisma.userGame.deleteMany({ where: { userId: donoId, gameId: jogoId } });
+  // `donoId`/`jogoId` só existem se o `beforeAll` terminou de atribuí-los —
+  // se ele lançar no meio, `deleteMany({ where: { userId: undefined,
+  // gameId: undefined } })` não filtra nada e apaga `user_games` de TODO
+  // MUNDO no banco compartilhado (ADR 0022). Já aconteceu.
+  if (donoId !== undefined && jogoId !== undefined) {
+    await prisma.userGame.deleteMany({ where: { userId: donoId, gameId: jogoId } });
+  }
 });
 
 afterAll(async () => {
   await Promise.all(objetosDeRom.map((chave) => armazenamento.apagar(chave)));
   // O jogo sai por id: `game_roms` cai por cascata com ele; `user_roms` e
   // `user_games` caem por cascata com os usuários (ver `rastro.ts`).
-  await prisma.game.deleteMany({ where: { id: jogoId } });
+  // Mesma guarda do `afterEach`: `jogoId` indefinido apagaria `games` inteira.
+  if (jogoId !== undefined) await prisma.game.deleteMany({ where: { id: jogoId } });
   await rastro.limpar();
 });
 
