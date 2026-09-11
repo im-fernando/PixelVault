@@ -185,6 +185,22 @@ function NaEstante({
             >
               Jogar
             </Link>
+            {
+              // Ranking (#122) é POR JOGO do catálogo, não por arquivo — só
+              // existe link para quem já tem `gameId` (hash reconhecido, ADR
+              // 0006). ROM ainda não reconhecida simplesmente não ganha o
+              // botão, do mesmo jeito que ela não ganha capa nem título do
+              // catálogo antes do match.
+              rom.gameId !== null && (
+                <Link
+                  to="/ranking/$gameId"
+                  params={{ gameId: rom.gameId }}
+                  className="block w-full border border-ink-700 px-1 py-0.5 text-center text-[0.6rem] uppercase tracking-wide text-label-100 outline-none transition-colors hover:bg-label-100 hover:text-ink-950 focus-visible:bg-label-100 focus-visible:text-ink-950"
+                >
+                  Ranking
+                </Link>
+              )
+            }
             <BotaoDaEtiqueta
               rotulo={rom.isFavorite ? 'Desfavoritar' : 'Favoritar'}
               ocupado={favoritar.isPending}

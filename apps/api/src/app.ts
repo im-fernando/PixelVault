@@ -23,6 +23,7 @@ import {
   criarLimitesDeAutenticacao,
   identityRoutes,
 } from './modules/identity/index.js';
+import { leaderboardsRoutes } from './modules/leaderboards/index.js';
 import { contarRomsNaBiblioteca, libraryRoutes } from './modules/library/index.js';
 import { agregadoDeJogoDoUsuario, progressRoutes } from './modules/progress/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
@@ -180,6 +181,11 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     contarRomsNaBiblioteca,
     agregadoDeJogoDoUsuario,
   });
+  // Sem injeção pela composition root aqui: `leaderboards` pergunta a
+  // `progress` e a `identity` numa direção só, sem ciclo — importa as duas
+  // fachadas direto em `http/routes.ts`. Ver o cabeçalho de
+  // `modules/leaderboards/index.ts`.
+  await app.register(leaderboardsRoutes, { prefix: '/api', sessoes });
 
   return app;
 }

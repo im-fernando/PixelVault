@@ -39,6 +39,19 @@ export interface CredenciaisDoUsuario extends DadosDoUsuario {
 }
 
 /**
+ * O que dá para mostrar de uma conta a QUALQUER pessoa — nunca o e-mail.
+ * Existe porque o ranking (#122) precisa dizer de quem é cada linha, e
+ * "de quem" é handle e nome de exibição, o mesmo par que a M6 planeja tornar
+ * público em `/u/:handle` (#123) — não `DadosDoUsuario` inteiro, que ainda
+ * carrega o e-mail, dado privado da própria conta.
+ */
+export interface PerfilPublico {
+  userId: string;
+  handle: string;
+  displayName: string;
+}
+
+/**
  * Porta de persistência do `identity`.
  *
  * `cadastrar` devolve a colisão em vez de lançar de propósito: colidir não é
@@ -79,4 +92,16 @@ export interface UserRepository {
   buscarPapelPorId(id: string): Promise<Papel | null>;
   /** Regrava o hash migrado pela reidratação do Argon2id (ver issue #44). */
   regravarSenhaHash(id: string, senhaHash: string): Promise<void>;
+
+  /**
+   * Os perfis públicos de várias contas de uma vez — para quem monta uma
+   * lista com gente de fora (o ranking, #122), e não uma conta por vez.
+   * Em lote pelo mesmo motivo de `descreverJogos` em `catalog`: o
+   * alternativo é uma consulta por linha, N+1 para montar um ranking.
+   *
+   * Devolve só o que existe: id sem conta correspondente (conta apagada
+   * entre duas consultas, por exemplo) some da resposta em vez de virar
+   * buraco na lista.
+   */
+  perfisPublicosPorIds(ids: readonly string[]): Promise<PerfilPublico[]>;
 }

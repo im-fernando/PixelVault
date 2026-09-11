@@ -36,7 +36,10 @@ export type AbilityAction = z.infer<typeof abilityActionSchema>;
  * Sobre o que se age. `Game` é o catálogo de metadados; `Library` é o acervo
  * privado de uma pessoa (as ROMs que ela subiu); `Progress` é o save e o
  * playtime dela; `Profile` é a conta dela; `Achievement` são as conquistas de
- * plataforma que ela já desbloqueou (M6, issue #120).
+ * plataforma que ela já desbloqueou (M6, issue #120); `Leaderboard` é o
+ * ranking de playtime por jogo (M6, issue #122) — sem dono (é sobre várias
+ * contas ao mesmo tempo), por isso a regra dele não carrega `conditions` de
+ * `userId` como `Library`/`Progress`/`Achievement`/`Profile` carregam.
  *
  * `Library` e `Progress` ainda não têm rota (M3 e M4), e é de propósito que
  * o vocabulário venha antes: a regra que os protege é a mesma para os dois,
@@ -48,6 +51,7 @@ export const abilitySubjectSchema = z.enum([
   'Progress',
   'Profile',
   'Achievement',
+  'Leaderboard',
 ]);
 export type AbilitySubject = z.infer<typeof abilitySubjectSchema>;
 
