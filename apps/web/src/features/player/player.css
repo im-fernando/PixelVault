@@ -5,14 +5,12 @@
  * `pv-*` compartilhadas: as utilities do Tailwind precisam continuar
  * vencendo quando um componente ajusta um detalhe.
  *
- * A declaração abaixo não é enfeite. Este arquivo entra no bundle ANTES de
- * `styles.css` (o `main.tsx` importa as rotas — e com elas o player — antes
- * do CSS global), e a ordem das camadas do cascade é a da primeira
- * ocorrência: sem a declaração, `components` nasceria antes de `base`, e o
- * preflight do Tailwind passaria a vencer TODA classe `pv-*` do site.
- * `properties` fica em primeiro pelo mesmo motivo que o Tailwind a põe lá —
- * é o fallback `--tw-*: initial` para navegador sem `@property`, e como
- * última camada ela anularia as utilities de sombra e transformação.
+ * A declaração de camadas abaixo é rede de segurança. A ordem das camadas
+ * do cascade é a da primeira ocorrência, e hoje quem abre a cascata é o
+ * `styles.css` (importado antes das rotas em `main.tsx`). Se um dia esse
+ * import mudar de lugar, este arquivo passaria a entrar primeiro e, sem a
+ * declaração, `components` nasceria antes de `base` — e o preflight do
+ * Tailwind venceria TODA classe `pv-*` do site.
  */
 @layer properties, theme, base, components, utilities;
 

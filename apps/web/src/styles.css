@@ -998,7 +998,9 @@ body {
     color: var(--color-label-100);
     font-size: 12.5px;
     box-shadow: 0 10px 40px oklch(0 0 0 / 0.4);
-    transform: translateX(-50%);
+    /* `translate`, e não `transform`: a animação de revelar termina em
+       `transform: translateY(0)` e, com fill `both`, apagaria a centralização. */
+    translate: -50% 0;
     animation: pv-revelar 0.3s both;
   }
   .pv-toast > svg {
