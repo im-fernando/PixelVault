@@ -42,14 +42,22 @@ export function FichaDeAcervo({
 
   return (
     <header>
-      <Link to="/" className={classesDaPilula({ variante: 'secundaria', pequena: true })}>
-        <ArrowLeft size={14} /> Acervo
-      </Link>
-
-      <p className="sobrelinha mt-6">
-        {systemId}
-        {procedencia !== undefined && ` · ${procedencia}`}
-      </p>
+      {/*
+        A volta e a sobrelinha na mesma linha, de propósito: o runtime foca o
+        canvas ao subir, e o navegador rola o que for preciso para mostrá-lo
+        inteiro. Com o cabeçalho compacto o palco cabe na primeira dobra de
+        uma tela de 900px, e a página não rola sozinha para debaixo do
+        cabeçalho fixo.
+      */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Link to="/" className={classesDaPilula({ variante: 'secundaria', pequena: true })}>
+          <ArrowLeft size={14} /> Acervo
+        </Link>
+        <p className="sobrelinha">
+          {systemId}
+          {procedencia !== undefined && ` · ${procedencia}`}
+        </p>
+      </div>
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1">
         <h1 className="titulo-cena text-[clamp(30px,3.6vw,56px)] text-label-100">{titulo}</h1>
@@ -57,7 +65,7 @@ export function FichaDeAcervo({
       </div>
 
       {chips.length > 0 && (
-        <dl className="mt-5 flex flex-wrap gap-2">
+        <dl className="mt-4 flex flex-wrap gap-2">
           {chips.map((campo) => (
             <div key={campo.rotulo} className="pv-chip">
               <dt>{campo.rotulo}</dt>
@@ -86,10 +94,12 @@ export function FichaDeAcervo({
 export function TelaDeJogoFantasma() {
   return (
     <div className="mx-auto max-w-[1180px] animate-pulse" aria-hidden="true">
-      <div className="h-[38px] w-[92px] rounded-full bg-ink-850" />
-      <div className="mt-6 h-2.5 w-36 rounded bg-ink-850" />
+      <div className="flex items-center gap-5">
+        <div className="h-[38px] w-[92px] rounded-full bg-ink-850" />
+        <div className="h-2.5 w-36 rounded bg-ink-850" />
+      </div>
       <div className="mt-4 h-[clamp(30px,3.6vw,56px)] w-2/3 max-w-[520px] rounded-lg bg-ink-850" />
-      <div className="pv-palco mt-6 aspect-video max-h-[70vh] bg-ink-900" />
+      <div className="pv-palco mt-6 aspect-video max-h-[66vh] bg-ink-900" />
     </div>
   );
 }

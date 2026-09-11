@@ -312,13 +312,13 @@ export function EmulatorPlayer({
           <div
             ref={areaRef}
             inert={Boolean(modoConsole && menuConsole.aberto)}
-            // Em tela cheia a área é a tela inteira. Manter o teto de 70vh aqui
+            // Em tela cheia a área é a tela inteira. Manter o teto de 66vh aqui
             // seria pedir tela cheia e receber a mesma imagem com tarja preta.
             className={
               modoConsole
                 ? 'cgp-display'
                 : `flex w-full items-center justify-center ${
-                    telaCheia.ativa ? 'h-full' : 'aspect-video max-h-[70vh]'
+                    telaCheia.ativa ? 'h-full' : 'aspect-video max-h-[66vh]'
                   }`
             }
           >
