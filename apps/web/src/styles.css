@@ -1393,6 +1393,25 @@ body {
   }
 }
 
+@media (max-width: 480px) {
+  /* Só o símbolo: o nome não cabe ao lado da conta numa tela de celular, e o
+     "pv" inclinado é a marca que o console já ensinou. */
+  .pv-marca-nome {
+    display: none;
+  }
+  .pv-marca-simbolo {
+    padding-right: 0;
+  }
+  .pv-trilho {
+    gap: 14px;
+  }
+  .pv-cartucho,
+  .pv-esqueleto {
+    flex-basis: 150px;
+    width: 150px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
