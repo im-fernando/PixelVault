@@ -1,25 +1,21 @@
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import type { SystemId } from '@pixelvault/contracts';
-import { Cartucho } from './Cartucho.js';
+import { MioloDoCartucho } from './Cartucho.js';
 import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
-import { urlDaLombadaLocal, useRomsLocais, type RomLocal } from './local-roms.js';
+import { useRomsLocais, type RomLocal } from './local-roms.js';
 import { urlsCandidatasDeLombada } from './nomes-no-libretro.js';
 
 /**
  * Tenta, em ordem, cada URL candidata de capa no `libretro-thumbnails`, e
  * fica com a primeira que o navegador conseguir baixar.
  *
- * O `libretro-thumbnails` só cataloga capa frontal da caixa (`Named_Boxarts`),
- * tela de título e print — não existe foto de lombada em base pública nenhuma.
- * Por isso a imagem resolvida aqui alimenta `capaUrl` do `Cartucho`, que só
- * aparece quando o cartucho abre (hover/foco); a lombada fechada continua
- * sempre com a faixa de cor + título gerado, ver ADR 0016.
- *
  * Sem `HEAD` nem checagem prévia: cada candidata é testada com um `Image()`
  * de verdade — o mesmo carregamento que uma tag `<img>` faria, e sem precisar
  * de CORS, já que é só exibição — só que fora da árvore de DOM, para a
  * prateleira não piscar ícone de imagem quebrada enquanto tenta a próxima.
+ * Enquanto nenhuma responde, a arte substituta (matiz por título) segura a
+ * moldura.
  */
 function useCapaAutomatica(titulo: string, systemId: SystemId): string | null {
   const [urlResolvida, setUrlResolvida] = useState<string | null>(null);
@@ -56,21 +52,20 @@ function useCapaAutomatica(titulo: string, systemId: SystemId): string | null {
 
 function ItemDaEstante({ rom }: { readonly rom: RomLocal }) {
   const capaUrl = useCapaAutomatica(rom.title, rom.systemId);
-  const lombadaUrl = urlDaLombadaLocal(rom);
 
   return (
     <Link
       to="/meus-jogos/$id"
       params={{ id: rom.id }}
-      className="group block outline-none"
+      className="pv-cartucho"
       aria-label={`Jogar ${rom.title}`}
     >
-      <Cartucho
+      <MioloDoCartucho
         titulo={rom.title}
         systemId={rom.systemId}
-        selo={`${(rom.sizeBytes / 1024).toFixed(0)} KB`}
         capaUrl={capaUrl}
-        lombadaUrl={lombadaUrl}
+        nota={`${rom.systemId.toUpperCase()} · ${(rom.sizeBytes / 1024).toFixed(0)} KB`}
+        selo="Local"
       />
     </Link>
   );
@@ -87,7 +82,7 @@ export function LocalLibrary() {
   const total = roms.reduce((soma, rom) => soma + rom.sizeBytes, 0);
 
   return (
-    <section className="mt-12">
+    <section className="mt-10">
       <EtiquetaDeGaveta
         nome="Meus jogos"
         itens={roms.length}

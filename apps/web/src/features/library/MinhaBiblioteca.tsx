@@ -1,11 +1,14 @@
 import { Link } from '@tanstack/react-router';
+import { Heart, Play, Trash2, Trophy, Upload } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { LibraryRom } from '@pixelvault/contracts';
 import { ApiRequestError } from '../../lib/api.js';
+import { BotaoIcone, classesDaPilula } from '../../ui/Botao.js';
+import { Aviso, Vazio } from '../../ui/Painel.js';
 import { useSessao } from '../auth/sessao.js';
 import { Cartucho } from './Cartucho.js';
 import { ConfirmarRemocao } from './ConfirmarRemocao.js';
-import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
+import { CartuchoEsqueleto, EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
 import { emBytesLegiveis } from './tamanho.js';
 import { useBiblioteca, useFavoritarRom, useRemoverRom } from './use-biblioteca.js';
 
@@ -14,25 +17,22 @@ import { useBiblioteca, useFavoritarRom, useRemoverRom } from './use-biblioteca.
  *
  * ## Por que na home, e não numa rota própria
  *
- * Porque a home **é** a estante. Ela abre com o frontispício de um acervo e
- * segue em prateleiras; mandar a coleção da pessoa para `/minha-biblioteca`
- * faria a página inicial de quem tem cinquenta ROMs mostrar só o homebrew dos
- * outros, e a coleção dela viraria um lugar aonde se vai. O envio ganhou rota
- * própria (`/enviar-rom`) porque é uma **tarefa** com começo, meio e fim; uma
- * estante não é tarefa, é onde as coisas ficam.
+ * Porque a home **é** a estante. Ela abre com a vitrine e segue em
+ * prateleiras; mandar a coleção da pessoa para `/minha-biblioteca` faria a
+ * página inicial de quem tem cinquenta ROMs mostrar só o homebrew dos outros,
+ * e a coleção dela viraria um lugar aonde se vai. O envio ganhou rota própria
+ * (`/enviar-rom`) porque é uma **tarefa** com começo, meio e fim; uma estante
+ * não é tarefa, é onde as coisas ficam.
  *
  * Vem antes do catálogo público pelo mesmo motivo: o que é seu primeiro. Para
- * quem não está logado a seção simplesmente não existe, e a home continua como
- * era.
+ * quem não está logado a seção simplesmente não existe.
  *
- * ## O que o cartucho faz quando clicado
+ * ## O que o cartucho faz
  *
- * O botão "Jogar" da etiqueta leva a `/biblioteca/:romId` (#99), que lê a URL
- * assinada de `/library/roms/:romId/download` e monta o player. Não é o
- * cartucho inteiro que virou link — `Cartucho` já documenta por que
- * (`rodape` fica dentro do mesmo grupo dos botões de favoritar/remover, e um
- * `<a>` por cima dos três seria elemento interativo dentro de elemento
- * interativo). O botão mora no rodapé, ao lado dos outros dois.
+ * A barra que aparece sobre a arte tem as quatro ações que ele aceita:
+ * "Jogar" leva a `/biblioteca/:romId` (#99), o coração favorita, o troféu
+ * abre o ranking (#122, só para ROM reconhecida no catálogo) e a lixeira
+ * pede confirmação antes de tirar do acervo.
  */
 export function MinhaBiblioteca() {
   const sessao = useSessao();
@@ -49,10 +49,10 @@ export function MinhaBiblioteca() {
         : 'Não foi possível falar com a API.';
     return (
       <Secao>
-        <div className="mx-6 border-l-2 border-alert bg-ink-900 p-5">
-          <h3 className="titulo-estampado text-sm text-label-100">Sua estante não respondeu</h3>
-          <p className="mt-1 text-sm text-ink-500">{detalhe}</p>
-        </div>
+        <EtiquetaDeGaveta nome="Minha biblioteca" itens={0} nota="privadas da sua conta" />
+        <Aviso titulo="Sua estante não respondeu" className="mt-5">
+          {detalhe}
+        </Aviso>
       </Secao>
     );
   }
@@ -60,9 +60,10 @@ export function MinhaBiblioteca() {
   if (isPending) {
     return (
       <Secao>
+        <EtiquetaDeGaveta nome="Minha biblioteca" itens={0} nota="privadas da sua conta" />
         <Prateleira>
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="h-[17rem] w-14 shrink-0 animate-pulse bg-ink-900" />
+            <CartuchoEsqueleto key={i} />
           ))}
         </Prateleira>
       </Secao>
@@ -110,7 +111,7 @@ export function MinhaBiblioteca() {
 }
 
 function Secao({ children }: { readonly children: ReactNode }) {
-  return <section className="mb-12">{children}</section>;
+  return <section className="mt-10">{children}</section>;
 }
 
 /**
@@ -121,35 +122,29 @@ function EstanteVazia() {
   return (
     <Secao>
       <EtiquetaDeGaveta nome="Minha biblioteca" itens={0} nota="privadas da sua conta" />
-      <div className="mx-6 mt-6 border border-dashed border-ink-850 p-8">
-        <h3 className="titulo-estampado text-sm text-label-100">Sua estante está vazia</h3>
-        <p className="mt-1 max-w-prose text-sm leading-relaxed text-ink-500">
-          As ROMs que você enviar ficam aqui, privadas da sua conta. Ninguém mais as baixa.
-        </p>
-        <Link
-          to="/enviar-rom"
-          className="mt-4 inline-block border border-ink-700 px-3 py-1 text-xs text-label-200 outline-none hover:border-label-400 hover:text-label-100 focus-visible:border-label-400"
-        >
-          Enviar uma ROM
-        </Link>
-      </div>
+      <Vazio
+        className="mt-5"
+        titulo="Sua estante está vazia."
+        acao={
+          <Link to="/enviar-rom" className={classesDaPilula({ pequena: true })}>
+            <Upload size={15} /> Enviar uma ROM
+          </Link>
+        }
+      >
+        As ROMs que você enviar ficam aqui, privadas da sua conta. Ninguém mais as baixa.
+      </Vazio>
     </Secao>
   );
 }
 
 /**
- * Um cartucho da estante pessoal, com as duas ações que ele aceita.
+ * Um cartucho da estante pessoal, com as ações que ele aceita.
  *
- * O `tabIndex` no grupo não é enfeite de acessibilidade: a etiqueta (e os
- * botões dentro dela) só aparece com o cartucho aberto, e quem navega por
- * teclado precisa de um jeito de abri-lo. Focar o cartucho abre; a partir daí
- * o `group-focus-within` do `Cartucho` mantém a etiqueta aberta enquanto o
- * foco estiver em algum botão de dentro.
- *
- * O `role="group"` com `aria-label` é o que dá contexto aos botões: eles se
- * chamam "Favoritar" e "Remover" e nada mais, porque quem os alcança já
- * entrou no grupo daquele cartucho e ouviu o nome dele. Repetir o título em
- * cada `aria-label` seria dizer o mesmo duas vezes seguidas.
+ * O `role="group"` com `aria-label` (dentro de `Cartucho`) é o que dá
+ * contexto aos botões: eles se chamam "Favoritar" e "Remover" e nada mais,
+ * porque quem os alcança já entrou no grupo daquele cartucho e ouviu o nome
+ * dele. O nome do arquivo entra no rótulo porque quem tem duas versões do
+ * mesmo jogo precisa distingui-las, e o título das duas é igual.
  */
 function NaEstante({
   rom,
@@ -161,92 +156,48 @@ function NaEstante({
   const favoritar = useFavoritarRom();
 
   return (
-    <div
-      className="group relative rounded-[2px] outline-none focus-visible:ring-1 focus-visible:ring-label-400"
-      tabIndex={0}
-      role="group"
-      aria-label={`${rom.title} — ${rom.fileName}`}
-    >
-      <Cartucho
-        titulo={rom.title}
-        systemId={rom.systemId}
-        selo={emBytesLegiveis(rom.sizeBytes)}
-        capaUrl={rom.coverUrl}
-        favorito={rom.isFavorite}
-        rodape={
-          // Empilhados, e não lado a lado: "Desfavoritar" não cabe em meia
-          // etiqueta sem virar abreviação, e abreviar o rótulo de um botão que
-          // já é pequeno é pedir para a pessoa adivinhar o que ele faz.
-          <div className="flex flex-col gap-1">
-            <Link
-              to="/biblioteca/$romId"
-              params={{ romId: rom.id }}
-              className="block w-full border border-ink-700 px-1 py-0.5 text-center text-[0.6rem] uppercase tracking-wide text-label-100 outline-none transition-colors hover:bg-label-100 hover:text-ink-950 focus-visible:bg-label-100 focus-visible:text-ink-950"
-            >
-              Jogar
-            </Link>
-            {
-              // Ranking (#122) é POR JOGO do catálogo, não por arquivo — só
-              // existe link para quem já tem `gameId` (hash reconhecido, ADR
-              // 0006). ROM ainda não reconhecida simplesmente não ganha o
-              // botão, do mesmo jeito que ela não ganha capa nem título do
-              // catálogo antes do match.
-              rom.gameId !== null && (
-                <Link
-                  to="/ranking/$gameId"
-                  params={{ gameId: rom.gameId }}
-                  className="block w-full border border-ink-700 px-1 py-0.5 text-center text-[0.6rem] uppercase tracking-wide text-label-100 outline-none transition-colors hover:bg-label-100 hover:text-ink-950 focus-visible:bg-label-100 focus-visible:text-ink-950"
-                >
-                  Ranking
-                </Link>
-              )
-            }
-            <BotaoDaEtiqueta
-              rotulo={rom.isFavorite ? 'Desfavoritar' : 'Favoritar'}
-              ocupado={favoritar.isPending}
-              aoClicar={() => {
-                favoritar.mutate({ romId: rom.id, favorito: !rom.isFavorite });
-              }}
-            />
-            <BotaoDaEtiqueta rotulo="Remover" perigo aoClicar={aoRemover} />
-          </div>
-        }
-      />
-    </div>
-  );
-}
-
-/**
- * Botão do tamanho de uma etiqueta de cartucho.
- *
- * Fundo claro e texto escuro porque ele vive **sobre o papel** da etiqueta, e
- * não sobre a tinta do fundo — é o único lugar do produto onde a hierarquia se
- * inverte. O de remover ganha a cor de alerta, que existe para isso e não é
- * nenhuma das quatro cores dos slots de save (docs/design.md).
- */
-function BotaoDaEtiqueta({
-  rotulo,
-  aoClicar,
-  ocupado = false,
-  perigo = false,
-}: {
-  readonly rotulo: string;
-  readonly aoClicar: () => void;
-  readonly ocupado?: boolean;
-  readonly perigo?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={ocupado}
-      onClick={aoClicar}
-      className={`w-full border px-1 py-0.5 text-[0.6rem] uppercase tracking-wide outline-none transition-colors disabled:opacity-50 ${
-        perigo
-          ? 'border-alert/60 text-alert hover:bg-alert hover:text-label-100 focus-visible:bg-alert focus-visible:text-label-100'
-          : 'border-ink-800/40 text-ink-800 hover:bg-ink-850 hover:text-label-100 focus-visible:bg-ink-850 focus-visible:text-label-100'
-      }`}
-    >
-      {rotulo}
-    </button>
+    <Cartucho
+      titulo={rom.title}
+      systemId={rom.systemId}
+      capaUrl={rom.coverUrl}
+      favorito={rom.isFavorite}
+      nota={`${rom.systemId?.toUpperCase() ?? 'ROM'} · ${emBytesLegiveis(rom.sizeBytes)}`}
+      rotulo={`${rom.title} — ${rom.fileName}`}
+      acoes={
+        <>
+          <Link to="/biblioteca/$romId" params={{ romId: rom.id }}>
+            <Play size={13} fill="currentColor" /> Jogar
+          </Link>
+          <BotaoIcone
+            rotulo={rom.isFavorite ? 'Desfavoritar' : 'Favoritar'}
+            aria-pressed={rom.isFavorite}
+            disabled={favoritar.isPending}
+            onClick={() => favoritar.mutate({ romId: rom.id, favorito: !rom.isFavorite })}
+          >
+            <Heart size={15} fill={rom.isFavorite ? 'currentColor' : 'none'} />
+          </BotaoIcone>
+          {
+            // Ranking (#122) é POR JOGO do catálogo, não por arquivo — só
+            // existe link para quem já tem `gameId` (hash reconhecido, ADR
+            // 0006). ROM ainda não reconhecida simplesmente não ganha o
+            // botão, do mesmo jeito que ela não ganha capa antes do match.
+            rom.gameId !== null && (
+              <Link
+                to="/ranking/$gameId"
+                params={{ gameId: rom.gameId }}
+                className="pv-icone"
+                aria-label="Ranking"
+                title="Ranking"
+              >
+                <Trophy size={15} />
+              </Link>
+            )
+          }
+          <BotaoIcone rotulo="Remover" className="pv-icone--perigo" onClick={aoRemover}>
+            <Trash2 size={15} />
+          </BotaoIcone>
+        </>
+      }
+    />
   );
 }
