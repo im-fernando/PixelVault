@@ -16,14 +16,15 @@ import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
 import { RateLimitedError } from './infrastructure/errors.js';
 import { criarArmazenamentoS3 } from './infrastructure/storage/armazenamento-s3.js';
+import { achievementsRoutes } from './modules/achievements/index.js';
 import { catalogRoutes } from './modules/catalog/index.js';
 import {
   criarEnvioDeEmail,
   criarLimitesDeAutenticacao,
   identityRoutes,
 } from './modules/identity/index.js';
-import { libraryRoutes } from './modules/library/index.js';
-import { progressRoutes } from './modules/progress/index.js';
+import { contarRomsNaBiblioteca, libraryRoutes } from './modules/library/index.js';
+import { agregadoDeJogoDoUsuario, progressRoutes } from './modules/progress/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
 /**
@@ -167,6 +168,18 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(sessionsRoutes, { prefix: '/api', sessoes });
   await app.register(libraryRoutes, { prefix: '/api', sessoes, armazenamento });
   await app.register(progressRoutes, { prefix: '/api', sessoes, armazenamento });
+  // As duas funções injetadas aqui são a metade "pergunta" da comunicação
+  // entre `achievements` e os outros módulos — a metade "avisa" já está
+  // dentro de `libraryRoutes`/`progressRoutes`, importada direto da fachada
+  // de `achievements`. As duas direções não podem ser import direto ao
+  // mesmo tempo sem fechar um ciclo; ver o cabeçalho de
+  // `achievements/domain/portas-de-agregacao.ts`.
+  await app.register(achievementsRoutes, {
+    prefix: '/api',
+    sessoes,
+    contarRomsNaBiblioteca,
+    agregadoDeJogoDoUsuario,
+  });
 
   return app;
 }
