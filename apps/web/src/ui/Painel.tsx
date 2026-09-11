@@ -34,7 +34,9 @@ export function Aviso({
     <div role="alert" className={`pv-aviso ${className}`}>
       <p className="text-[15px] font-semibold text-label-100">{titulo}</p>
       {children !== undefined && (
-        <div className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-500">{children}</div>
+        <div className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-ink-500">
+          {children}
+        </div>
       )}
       {acao !== undefined && <div className="mt-4">{acao}</div>}
     </div>

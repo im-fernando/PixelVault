@@ -59,9 +59,7 @@ export function MioloDoCartucho({
       <Arte titulo={titulo} sistema={systemId} capaUrl={capaUrl} />
       {acoes !== undefined && <div className="pv-cartucho-acoes">{acoes}</div>}
       <span className="pv-cartucho-titulo">{titulo}</span>
-      <span className="pv-cartucho-nota">
-        {nota ?? numeroDeAcervo(titulo, systemId)}
-      </span>
+      <span className="pv-cartucho-nota">{nota ?? numeroDeAcervo(titulo, systemId)}</span>
     </>
   );
 }

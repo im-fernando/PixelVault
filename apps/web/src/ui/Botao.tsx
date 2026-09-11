@@ -90,7 +90,13 @@ export function Tecla({ children }: { readonly children: ReactNode }) {
 }
 
 /** "⌨ Navegar": a tecla e o que ela faz. */
-export function Dica({ tecla, children }: { readonly tecla: string; readonly children: ReactNode }) {
+export function Dica({
+  tecla,
+  children,
+}: {
+  readonly tecla: string;
+  readonly children: ReactNode;
+}) {
   return (
     <span className="pv-dica">
       <Tecla>{tecla}</Tecla>

@@ -99,7 +99,9 @@ export function Vitrine() {
     return (
       <Palco
         key={homebrew.id}
-        arte={<Arte titulo={homebrew.title} sistema={homebrew.systemId} capaUrl={homebrew.coverUrl} />}
+        arte={
+          <Arte titulo={homebrew.title} sistema={homebrew.systemId} capaUrl={homebrew.coverUrl} />
+        }
       >
         <p className="pv-vitrine-linha">
           <span className="pv-ponto" />

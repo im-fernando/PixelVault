@@ -59,13 +59,13 @@ todo da mesma cor não parece um trilho.
 
 ## Tipografia
 
-| Papel     | Família                             | Uso                                                                                                       |
-| --------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Cena      | **Archivo** (peso 550, −0,05em)     | Título de cena: o nome do jogo em exposição, o título da página. Classe `.titulo-cena`. É onde a personalidade mora |
-| Rótulo    | **Archivo** (larga, caixa alta)     | Nome de seção e marca. Classe `.titulo-estampado`, e o `h2` de `.pv-secao`                                 |
-| Sobrelinha| **Instrument Sans** (10px, 0,2em)   | A linha espaçada que diz de que se trata a cena. Classe `.sobrelinha`                                     |
-| Corpo     | **Instrument Sans** (15px)          | Todo o resto. Deliberadamente **não** Inter                                                               |
-| Leitura   | **Silkscreen** (bitmap)             | **Só dado de máquina**: fps, hash, byte, versão de core, data, número de acervo. Classe `.leitura`          |
+| Papel      | Família                           | Uso                                                                                                                 |
+| ---------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Cena       | **Archivo** (peso 550, −0,05em)   | Título de cena: o nome do jogo em exposição, o título da página. Classe `.titulo-cena`. É onde a personalidade mora |
+| Rótulo     | **Archivo** (larga, caixa alta)   | Nome de seção e marca. Classe `.titulo-estampado`, e o `h2` de `.pv-secao`                                          |
+| Sobrelinha | **Instrument Sans** (10px, 0,2em) | A linha espaçada que diz de que se trata a cena. Classe `.sobrelinha`                                               |
+| Corpo      | **Instrument Sans** (15px)        | Todo o resto. Deliberadamente **não** Inter                                                                         |
+| Leitura    | **Silkscreen** (bitmap)           | **Só dado de máquina**: fps, hash, byte, versão de core, data, número de acervo. Classe `.leitura`                  |
 
 A regra da bitmap inverte o clichê: o pixel deixa de ser decoração e vira uso
 honesto — número que o computador produziu, não frase que uma pessoa escreveu.

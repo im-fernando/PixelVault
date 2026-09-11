@@ -209,8 +209,7 @@ body {
     color: var(--color-ink-500);
   }
   .pv-marca-simbolo {
-    font:
-      700 36px/0.8 var(--font-display);
+    font: 700 36px/0.8 var(--font-display);
     letter-spacing: -0.19em;
     transform: skew(-9deg);
     padding-right: 8px;
@@ -654,8 +653,7 @@ body {
     opacity: 0.85;
   }
   .pv-arte-substituta > strong {
-    font:
-      650 clamp(10px, 1.5vw, 25px) / 1.05 var(--font-display);
+    font: 650 clamp(10px, 1.5vw, 25px) / 1.05 var(--font-display);
     letter-spacing: -0.04em;
     overflow-wrap: anywhere;
   }
@@ -1018,7 +1016,11 @@ body {
     border-radius: 50%;
     border: 1px solid color-mix(in oklch, var(--nivel, var(--color-luz)) 55%, transparent);
     background:
-      radial-gradient(circle at 35% 30%, color-mix(in oklch, var(--nivel, var(--color-luz)) 45%, transparent), transparent 70%),
+      radial-gradient(
+        circle at 35% 30%,
+        color-mix(in oklch, var(--nivel, var(--color-luz)) 45%, transparent),
+        transparent 70%
+      ),
       oklch(1 0 0 / 0.04);
     color: var(--nivel, var(--color-luz));
     box-shadow: 0 0 24px color-mix(in oklch, var(--nivel, var(--color-luz)) 25%, transparent);
