@@ -4,6 +4,7 @@ import type {
   CredenciaisDoUsuario,
   DadosDeCadastro,
   DadosDoUsuario,
+  PerfilPublico,
   ResultadoDeCadastro,
   UserRepository,
 } from '../domain/user-repository.js';
@@ -113,5 +114,23 @@ export const prismaUserRepository: UserRepository = {
       data: { passwordHash: senhaHash },
       select: { id: true },
     });
+  },
+
+  async perfisPublicosPorIds(ids: readonly string[]): Promise<PerfilPublico[]> {
+    if (ids.length === 0) return [];
+
+    // Sem `email` no select, de propósito: este método é a única porta por
+    // onde dado de OUTRA conta sai para exibição, e o que não está no select
+    // não escapa numa serialização distraída — o mesmo raciocínio de
+    // `buscarPorId`, agora mais estrito.
+    const linhas = await prisma.user.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, handle: true, displayName: true },
+    });
+    return linhas.map((linha) => ({
+      userId: linha.id,
+      handle: linha.handle,
+      displayName: linha.displayName,
+    }));
   },
 };

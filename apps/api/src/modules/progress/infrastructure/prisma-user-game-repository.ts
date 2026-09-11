@@ -1,6 +1,8 @@
 import { prisma } from '@pixelvault/database';
 import { calcularCreditoDoHeartbeat } from '../domain/heartbeat.js';
 import type { AgregadoDeJogoDoUsuario } from '../domain/agregado-de-jogo.js';
+import { calcularPosicoes } from '../domain/ranking.js';
+import type { EntradaDeRanking } from '../domain/ranking.js';
 import type { CreditoDeHeartbeat, UserGameRepository } from '../domain/user-game-repository.js';
 
 export const prismaUserGameRepository: UserGameRepository = {
@@ -71,6 +73,47 @@ export const prismaUserGameRepository: UserGameRepository = {
     return {
       jogosDistintos: agregado._count._all,
       segundosJogados: agregado._sum.totalPlaytimeSeconds ?? 0,
+    };
+  },
+
+  async topDoRanking(gameId: string, limite: number): Promise<EntradaDeRanking[]> {
+    // `@@index([gameId, totalPlaytimeSeconds])` (schema.prisma) é o que faz
+    // este `ORDER BY` + `LIMIT` não varrer `user_games` inteira a cada
+    // chamada — a mesma disciplina de índice que `medirUso` já segue em
+    // `library`/`progress` para a cota.
+    const linhas = await prisma.userGame.findMany({
+      where: { gameId },
+      orderBy: { totalPlaytimeSeconds: 'desc' },
+      take: limite,
+      select: { userId: true, totalPlaytimeSeconds: true },
+    });
+
+    // `calcularPosicoes` é quem decide empate — a lista já chega ordenada,
+    // então a função pura só numera; ver o comentário dela para o porquê de
+    // ser RANK() e não ROW_NUMBER().
+    return calcularPosicoes(linhas);
+  },
+
+  async posicaoDaConta(gameId: string, userId: string): Promise<EntradaDeRanking | null> {
+    const minha = await prisma.userGame.findUnique({
+      where: { userId_gameId: { userId, gameId } },
+      select: { totalPlaytimeSeconds: true },
+    });
+    if (minha === null) return null;
+
+    // A posição é "quantas contas jogaram MAIS que eu, mais um" — a mesma
+    // aritmética de RANK() do SQL, só que como um COUNT sobre o índice
+    // `[gameId, totalPlaytimeSeconds]`, sem trazer a tabela inteira para
+    // numerar em memória (que é o que `topDoRanking` faz, mas ali o
+    // `LIMIT` já corta o tamanho do que se traz).
+    const contasComMaisTempo = await prisma.userGame.count({
+      where: { gameId, totalPlaytimeSeconds: { gt: minha.totalPlaytimeSeconds } },
+    });
+
+    return {
+      userId,
+      totalPlaytimeSeconds: minha.totalPlaytimeSeconds,
+      posicao: contasComMaisTempo + 1,
     };
   },
 };

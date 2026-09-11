@@ -89,6 +89,15 @@ describe('habilidades de qualquer um', () => {
     expect(visitante.can('read', perfil(DONO.id))).toBe(false);
     expect(visitante.can('read', conquistas(DONO.id))).toBe(false);
   });
+
+  // `Leaderboard` não tem dono — issue #122: é sobre várias contas ao mesmo
+  // tempo, então a regra não carrega `conditions` de `userId` como as de
+  // cima. Por isso a checagem é pelo TIPO, e não por um recurso montado com
+  // `recurso('Leaderboard', ...)` — não haveria condição para montar.
+  it('exige conta para ler o ranking, mas nenhuma conta é dona dele', () => {
+    expect(visitante.can('read', 'Leaderboard')).toBe(false);
+    expect(logado.can('read', 'Leaderboard')).toBe(true);
+  });
 });
 
 describe('habilidades de admin', () => {
@@ -136,10 +145,12 @@ describe('negar por padrão', () => {
       can(acao: string, assunto: string): boolean;
     };
 
-    // `Leaderboard` ainda não existe (nasce com `achievements` na M6, mas
-    // ainda não recebeu regra nenhuma) — `Achievement` já é assunto real
-    // desde a #120, então deixou de servir a este teste.
-    expect(habilidades.can('read', 'Leaderboard')).toBe(false);
+    // `Season` (temporada) segue não existindo — decisão da #122 foi só
+    // total histórico, sem recorte por temporada (ver docs/adr/0010 e o
+    // cabeçalho do módulo `leaderboards`). `Achievement` e `Leaderboard` já
+    // são assunto real desde a #120/#122, então deixaram de servir a este
+    // teste.
+    expect(habilidades.can('read', 'Season')).toBe(false);
     expect(habilidades.can('publicar', 'Game')).toBe(false);
     expect(habilidades.can('manage', 'all')).toBe(false);
   });

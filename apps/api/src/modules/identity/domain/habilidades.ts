@@ -109,6 +109,12 @@ export function definirRegrasDeHabilidade(usuario: UsuarioParaHabilidades | null
     // Perfil não se cria nem se apaga por aqui: criar é o cadastro, e apagar
     // a conta é fluxo próprio, com regra própria, quando existir.
     { action: ['read', 'update'], subject: 'Profile', conditions: { userId: usuario.id } },
+    // Ranking não tem dono — é sobre várias contas ao mesmo tempo — então,
+    // diferente das regras acima, esta não carrega `conditions`: qualquer
+    // conta autenticada pode ler o ranking de qualquer jogo (issue #122). O
+    // que cada linha do ranking expõe (handle e nome de exibição, nunca
+    // e-mail) já é o que a M6 planeja tornar público em `/u/:handle` (#123).
+    { action: 'read', subject: 'Leaderboard' },
   );
 
   // Admin administra o catálogo — e só ele. Não recebe `manage all`: o acervo

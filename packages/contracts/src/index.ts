@@ -5,3 +5,4 @@ export * from './sessions/index.js';
 export * from './library/index.js';
 export * from './progress/index.js';
 export * from './achievements/index.js';
+export * from './leaderboards/index.js';

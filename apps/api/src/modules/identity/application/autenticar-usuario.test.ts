@@ -5,6 +5,7 @@ import type {
   CredenciaisDoUsuario,
   DadosDeCadastro,
   DadosDoUsuario,
+  PerfilPublico,
   ResultadoDeCadastro,
   UserRepository,
 } from '../domain/user-repository.js';
@@ -61,6 +62,9 @@ function montar(
       },
       async regravarSenhaHash(id: string, senhaHash: string): Promise<void> {
         espiao.regravacoes.push({ id, senhaHash });
+      },
+      async perfisPublicosPorIds(): Promise<PerfilPublico[]> {
+        return [];
       },
     },
   };

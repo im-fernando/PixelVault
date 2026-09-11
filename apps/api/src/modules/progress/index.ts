@@ -26,6 +26,15 @@
  * 0010), pela composition root — mesmo raciocínio de
  * `contarRomsNaBiblioteca` em `library`, para não fechar ciclo com o aviso
  * de evento que este módulo já faz na direção contrária.
+ *
+ * `rankingDoJogo` e `posicaoDaContaNoRanking` saem daqui desde a #122:
+ * `leaderboards` pergunta o ranking de playtime de UM jogo por vez (decisão
+ * de produto documentada em `leaderboards/index.ts`). Diferente da
+ * agregação de `achievements`, esta pergunta não tem direção contrária
+ * nenhuma para fechar ciclo — `progress` nunca precisa de nada de
+ * `leaderboards` —, então `leaderboards/http/routes.ts` importa estas duas
+ * funções direto daqui, o mesmo padrão de `library` importando
+ * `descreverJogos` de `catalog`.
  */
 export { progressRoutes } from './http/routes.js';
 export type { OpcoesDeProgress } from './http/routes.js';
@@ -37,3 +46,5 @@ export type {
 } from './domain/eventos-de-gamificacao.js';
 export type { AgregadoDeJogoDoUsuario } from './domain/agregado-de-jogo.js';
 export { agregadoDeJogoDoUsuario } from './application/agregado-de-jogo-do-usuario.js';
+export type { EntradaDeRanking } from './domain/ranking.js';
+export { posicaoDaContaNoRanking, rankingDoJogo } from './application/ranking-do-jogo.js';

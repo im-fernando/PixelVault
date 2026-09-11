@@ -26,6 +26,12 @@
  * `habilidadesDoUsuario(request.userId)`, perguntam com `recurso(...)` e
  * negam com `autorizarOuNaoEncontrado` — nenhum deles escreve regra própria,
  * e nenhum importa o CASL para isso. Ver docs/adr/0018.
+ *
+ * `perfisPublicosPorIds` sai daqui desde a #122: `leaderboards` pergunta
+ * handle e nome de exibição das contas que aparecem no ranking, em lote —
+ * mesmo raciocínio de `contarRomsNaBiblioteca` em `library`. Devolve só
+ * `PerfilPublico` (nunca `DadosDoUsuario` inteiro): é o par que já vira
+ * público em `/u/:handle` na M6 (#123), nunca o e-mail.
  */
 export { identityRoutes } from './http/routes.js';
 export type { OpcoesDeIdentity } from './http/routes.js';
@@ -59,4 +65,5 @@ export { Handle } from './domain/handle.js';
 export { validarPoliticaDeSenha } from './domain/politica-senha.js';
 export { User } from './domain/user.js';
 export type { PropsCriacaoUser } from './domain/user.js';
-export type { UserRepository } from './domain/user-repository.js';
+export type { PerfilPublico, UserRepository } from './domain/user-repository.js';
+export { perfisPublicosPorIds } from './application/perfis-publicos.js';

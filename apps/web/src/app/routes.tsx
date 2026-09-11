@@ -21,6 +21,7 @@ import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
 import { LocalLibrary } from '../features/library/LocalLibrary.js';
 import { MinhaBiblioteca } from '../features/library/MinhaBiblioteca.js';
+import { LeaderboardPage } from '../features/leaderboards/LeaderboardPage.js';
 import { BibliotecaPlayPage } from '../features/player/BibliotecaPlayPage.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
@@ -301,6 +302,23 @@ const conquistasRoute = createRoute({
   component: PainelDeConquistas,
 });
 
+/**
+ * O ranking de playtime de um jogo (#122). Exige sessão pelo mesmo motivo de
+ * `GET /api/leaderboards/games/:gameId`: a posição da própria conta só
+ * existe para quem está logado, e mostrar o `top` sem ela seria uma tela
+ * incompleta do mesmo dado. `gameId` na URL, não `slug` — é a chave que o
+ * ranking usa do lado do servidor, e a entrada para esta rota (o cartucho da
+ * própria biblioteca) já tem o id em mãos, sem precisar resolver slug.
+ */
+const rankingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/ranking/$gameId',
+  beforeLoad: exigirSessao,
+  component: function Ranking() {
+    return <LeaderboardPage gameId={rankingRoute.useParams().gameId} />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   playRoute,
@@ -309,6 +327,7 @@ const routeTree = rootRoute.addChildren([
   enviarRomRoute,
   consoleRoute,
   conquistasRoute,
+  rankingRoute,
   loginRoute,
   cadastroRoute,
   recuperarSenhaRoute,

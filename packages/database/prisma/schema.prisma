@@ -209,6 +209,12 @@ model UserGame {
 
   @@id([userId, gameId])
   @@index([userId, lastPlayedAt])
+  /// O ranking de playtime por jogo (#122) lê esta tabela ordenada por
+  /// `totalPlaytimeSeconds` DENTRO de um `gameId` — tanto o `top N` quanto o
+  /// `COUNT` que acha a posição da própria conta filtram por `gameId` antes.
+  /// Sem este índice, as duas consultas varreriam `user_games` inteira a
+  /// cada chamada.
+  @@index([gameId, totalPlaytimeSeconds])
   @@map("user_games")
 }
 
