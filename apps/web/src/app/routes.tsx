@@ -25,6 +25,7 @@ import { LeaderboardPage } from '../features/leaderboards/LeaderboardPage.js';
 import { BibliotecaPlayPage } from '../features/player/BibliotecaPlayPage.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
+import { PerfilPublicoPage } from '../features/profile/PerfilPublicoPage.js';
 
 /**
  * O modo console (#116) é para ser "tela cheia, tipo ligar um console de
@@ -319,6 +320,23 @@ const rankingRoute = createRoute({
   },
 });
 
+/**
+ * O perfil público de uma conta (#123) — `/u/:handle`, propositalmente SEM
+ * `beforeLoad: exigirSessao`: ao contrário de quase toda rota autenticada
+ * deste arquivo, esta precisa ser vista por quem não tem conta nenhuma. É a
+ * "camada social" que o ADR 0006 menciona como razão de existir o `game_id`
+ * canônico — nome de exibição, conquistas desbloqueadas e estatística
+ * agregada, nunca a biblioteca de ROMs (privada, BYOR) nem posição de
+ * ranking (o ranking da #122 é por jogo, não geral da conta).
+ */
+const perfilPublicoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/u/$handle',
+  component: function PerfilPublico() {
+    return <PerfilPublicoPage handle={perfilPublicoRoute.useParams().handle} />;
+  },
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   playRoute,
@@ -328,6 +346,7 @@ const routeTree = rootRoute.addChildren([
   consoleRoute,
   conquistasRoute,
   rankingRoute,
+  perfilPublicoRoute,
   loginRoute,
   cadastroRoute,
   recuperarSenhaRoute,

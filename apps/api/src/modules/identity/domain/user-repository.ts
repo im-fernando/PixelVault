@@ -104,4 +104,14 @@ export interface UserRepository {
    * buraco na lista.
    */
   perfisPublicosPorIds(ids: readonly string[]): Promise<PerfilPublico[]>;
+
+  /**
+   * O perfil público de uma conta, achado pelo `handle` — é o que
+   * `GET /api/profiles/:handle` (#123) precisa: a URL chega com o handle,
+   * não com o `userId`. `null` quando não existe conta com esse handle, e
+   * quem chama trata isso como "perfil não encontrado" — não há distinção
+   * entre "não existe" e "existe mas é privado", porque perfil não tem
+   * modo privado (a issue #123 confirma isso).
+   */
+  perfilPublicoPorHandle(handle: string): Promise<PerfilPublico | null>;
 }

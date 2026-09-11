@@ -25,6 +25,7 @@ import {
 } from './modules/identity/index.js';
 import { leaderboardsRoutes } from './modules/leaderboards/index.js';
 import { contarRomsNaBiblioteca, libraryRoutes } from './modules/library/index.js';
+import { profilesRoutes } from './modules/profiles/index.js';
 import { agregadoDeJogoDoUsuario, progressRoutes } from './modules/progress/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
@@ -186,6 +187,11 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // fachadas direto em `http/routes.ts`. Ver o cabeçalho de
   // `modules/leaderboards/index.ts`.
   await app.register(leaderboardsRoutes, { prefix: '/api', sessoes });
+  // O perfil público (#123), mesmo padrão de `leaderboards`: pergunta a
+  // `identity`, `achievements` e `progress` direto pela fachada de cada um,
+  // sem injeção pela composition root (não há ciclo a evitar) e sem sessão.
+  // Ver o cabeçalho de `modules/profiles/index.ts`.
+  await app.register(profilesRoutes, { prefix: '/api' });
 
   return app;
 }

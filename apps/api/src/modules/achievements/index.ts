@@ -27,6 +27,23 @@
  * (`(userId: string) => Promise<void>` nas duas pontas), o mesmo desenho de
  * `IdentificarRomNoCatalogo`.
  *
+ * ## `conquistasDesbloqueadasDoUsuario` (#123)
+ *
+ * O perfil público (`GET /api/profiles/:handle`) precisa mostrar as
+ * conquistas de QUALQUER conta, sem exigir sessão e sem checagem de posse —
+ * é metadado agregado, não a biblioteca de ROMs (essa continua privada,
+ * BYOR). Por isso esta função não repete `exigirPoderSobreAsPropriasConquistas`
+ * de `http/routes.ts`: quem chama já decidiu, no próprio nível, que aquela
+ * leitura é pública.
+ *
+ * Também não refaz `atualizarConquistasPorAgregacao` antes de listar — ao
+ * contrário do que `GET /api/achievements` faz para a própria conta. Refazer
+ * puxaria `contarRomsNaBiblioteca` (de `library`) para dentro deste módulo
+ * outra vez, sem necessidade: o perfil público mostra o que já foi
+ * confirmado, e a conta dona reconcilia o que houver de atrasado na próxima
+ * vez que abrir a própria lista de conquistas. Zero efeito colateral em
+ * quem só está visitando o perfil de outra pessoa.
+ *
  * ## Por que não há uma função simétrica para `library`/`progress` chamarem
  * na direção contrária
  *
@@ -51,6 +68,7 @@ export type { CodigoDeConquista, ConquistaDesbloqueada } from './domain/conquist
 export type { ConquistaDesbloqueadaRepository } from './domain/conquista-desbloqueada-repository.js';
 
 import { registrarConquistaDeEvento } from './application/registrar-evento.js';
+import type { ConquistaDesbloqueada } from './domain/conquista-desbloqueada.js';
 import { prismaConquistaDesbloqueadaRepository } from './infrastructure/prisma-conquista-desbloqueada-repository.js';
 
 const conquistas = prismaConquistaDesbloqueadaRepository;
@@ -68,4 +86,15 @@ export async function avisarPrimeiroSaveState(userId: string): Promise<void> {
 /** O `progress` chama isto em `gravar-sram.ts`, depois de gravar com sucesso. */
 export async function avisarPrimeiraSincronizacao(userId: string): Promise<void> {
   await registrarConquistaDeEvento({ conquistas }, userId, 'primeira_sincronizacao');
+}
+
+/**
+ * As conquistas já desbloqueadas de QUALQUER conta, para o perfil público
+ * (#123) — ver o comentário acima. Leitura pura da persistência, sem
+ * checagem de posse e sem recalcular agregação.
+ */
+export async function conquistasDesbloqueadasDoUsuario(
+  userId: string,
+): Promise<ConquistaDesbloqueada[]> {
+  return conquistas.listar(userId);
 }
