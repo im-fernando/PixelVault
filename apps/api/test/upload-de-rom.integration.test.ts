@@ -240,7 +240,18 @@ afterAll(async () => {
   await Promise.all(objetosCriados.map((chave) => armazenamento.apagar(chave)));
   // O jogo sai por último e por id: `game_roms` cai por cascata com ele, e
   // `user_roms` cai por cascata com os usuários.
-  await prisma.game.deleteMany({ where: { id: jogoId } });
+  //
+  // A guarda de `jogoId` não é excesso de zelo: se `beforeAll` lançar antes
+  // de atribuí-lo (ex.: uma constraint que falhou), `jogoId` fica
+  // `undefined` — e `deleteMany({ where: { id: undefined } })` não é "não
+  // apague nada", é "apague `games` inteira", porque o Prisma trata `undefined`
+  // como ausência de filtro. Contra o banco de dev compartilhado (docs/adr/0022)
+  // isso não é um teste que falha, é uma sessão de outra pessoa perdendo
+  // catálogo de verdade — foi exatamente o que aconteceu nesta sessão.
+  if (jogoId !== undefined) {
+    await prisma.game.deleteMany({ where: { id: jogoId } });
+  }
+  // `in: []` é seguro mesmo vazio — o Prisma gera `IN ()`, que não casa nada.
   await prisma.game.deleteMany({ where: { slug: { in: slugsMd5Criados } } });
   await rastro.limpar();
 });
