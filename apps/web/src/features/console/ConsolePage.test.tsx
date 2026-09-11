@@ -1,0 +1,209 @@
+// @vitest-environment jsdom
+import { type ReactNode } from 'react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProvedorDeSessao } from '../auth/sessao.js';
+import { ConsolePage } from './ConsolePage.js';
+
+/**
+ * O critério de aceite da #116 pede navegação por gamepad físico — que este
+ * ambiente não tem. O que se testa aqui é o fallback de teclado (setas/WASD),
+ * que exercita a MESMA máquina de estado (`selecionarProximo`,
+ * `alternarFavorito`, filtro de coleção, teclado virtual da busca) que o
+ * polling de gamepad chama. A verificação com controle físico fica para
+ * quando o Fernando testar (ver o corpo da issue).
+ */
+
+const USUARIO = {
+  id: '22222222-2222-4222-8222-222222222222',
+  email: 'dono@example.com',
+  handle: 'dono',
+  displayName: 'Dono da estante',
+};
+
+function romDaBiblioteca(sobrescritas: Record<string, unknown> = {}): unknown {
+  return {
+    id: '11111111-1111-4111-8111-111111111111',
+    title: 'Alien vs. Predator',
+    systemId: 'snes',
+    gameId: null,
+    coverUrl: null,
+    fileName: 'avp.sfc',
+    sizeBytes: 512 * 1024,
+    sha256: 'a'.repeat(64),
+    isFavorite: false,
+    uploadedAt: new Date('2024-01-01').toISOString(),
+    ...sobrescritas,
+  };
+}
+
+const BIBLIOTECA = [
+  romDaBiblioteca(),
+  romDaBiblioteca({
+    id: '22222222-2222-4222-8222-222222222222',
+    title: 'Sonic Adventure 2',
+    systemId: 'genesis',
+  }),
+  romDaBiblioteca({
+    id: '33333333-3333-4333-8333-333333333333',
+    title: 'Metroid Prime',
+    systemId: 'gba',
+    isFavorite: true,
+  }),
+];
+
+function respostaJson(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/**
+ * `ConsolePage` usa `<Link>`/`useNavigate` de verdade (o "Play" leva a
+ * `/biblioteca/$romId`) — precisa de um router com essa rota registrada, não
+ * só de uma raiz qualquer como o teste de `BibliotecaPlayPage` usa.
+ */
+function renderizarComRouter(elemento: ReactNode) {
+  const rootRoute = createRootRoute({ component: () => elemento });
+  const bibliotecaPlayRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/biblioteca/$romId',
+    component: () => null,
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([bibliotecaPlayRoute]),
+    history: createMemoryHistory({ initialEntries: ['/console'] }),
+  });
+  return render(<RouterProvider router={router} />);
+}
+
+function clienteDeConsultaAutenticado(): QueryClient {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient.setQueryData(['sessao'], USUARIO);
+  return queryClient;
+}
+
+function montar(favoritarFetch?: (url: string, init?: RequestInit) => Response | undefined) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/auth/me')) return respostaJson({ user: USUARIO });
+      if (url.includes('/favorite')) {
+        const resposta = favoritarFetch?.(url, init);
+        if (resposta) return resposta;
+      }
+      if (url.includes('/library/roms')) return respostaJson(BIBLIOTECA);
+      throw new Error(`fetch não esperado: ${url}`);
+    }),
+  );
+
+  return renderizarComRouter(
+    <QueryClientProvider client={clienteDeConsultaAutenticado()}>
+      <ProvedorDeSessao>
+        <ConsolePage />
+      </ProvedorDeSessao>
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  // O polling de gamepad roda em intervalo real (120ms) fora do controle do
+  // teste; como nenhum destes testes usa fake timers, ele só teria efeito se
+  // `navigator.getGamepads` existisse — não existe em jsdom, então o handler
+  // retorna antes de tocar qualquer estado.
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+describe('ConsolePage', () => {
+  it('troca de jogo em destaque com as setas do teclado (fallback sem gamepad)', async () => {
+    montar();
+
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+
+    // WASD é o fallback do fallback: mesma tecla, mesma máquina de estado.
+    fireEvent.keyDown(window, { key: 'd' });
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+  });
+
+  it('abre a busca e digita pelo teclado virtual usando as setas', async () => {
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    await screen.findByRole('dialog', { name: 'Pesquisar jogos' });
+
+    // O cursor do teclado virtual começa na tecla "1" (índice 0). Duas setas
+    // para a direita chegam em "3"; Enter digita a tecla focada.
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    const campo = screen.getByPlaceholderText<HTMLInputElement>('Digite o nome do jogo...');
+    expect(campo.value).toBe('3');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Pesquisar jogos' })).toBeNull();
+    });
+  });
+
+  it('favorita pelo botão da tela e reflete no destaque', async () => {
+    let romFavoritada: string | null = null;
+    montar((url) => {
+      romFavoritada = url;
+      return respostaJson({
+        romId: '11111111-1111-4111-8111-111111111111',
+        isFavorite: true,
+      });
+    });
+
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'FAVORITAR' }));
+
+    await waitFor(() => {
+      expect(romFavoritada).toContain(
+        '/library/roms/11111111-1111-4111-8111-111111111111/favorite',
+      );
+    });
+  });
+
+  it('filtra por sistema abrindo o menu com ArrowUp e clicando na coleção', async () => {
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+
+    fireEvent.keyDown(window, { key: 'ArrowUp' });
+    // `exact: true` (o padrão para nome em string): o cartucho da Sonic
+    // Adventure 2 também tem "GENESIS" no próprio nome acessível (a etiqueta
+    // de sistema dentro do botão do carrossel), então um regex aqui casaria
+    // com os dois botões.
+    const opcaoGenesis = await screen.findByRole('button', { name: 'GENESIS' });
+    fireEvent.click(opcaoGenesis);
+
+    // Com o filtro em GENESIS, só "Sonic Adventure 2" existe na coleção —
+    // entra selecionado, e o SNES/GBA saem do alcance do D-pad.
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    // Lista de um item só: dar a volta continua no mesmo jogo.
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+  });
+});

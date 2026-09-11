@@ -6,11 +6,14 @@
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource/bebas-neue": "^5.3.0",
+    "@fontsource/rajdhani": "^5.3.0",
     "@fontsource/silkscreen": "^5.3.0",
     "@pixelvault/contracts": "workspace:*",
     "@pixelvault/emulator-runtime": "workspace:*",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.32",
+    "lucide-react": "^1.35.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "zod": "^4.5.4"
