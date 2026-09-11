@@ -6,6 +6,7 @@ import type {
   RomDoUsuario,
   RomDoUsuarioParaDownload,
   RomNaBiblioteca,
+  RomSemJogoReconhecido,
   UserRomRepository,
 } from '../domain/user-rom-repository.js';
 
@@ -113,5 +114,20 @@ export const prismaUserRomRepository: UserRomRepository = {
     // sido removida entre a busca que autorizou e esta chamada, e nenhuma
     // linha afetada é resultado normal — não erro.
     await prisma.userRom.updateMany({ where: { id: romId }, data: { isFavorite: favorito } });
+  },
+
+  async listarSemJogoReconhecido(): Promise<RomSemJogoReconhecido[]> {
+    // Sem `where` por `userId`: é a varredura global da issue #114, e o
+    // índice de `game_id` (implícito no `@@index([gameId])`) cobre o filtro
+    // por nulo também.
+    return prisma.userRom.findMany({ where: { gameId: null }, select: { id: true, sha256: true } });
+  },
+
+  async atualizarJogoReconhecido(romId: string, gameId: string): Promise<void> {
+    // `updateMany` com `gameId: null` na cláusula, não um `if` antes do
+    // `update`: é a mesma guarda de corrida que `definirCapa` faz no
+    // `catalog`, só que aqui contra o upload que reconheceu a mesma ROM
+    // primeiro.
+    await prisma.userRom.updateMany({ where: { id: romId, gameId: null }, data: { gameId } });
   },
 };

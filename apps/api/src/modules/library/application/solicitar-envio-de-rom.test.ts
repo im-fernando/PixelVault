@@ -74,6 +74,12 @@ function repositorioFalso(uso: UsoDaBiblioteca): UserRomRepository {
     definirFavorito: async () => {
       throw new Error('a autorização de envio não mexe em favorito');
     },
+    listarSemJogoReconhecido: async () => {
+      throw new Error('a autorização de envio não reprocessa reconhecimento');
+    },
+    atualizarJogoReconhecido: async () => {
+      throw new Error('a autorização de envio não reprocessa reconhecimento');
+    },
   };
 }
 
@@ -161,6 +167,12 @@ describe('solicitarEnvioDeRom, do lado da cota', () => {
       },
       definirFavorito: async () => {
         throw new Error('a autorização de envio não mexe em favorito');
+      },
+      listarSemJogoReconhecido: async () => {
+        throw new Error('a autorização de envio não reprocessa reconhecimento');
+      },
+      atualizarJogoReconhecido: async () => {
+        throw new Error('a autorização de envio não reprocessa reconhecimento');
       },
     };
 

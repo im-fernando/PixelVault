@@ -111,6 +111,12 @@ function repositorioFalso(): RepositorioFalso {
     definirFavorito: async () => {
       throw new Error('a confirmação não mexe em favorito');
     },
+    listarSemJogoReconhecido: async () => {
+      throw new Error('a confirmação não reprocessa reconhecimento');
+    },
+    atualizarJogoReconhecido: async () => {
+      throw new Error('a confirmação não reprocessa reconhecimento');
+    },
   };
 }
 

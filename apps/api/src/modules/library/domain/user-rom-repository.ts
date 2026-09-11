@@ -105,6 +105,21 @@ export interface NovaRomDoUsuario {
   gameId: string | null;
 }
 
+/**
+ * Uma `user_roms` que ainda não foi ligada a jogo nenhum do catálogo — o
+ * insumo do reprocessamento retroativo (issue #114).
+ *
+ * Só o hash sai daqui, e não a linha inteira: quem varre é uma rota
+ * administrativa perguntando "isto casa com o catálogo de hoje?", não a
+ * biblioteca de ninguém em particular. `userId` e `fileName` não fazem falta
+ * para essa pergunta, e não sair daqui é que evita a rota carregar dado de
+ * conta alheia sem precisar.
+ */
+export interface RomSemJogoReconhecido {
+  id: string;
+  sha256: string;
+}
+
 export interface UserRomRepository {
   /**
    * A ROM daquela pessoa com aquele conteúdo, ou `null`.
@@ -206,4 +221,29 @@ export interface UserRomRepository {
    * quem chamou já sabe o estado que pediu.
    */
   definirFavorito(romId: string, favorito: boolean): Promise<void>;
+
+  /**
+   * Toda `user_roms` sem jogo reconhecido, de qualquer conta.
+   *
+   * É a exceção deliberada ao resto deste repositório, que é sempre por
+   * `userId`: reconhecimento é operação de catálogo, e o catálogo não tem
+   * dono. Restringir por conta faria a issue #114 precisar de uma rota por
+   * pessoa — e a maioria não sabe que deveria chamá-la depois que o catálogo
+   * ganha uma entrada nova.
+   *
+   * Sem paginação, como `listar`: uma varredura administrativa, rara, não
+   * paga o custo de paginar por antecipação. Se um dia a base crescer a ponto
+   * de doer, é hora de revisar — não antes.
+   */
+  listarSemJogoReconhecido(): Promise<RomSemJogoReconhecido[]>;
+
+  /**
+   * Liga a `user_rom` a um jogo do catálogo — só se ela ainda não tivesse um.
+   *
+   * A condição está na cláusula do `UPDATE`, e não num `if` antes dele, pelo
+   * mesmo motivo de `definirCapa` no `catalog`: entre listar e escrever cabe
+   * um upload reconhecendo a mesma ROM primeiro. Quem chegar depois não
+   * sobrescreve o que já está lá.
+   */
+  atualizarJogoReconhecido(romId: string, gameId: string): Promise<void>;
 }
