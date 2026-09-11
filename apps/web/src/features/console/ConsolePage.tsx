@@ -327,8 +327,20 @@ export function ConsolePage() {
 
   return (
     <div className="showcase-page">
+      {/*
+        `url("...")` com aspas, não `url(...)` cru: a URL do libretro-thumbnails
+        vem com parênteses literais não escapados no nome do arquivo (ex.
+        `Super Mario World (USA).png`), e dentro de um token `url()` sem aspas
+        um `(`/`)` sem escape é inválido pela gramática do CSS. O navegador
+        rejeita o valor inteiro em silêncio — nenhum erro, nenhum atributo
+        `style` chega a ser criado no DOM — e o fundo fica preto sem pista
+        nenhuma no console. `<img src>` ao lado não sofre porque src não segue
+        gramática de CSS. Confirmado inspecionando o DOM renderizado: o
+        elemento chegava como `<div class="showcase-bg"></div>`, sem o
+        `style` que o JSX escreve logo abaixo.
+      */}
       {selecionado?.capaUrl ? (
-        <div className="showcase-bg" style={{ backgroundImage: `url(${selecionado.capaUrl})` }} />
+        <div className="showcase-bg" style={{ backgroundImage: `url("${selecionado.capaUrl}")` }} />
       ) : (
         <div className="showcase-bg showcase-bg-placeholder" />
       )}
