@@ -102,6 +102,9 @@ function repositorioFalso(): RepositorioFalso {
       // novo aqui só recusaria o que já foi pago.
       throw new Error('a confirmação não mede cota');
     },
+    contar: async () => {
+      throw new Error('a confirmação não conta a biblioteca');
+    },
     listar: async () => {
       throw new Error('a confirmação não lista a biblioteca');
     },
@@ -122,18 +125,29 @@ function repositorioFalso(): RepositorioFalso {
 
 const semCatalogo: IdentificarRomNoCatalogo = async () => null;
 
+/** Registra quem foi avisado, sem fingir que sabe o que `achievements` faz com isso. */
+function avisoDeEnvioFalso(): {
+  avisados: string[];
+  avisarEnvioDeRom: (userId: string) => Promise<void>;
+} {
+  const avisados: string[] = [];
+  return { avisados, avisarEnvioDeRom: async (userId: string) => void avisados.push(userId) };
+}
+
 describe('confirmarEnvioDeRom', () => {
-  it('promove o objeto para o caminho do conteúdo e cria a referência', async () => {
+  it('promove o objeto para o caminho do conteúdo, cria a referência e avisa o evento', async () => {
     const rom = romDeSnes();
     const armazenamento = armazenamentoFalso(new Map([[QUARENTENA, rom]]));
     const roms = repositorioFalso();
+    const aviso = avisoDeEnvioFalso();
 
     const resposta = await confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo: semCatalogo },
+      { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
       USUARIO,
       ENVIO,
       'zelda.sfc',
     );
+    expect(aviso.avisados).toEqual([USUARIO]);
 
     const destino = `roms/${sha256De(rom)}`;
     expect(resposta).toEqual({
@@ -177,9 +191,10 @@ describe('confirmarEnvioDeRom', () => {
       ]),
     );
     const roms = repositorioFalso();
+    const aviso = avisoDeEnvioFalso();
 
     const resposta = await confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo: semCatalogo },
+      { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
       USUARIO,
       ENVIO,
       'zelda.sfc',
@@ -207,7 +222,7 @@ describe('confirmarEnvioDeRom', () => {
     };
 
     const resposta = await confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo },
+      { armazenamento, roms, catalogo, avisarEnvioDeRom: avisoDeEnvioFalso().avisarEnvioDeRom },
       USUARIO,
       ENVIO,
       'zelda.smc',
@@ -226,9 +241,10 @@ describe('confirmarEnvioDeRom', () => {
       new Map([[QUARENTENA, new Uint8Array(64 * 1024).fill(0x41)]]),
     );
     const roms = repositorioFalso();
+    const aviso = avisoDeEnvioFalso();
 
     const recusa = confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo: semCatalogo },
+      { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
       USUARIO,
       ENVIO,
       'lixo.sfc',
@@ -241,15 +257,25 @@ describe('confirmarEnvioDeRom', () => {
     await expect(recusa).rejects.toBeInstanceOf(DomainError);
     expect(armazenamento.objetos.size).toBe(0);
     expect(roms.registradas).toEqual([]);
+    // Nada foi promovido: o evento de gamificação não pode acender para
+    // uma ROM que a verificação recusou.
+    expect(aviso.avisados).toEqual([]);
   });
 
   it('responde 404 sem ler byte nenhum quando o envio não chegou', async () => {
     const armazenamento = armazenamentoFalso(new Map());
     const roms = repositorioFalso();
+    const aviso = avisoDeEnvioFalso();
 
     await expect(
-      confirmarEnvioDeRom({ armazenamento, roms, catalogo: semCatalogo }, USUARIO, ENVIO, 'a.sfc'),
+      confirmarEnvioDeRom(
+        { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
+        USUARIO,
+        ENVIO,
+        'a.sfc',
+      ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND', status: 404 });
     expect(armazenamento.chamadas).toEqual([]);
+    expect(aviso.avisados).toEqual([]);
   });
 });

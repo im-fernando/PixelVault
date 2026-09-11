@@ -74,6 +74,10 @@ export const prismaUserRomRepository: UserRomRepository = {
     return { bytes: agregado._sum.sizeBytes ?? 0, quantidade: agregado._count._all };
   },
 
+  async contar(userId: string): Promise<number> {
+    return prisma.userRom.count({ where: { userId } });
+  },
+
   async listar(userId: string): Promise<RomNaBiblioteca[]> {
     // Sem `take`: a cota já é o teto (`COTA_DE_ROMS_POR_CONTA`), e um limite a
     // mais aqui esconderia parte da biblioteca de quem chegou perto dele — sem

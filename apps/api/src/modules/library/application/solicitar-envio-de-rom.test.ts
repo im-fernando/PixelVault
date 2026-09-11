@@ -65,6 +65,9 @@ function repositorioFalso(uso: UsoDaBiblioteca): UserRomRepository {
       throw new Error('a autorização de envio não busca por id');
     },
     medirUso: async () => uso,
+    contar: async () => {
+      throw new Error('a autorização de envio não conta a biblioteca');
+    },
     listar: async () => {
       throw new Error('a autorização de envio não lista a biblioteca');
     },
@@ -158,6 +161,9 @@ describe('solicitarEnvioDeRom, do lado da cota', () => {
       },
       medirUso: async () => {
         throw new Error('o atalho do hash responde antes de medir a cota');
+      },
+      contar: async () => {
+        throw new Error('a autorização de envio não conta a biblioteca');
       },
       listar: async () => {
         throw new Error('a autorização de envio não lista a biblioteca');
