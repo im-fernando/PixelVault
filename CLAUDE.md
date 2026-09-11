@@ -47,7 +47,7 @@ tipo de arquivo.
 - **Não criar entidade rica em `catalog` nem em `library`.** Eles são CRUD de
   propósito. Ver [ADR 0005](docs/adr/0005-dominio-rico-somente-onde-ha-invariante.md).
 - **Não confiar em tempo declarado pelo cliente.** Playtime, XP e score são
-  creditados pelo relógio do servidor. Ver ADR 0009 (a escrever, M6).
+  creditados pelo relógio do servidor. Ver [ADR 0009](docs/adr/0009-modelo-de-confianca-do-playtime.md).
 - **Não subir o TypeScript para a 7.** Quebra o `typescript-eslint`, e é o lint
   que sustenta as fronteiras. Ver [ADR 0007](docs/adr/0007-fixar-typescript-6.md).
 
