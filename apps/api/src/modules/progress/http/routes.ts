@@ -19,6 +19,7 @@ import {
   type SlotDeSaveState,
 } from '@pixelvault/contracts';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
+import { avisarPrimeiraSincronizacao, avisarPrimeiroSaveState } from '../../achievements/index.js';
 import { habilidadesDoUsuario } from '../../identity/index.js';
 import { prismaUserRomRepository } from '../../library/index.js';
 import type { Sessoes } from '../../sessions/index.js';
@@ -81,7 +82,12 @@ export const progressRoutes: FastifyPluginAsyncZod<OpcoesDeProgress> = async (ap
       const bytes = Buffer.from(request.body.dataBase64, 'base64');
 
       return gravarSram(
-        { roms: prismaUserRomRepository, saves: prismaUserSaveRepository, armazenamento },
+        {
+          roms: prismaUserRomRepository,
+          saves: prismaUserSaveRepository,
+          armazenamento,
+          avisarSincronizacao: avisarPrimeiraSincronizacao,
+        },
         habilidades,
         userId,
         request.params.romId,
@@ -172,7 +178,12 @@ export const progressRoutes: FastifyPluginAsyncZod<OpcoesDeProgress> = async (ap
       // `@pixelvault/contracts` para o porquê de não ser `SlotDeSaveState`
       // desde a validação.
       return gravarSaveState(
-        { roms: prismaUserRomRepository, saves: prismaUserSaveRepository, armazenamento },
+        {
+          roms: prismaUserRomRepository,
+          saves: prismaUserSaveRepository,
+          armazenamento,
+          avisarSaveState: avisarPrimeiroSaveState,
+        },
         habilidades,
         userId,
         request.params.romId,

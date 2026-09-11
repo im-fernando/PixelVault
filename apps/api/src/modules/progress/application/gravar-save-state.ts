@@ -10,6 +10,7 @@ import { autorizarOuNaoEncontrado, recurso, type Habilidades } from '../../ident
 import type { UserRomRepository } from '../../library/index.js';
 import { caminhoDoSave } from '../domain/caminho-do-save.js';
 import { estouraCotaDeSave } from '../domain/cota.js';
+import type { AvisarPrimeiroSaveState } from '../domain/eventos-de-gamificacao.js';
 import type { SaveNaNuvem, SlotDeSaveState } from '../domain/user-save.js';
 import type { UserSaveRepository } from '../domain/user-save-repository.js';
 
@@ -32,6 +33,13 @@ export interface DependenciasDaGravacaoDeSaveState {
   roms: UserRomRepository;
   saves: UserSaveRepository;
   armazenamento: ArmazenamentoDeObjetos;
+  /**
+   * Avisa `achievements` de que esta conta gravou um save state — issue
+   * #120. Chamado sempre que a gravação vence (nunca no conflito), mesmo
+   * numa regravação do mesmo slot; quem decide se é a "primeira" é o outro
+   * lado da fachada.
+   */
+  avisarSaveState: AvisarPrimeiroSaveState;
 }
 
 export interface EntradaDaGravacaoDeSaveState {
@@ -165,6 +173,8 @@ export async function gravarSaveState(
       await limparMelhorEsforco(deps.armazenamento, antes.thumbnailKey);
     }
   }
+
+  await deps.avisarSaveState(userId);
 
   return {
     status: 'gravado',
