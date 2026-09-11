@@ -8,6 +8,7 @@ import {
   type StateUploadResponse,
 } from '@pixelvault/contracts';
 import { apiFetch } from '../../lib/api.js';
+import { CHAVE_DAS_CONQUISTAS } from '../achievements/use-conquistas.js';
 import { toArrayBuffer } from './storage/bytes.js';
 import { gravarPointerDeSaveState } from './storage/state-sync-pointer.js';
 
@@ -117,6 +118,9 @@ export function useEnviarSaveStateParaNuvem(romId: string, slot: SlotDeSaveState
       // Refaz a listagem: é dela que a galeria (#108) vai ler o estado de
       // sincronização de cada slot depois de uma escolha.
       void queryClient.invalidateQueries({ queryKey: chaveDosSaveStatesNaNuvem(romId) });
+      // Gravar o primeiro save state pode desbloquear `primeiro_save_state`
+      // (ADR 0010) — mesmo raciocínio de `use-envio-de-rom.ts`.
+      void queryClient.invalidateQueries({ queryKey: CHAVE_DAS_CONQUISTAS });
     },
   });
 }

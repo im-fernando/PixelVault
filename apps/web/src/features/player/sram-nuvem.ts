@@ -6,6 +6,7 @@ import {
   type SramUploadResponse,
 } from '@pixelvault/contracts';
 import { apiFetch } from '../../lib/api.js';
+import { CHAVE_DAS_CONQUISTAS } from '../achievements/use-conquistas.js';
 import { gravarRevisaoSincronizada } from './storage/sram-sync-revision.js';
 
 /**
@@ -86,6 +87,10 @@ export function useEnviarSramParaNuvem(romId: string) {
       // Refaz a leitura: é o `useSramNaNuvem` atualizado que vira o "vínculo"
       // visível para o resto da tela.
       void queryClient.invalidateQueries({ queryKey: chaveDoSramNaNuvem(romId) });
+      // Sincronizar SRAM pela primeira vez pode desbloquear
+      // `primeira_sincronizacao` (ADR 0010) — mesmo raciocínio de
+      // `use-envio-de-rom.ts`.
+      void queryClient.invalidateQueries({ queryKey: CHAVE_DAS_CONQUISTAS });
       // Toda gravação bem-sucedida — adoção manual (#92) ou sincronização
       // automática em segundo plano (#91) — marca ESTE aparelho como
       // reconciliado com essa revisão. É o que faz o próximo boot tratar a

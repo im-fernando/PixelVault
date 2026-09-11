@@ -26,6 +26,7 @@ export const HANDLES_RESERVADOS = [
   'configuracoes',
   'recuperar-senha',
   'redefinir-senha',
+  'conquistas',
 ] as const;
 
 export const handleSchema = z

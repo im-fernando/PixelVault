@@ -6,6 +6,8 @@ import {
   Outlet,
   useRouterState,
 } from '@tanstack/react-router';
+import { NotificacaoDeConquista } from '../features/achievements/NotificacaoDeConquista.js';
+import { PainelDeConquistas } from '../features/achievements/PainelDeConquistas.js';
 import { CadastroPage } from '../features/auth/CadastroPage.js';
 import { ConfiguracoesPage } from '../features/auth/ConfiguracoesPage.js';
 import { ContaNoCabecalho } from '../features/auth/ContaNoCabecalho.js';
@@ -91,6 +93,15 @@ function Shell() {
             <Link to="/console" className="hover:text-label-100">
               Modo console
             </Link>
+            {/*
+              "Conquistas" fica no cabeçalho, não só em `/configuracoes`: é a
+              vitrine da issue #121, e o cabeçalho já é onde `/enviar-rom` e
+              `/console` — ações da conta — vivem. Quem não tem sessão que
+              clicar cai no login pelo mesmo `exigirSessao` com `retorno`.
+            */}
+            <Link to="/conquistas" className="hover:text-label-100">
+              Conquistas
+            </Link>
           </nav>
           <span className="leitura hidden text-ink-700 lg:block">snes · o save fica</span>
           <ContaNoCabecalho />
@@ -99,6 +110,7 @@ function Shell() {
       <main className="py-10">
         <Outlet />
       </main>
+      <NotificacaoDeConquista />
     </div>
   );
 }
@@ -274,6 +286,21 @@ const consoleRoute = createRoute({
   component: ConsolePage,
 });
 
+/**
+ * A vitrine de conquistas (#121) — rota própria, não só uma seção de
+ * `/configuracoes`: o cabeçalho já linka `/enviar-rom` e `/console` como
+ * destinos de primeiro nível para quem tem conta, e conquista pede o mesmo
+ * tratamento (a tela é grande o bastante para não caber discretamente na
+ * ficha da conta). Exige sessão pelo mesmo motivo das outras: conquista é da
+ * conta, não do visitante.
+ */
+const conquistasRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/conquistas',
+  beforeLoad: exigirSessao,
+  component: PainelDeConquistas,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   playRoute,
@@ -281,6 +308,7 @@ const routeTree = rootRoute.addChildren([
   meusJogosRoute,
   enviarRomRoute,
   consoleRoute,
+  conquistasRoute,
   loginRoute,
   cadastroRoute,
   recuperarSenhaRoute,
