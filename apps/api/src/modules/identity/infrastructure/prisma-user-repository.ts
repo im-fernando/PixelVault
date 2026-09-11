@@ -133,4 +133,17 @@ export const prismaUserRepository: UserRepository = {
       displayName: linha.displayName,
     }));
   },
+
+  async perfilPublicoPorHandle(handle: string): Promise<PerfilPublico | null> {
+    // Mesmo select restrito de `perfisPublicosPorIds`, de propósito: sem
+    // `email` no `select`, para que dado de outra conta não escape numa
+    // serialização distraída.
+    const linha = await prisma.user.findUnique({
+      where: { handle },
+      select: { id: true, handle: true, displayName: true },
+    });
+    if (linha === null) return null;
+
+    return { userId: linha.id, handle: linha.handle, displayName: linha.displayName };
+  },
 };

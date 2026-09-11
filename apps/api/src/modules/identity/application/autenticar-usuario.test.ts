@@ -66,6 +66,9 @@ function montar(
       async perfisPublicosPorIds(): Promise<PerfilPublico[]> {
         return [];
       },
+      async perfilPublicoPorHandle(): Promise<PerfilPublico | null> {
+        return null;
+      },
     },
   };
 
