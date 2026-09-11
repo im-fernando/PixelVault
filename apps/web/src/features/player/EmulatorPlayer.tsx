@@ -8,6 +8,7 @@ import { PlayerHud, type AcoesDoHud } from './PlayerHud.js';
 import { useEntradaDoJogador } from './input/use-player-input.js';
 import { useAreaDeExibicao } from './use-display-area.js';
 import { GaleriaDeSlots } from './GaleriaDeSlots.js';
+import { useHeartbeatDePlaytime } from './heartbeat-de-playtime.js';
 import { ResolucaoDeConflitoDeSaveState } from './ResolucaoDeConflitoDeSaveState.js';
 import { useSincronizacaoDeSaveStates } from './sincronizacao-de-save-states.js';
 import { useEmulator } from './use-emulator.js';
@@ -44,6 +45,17 @@ export interface PropsDoPlayer {
   readonly sincronizarSaveStateNaNuvem?: boolean | undefined;
   /** Injetável para teste — a mesma porta que `useSincronizacaoDeSaveStates` aceita. */
   readonly saveStateStorage?: SaveStorage | undefined;
+  /**
+   * O `id` da linha da biblioteca, para o heartbeat de playtime (#119) —
+   * **não** é o `romId` acima, que é o `sha256`. `undefined`/ausente por
+   * padrão, do mesmo jeito que `sincronizarSaveStateNaNuvem`: o catálogo
+   * público e o ensaio local nunca sabem o `id` de uma linha de biblioteca
+   * (não têm uma), e não têm sessão para autenticar o heartbeat mesmo se
+   * tivessem. Só `BibliotecaPlayPage` passa isto, e só quando a própria ROM
+   * já tem `gameId` reconhecido — ver docs/adr/0009, decisão 3, para o
+   * porquê de o heartbeat nem ser tentado sem isso.
+   */
+  readonly romIdParaHeartbeat?: string | undefined;
 }
 
 /** Tempo sem mexer o mouse até o HUD sair da frente do jogo. */
@@ -66,10 +78,17 @@ export function EmulatorPlayer({
   onSramWritten,
   sincronizarSaveStateNaNuvem,
   saveStateStorage,
+  romIdParaHeartbeat,
 }: PropsDoPlayer) {
   const emulador = useEmulator({ systemId, rom, registry });
   const saves = useSaves(emulador.adapter, romId ?? null, onSramWritten);
   const { status, capabilities, comandos } = emulador;
+
+  // Mesmo sinal que já pausa a emulação desde a M1 — "rodando" e "aba
+  // visível" é a definição de "está sendo jogado" que o playtime honesto
+  // usa (docs/adr/0009). Nenhum sinal novo, só o primeiro consumidor deste
+  // do lado do playtime.
+  useHeartbeatDePlaytime(romIdParaHeartbeat ?? null, status === 'running' && emulador.abaVisivel);
 
   // Chamado incondicionalmente (regra dos hooks): o hook mesmo fica parado
   // (sem buscar nada, `estadoPorSlot` vazio) quando `romId` é `null` — é o

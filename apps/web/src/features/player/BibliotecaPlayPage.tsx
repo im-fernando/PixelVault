@@ -144,6 +144,12 @@ export function BibliotecaPlayPage({ romId, registry, storage }: Props) {
           onSramWritten={sincronizacao.registrarGravacaoLocal}
           sincronizarSaveStateNaNuvem
           saveStateStorage={storage}
+          // Playtime honesto (#119): só manda heartbeat quando a própria ROM
+          // já tem `gameId` — sem isso o servidor não teria onde creditar
+          // (docs/adr/0009, decisão 3), e nem vale a viagem de rede. `romId`
+          // aqui é o `id` da linha da biblioteca (prop deste componente), não
+          // o `item.sha256` que o player usa para o storage local.
+          romIdParaHeartbeat={item.gameId !== null ? romId : undefined}
         />
       </PlayerErrorBoundary>
     </div>

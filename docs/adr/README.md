@@ -17,6 +17,7 @@ referencia a antiga.
 | [0006](0006-byor-mais-catalogo-de-metadados.md)                   | Adotar BYOR com catálogo de metadados                                          | aceita |
 | [0007](0007-fixar-typescript-6.md)                                | Fixar o TypeScript na 6.x                                                      | aceita |
 | [0008](0008-viabilidade-de-conquistas-por-evento-de-jogo.md)      | Habilitar conquistas por evento de jogo lendo a memória do console             | aceita |
+| [0009](0009-modelo-de-confianca-do-playtime.md)                   | Creditar playtime por heartbeat, medido pelo relógio do servidor               | aceita |
 | [0010](0010-regras-de-gamificacao-da-m6.md)                       | Regras de gamificação da M6: as conquistas de plataforma                       | aceita |
 | [0011](0011-escolha-do-runtime-de-emulacao.md)                    | Adotar Nostalgist.js como runtime de emulação                                  | aceita |
 | [0012](0012-usar-cloudflare-r2-como-object-storage.md)            | Usar Cloudflare R2 como object storage de produção                             | aceita |
@@ -41,4 +42,4 @@ O código de investigação que sustenta os números da 0008 e da 0011 está em
 Decisões já tomadas no planejamento, a serem escritas quando a milestone
 correspondente começar:
 
-- **0009** — modelo de confiança do playtime e do ranking (M6)
+(nenhuma pendente — 0009 e 0010 já escritas)
