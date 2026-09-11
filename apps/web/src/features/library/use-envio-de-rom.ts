@@ -1,4 +1,6 @@
 import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CHAVE_DAS_CONQUISTAS } from '../achievements/use-conquistas.js';
 import {
   descreverArquivo,
   enviarRom,
@@ -34,6 +36,7 @@ export interface EnvioDeRom {
 export function useEnvioDeRom(): EnvioDeRom {
   const [estado, setEstado] = useState<EstadoDoEnvio>({ fase: 'ocioso' });
   const [nestaSessao, setNestaSessao] = useState<readonly RomDaSessao[]>([]);
+  const queryClient = useQueryClient();
 
   const ocupado =
     estado.fase === 'conferindo' || estado.fase === 'enviando' || estado.fase === 'verificando';
@@ -63,9 +66,13 @@ export function useEnvioDeRom(): EnvioDeRom {
           { arquivo: final.arquivo, rom: final.rom },
           ...anteriores.filter((item) => item.rom.romId !== final.rom.romId),
         ]);
+        // Enviar a primeira ROM é gesto que pode desbloquear
+        // `primeira_rom_enviada` (ADR 0010) — invalida a consulta de
+        // conquistas para o front comparar contra o que já tinha visto.
+        void queryClient.invalidateQueries({ queryKey: CHAVE_DAS_CONQUISTAS });
       });
     },
-    [ocupado],
+    [ocupado, queryClient],
   );
 
   const limpar = useCallback(() => {
