@@ -37,13 +37,13 @@ function repositorioFalso(semJogo: RomSemJogoReconhecido[]): RepositorioFalso {
 describe('reprocessarReconhecimento', () => {
   it('liga o game_id de quem casa e deixa o resto como estava', async () => {
     const roms = repositorioFalso([
-      { id: 'rom-donkey', sha256: 'hash-donkey' },
-      { id: 'rom-desconhecida', sha256: 'hash-sem-dono' },
+      { id: 'rom-donkey', sha256: 'hash-donkey', md5: 'md5-donkey' },
+      { id: 'rom-desconhecida', sha256: 'hash-sem-dono', md5: null },
     ]);
-    const perguntados: string[][] = [];
+    const perguntados: { sha256: string[]; md5: string[] }[] = [];
     const catalogo: IdentificarRomNoCatalogo = async (hashes) => {
-      perguntados.push([...hashes]);
-      return hashes.includes('hash-donkey') ? { gameId: 'jogo-donkey-kong-country' } : null;
+      perguntados.push({ sha256: [...hashes.sha256], md5: [...hashes.md5] });
+      return hashes.sha256.includes('hash-donkey') ? { gameId: 'jogo-donkey-kong-country' } : null;
     };
 
     const resultado = await reprocessarReconhecimento({ roms, catalogo });
@@ -52,12 +52,15 @@ describe('reprocessarReconhecimento', () => {
     expect(roms.atualizacoes).toEqual([
       { romId: 'rom-donkey', gameId: 'jogo-donkey-kong-country' },
     ]);
-    expect(perguntados).toEqual([['hash-donkey'], ['hash-sem-dono']]);
+    expect(perguntados).toEqual([
+      { sha256: ['hash-donkey'], md5: ['md5-donkey'] },
+      { sha256: ['hash-sem-dono'], md5: [] },
+    ]);
   });
 
   it('não atualiza nada e não estoura quando nenhuma ROM casa', async () => {
     const roms = repositorioFalso([
-      { id: 'rom-homebrew-obscuro', sha256: 'hash-nunca-catalogado' },
+      { id: 'rom-homebrew-obscuro', sha256: 'hash-nunca-catalogado', md5: null },
     ]);
     const semCatalogo: IdentificarRomNoCatalogo = async () => null;
 

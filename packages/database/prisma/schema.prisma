@@ -139,11 +139,26 @@ model Game {
 }
 
 /// Hashes conhecidos por jogo. É o que permite o match do BYOR: o usuário
-/// sobe a ROM, casamos o SHA-256 aqui e a capa aparece sozinha.
+/// sobe a ROM, casamos o hash aqui e a capa aparece sozinha.
+///
+/// `sha256` é nullable desde a issue #134: as entradas importadas do banco
+/// público No-Intro (`libretro/libretro-database`) só trazem CRC32/MD5/SHA1
+/// — nunca SHA-256, que é o hash pelo qual o PixelVault endereça o objeto no
+/// storage (ADR 0013). `md5` cobre esse caso; as entradas cadastradas à mão
+/// antes da #134 continuam só com `sha256`. Uma linha nunca tem os dois nulos
+/// ao mesmo tempo — não é uma constraint do banco porque `@@unique` em cada
+/// coluna, com `null` como valor que nunca colide consigo mesmo no Postgres,
+/// já impede duplicata sem precisar de um `CHECK` a mais.
 model GameRom {
   id         String  @id @default(uuid()) @db.Uuid
   gameId     String  @map("game_id") @db.Uuid
-  sha256     String  @unique
+  sha256     String? @unique
+  /// O hash que o banco No-Intro cataloga (issue #134). Só MD5 entrou no
+  /// escopo — ver a justificativa no README da importação
+  /// (`apps/api/src/modules/catalog/infrastructure/importacao-no-intro/`):
+  /// os cinco sistemas suportados são todos cartucho, sem homebrew regravável
+  /// nem variante que precise de CRC32/SHA1 para desambiguar.
+  md5        String? @unique
   region     String?
   revision   String?
   /// Preenchido só para homebrew, que podemos distribuir.
@@ -164,6 +179,12 @@ model UserRom {
   userId     String   @map("user_id") @db.Uuid
   gameId     String?  @map("game_id") @db.Uuid
   sha256     String
+  /// MD5 do arquivo como enviado (issue #134) — segundo candidato de match
+  /// contra o No-Intro, junto com `sha256`. Nulo para linha gravada antes da
+  /// #134. Não é `@unique`: ao contrário do `sha256`, que endereça o objeto
+  /// (ADR 0013) e por isso é único por `[userId, sha256]`, o `md5` aqui é só
+  /// dado auxiliar para reprocessamento — nada depende dele ser distinto.
+  md5        String?
   storageKey String   @map("storage_key")
   sizeBytes  Int      @map("size_bytes")
   fileName   String   @map("file_name")

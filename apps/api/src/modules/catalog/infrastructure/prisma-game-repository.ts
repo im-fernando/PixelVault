@@ -1,7 +1,12 @@
 import { prisma, type Prisma } from '@pixelvault/database';
 import type { Game, GameDetail, GameListQuery, HomebrewRom } from '@pixelvault/contracts';
 import type { JogoSemCapa } from '../domain/busca-de-capa.js';
-import type { FichaDeJogo, GameRepository, RomDoCatalogo } from '../domain/game-repository.js';
+import type {
+  FichaDeJogo,
+  GameRepository,
+  HashesParaCasar,
+  RomDoCatalogo,
+} from '../domain/game-repository.js';
 
 type LinhaJogo = {
   id: string;
@@ -15,7 +20,11 @@ type LinhaJogo = {
 };
 
 type LinhaRom = {
-  sha256: string;
+  // Nullable desde a issue #134 (entrada importada do No-Intro pode não ter
+  // SHA-256), mas homebrew é sempre cadastrado à mão com o hash do arquivo
+  // que o front serve — `paraRomDeHomebrew` trata `null` como "nada para
+  // servir", pela mesma defensiva de `storageKey` vazia logo abaixo.
+  sha256: string | null;
   storageKey: string | null;
   sizeBytes: number | null;
 };
@@ -56,6 +65,7 @@ const CAMPOS_DA_ROM = { sha256: true, storageKey: true, sizeBytes: true } as con
 function paraRomDeHomebrew(linha: LinhaRom): HomebrewRom | null {
   const chave = linha.storageKey;
   if (chave === null || chave.length === 0) return null;
+  if (linha.sha256 === null) return null;
 
   const caminho = chave.startsWith('/') ? chave : `/${chave}`;
   const nomeDoArquivo = caminho.slice(caminho.lastIndexOf('/') + 1);
@@ -112,16 +122,29 @@ export const prismaGameRepository: GameRepository = {
     };
   },
 
-  async identificarRomPorHash(hashes: readonly string[]): Promise<RomDoCatalogo | null> {
-    if (hashes.length === 0) return null;
+  async identificarRomPorHash(hashes: HashesParaCasar): Promise<RomDoCatalogo | null> {
+    const sha256 = [...new Set(hashes.sha256)];
+    const md5 = [...new Set(hashes.md5)];
+    if (sha256.length === 0 && md5.length === 0) return null;
 
-    // `sha256` é `@unique` global em `game_roms`, então "primeiro que casar" é
-    // determinístico mesmo com os dois hashes na consulta: no máximo um deles
-    // existe na tabela. Um `findFirst` com `in` é um acerto de índice, e não
-    // duas consultas em sequência.
+    // `sha256` e `md5` são `@unique` global em `game_roms`, cada um no seu
+    // tipo — então "primeiro que casar" é determinístico: no máximo uma linha
+    // por coluna existe na tabela, e as duas colunas nunca casam o mesmo
+    // candidato porque a pergunta nunca mistura os tipos (ver `HashesParaCasar`
+    // no domínio). O `OR` com dois `in` é um acerto de índice cada, não duas
+    // consultas em sequência. `orderBy` só para desempatar de forma estável
+    // no caso raro de um `game_roms` casar por sha256 e outro por md5 ao mesmo
+    // tempo — nunca deveria acontecer, mas a resposta não pode depender da
+    // ordem física do Postgres.
     const linha = await prisma.gameRom.findFirst({
-      where: { sha256: { in: [...hashes] } },
+      where: {
+        OR: [
+          ...(sha256.length > 0 ? [{ sha256: { in: sha256 } }] : []),
+          ...(md5.length > 0 ? [{ md5: { in: md5 } }] : []),
+        ],
+      },
       select: { gameId: true },
+      orderBy: { id: 'asc' },
     });
 
     return linha === null ? null : { gameId: linha.gameId };

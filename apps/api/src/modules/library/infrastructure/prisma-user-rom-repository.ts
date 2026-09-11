@@ -33,6 +33,7 @@ export const prismaUserRomRepository: UserRomRepository = {
       create: {
         userId: rom.userId,
         sha256: rom.sha256,
+        md5: rom.md5,
         storageKey: rom.storageKey,
         sizeBytes: rom.sizeBytes,
         fileName: rom.fileName,
@@ -125,7 +126,10 @@ export const prismaUserRomRepository: UserRomRepository = {
     // Sem `where` por `userId`: é a varredura global da issue #114, e o
     // índice de `game_id` (implícito no `@@index([gameId])`) cobre o filtro
     // por nulo também.
-    return prisma.userRom.findMany({ where: { gameId: null }, select: { id: true, sha256: true } });
+    return prisma.userRom.findMany({
+      where: { gameId: null },
+      select: { id: true, sha256: true, md5: true },
+    });
   },
 
   async atualizarJogoReconhecido(romId: string, gameId: string): Promise<void> {

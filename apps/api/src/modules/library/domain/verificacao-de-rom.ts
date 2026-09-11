@@ -17,6 +17,10 @@ import { RomRecusada } from './erros.js';
  * É essa promessa que sustenta o `roms/<sha256>` compartilhado da ADR 0013:
  * sem ela, mentir o hash no pedido de upload envenenaria a ROM de todo mundo.
  *
+ * O `md5` sai da mesma promessa, calculado sobre os mesmos bytes — mas não
+ * endereça nada. Ele existe só para casar contra o banco público No-Intro
+ * (issue #134), que cataloga CRC32/MD5/SHA1 e nunca SHA-256.
+ *
  * Não promete reconhecer todo formato do mundo, nem emular o console para
  * saber se o jogo roda. O objetivo é recusar cedo o que obviamente não é ROM
  * daquele sistema — um `.zip` renomeado, um PDF, um dump de outro console — e
@@ -141,6 +145,14 @@ export interface RomVerificada {
    * os dois. Nulo quando o arquivo não tem cabeçalho a descontar.
    */
   readonly sha256SemHeader: string | null;
+  /**
+   * MD5 do arquivo como ele foi enviado — a issue #134 (No-Intro por hash).
+   * O SHA-256 continua sendo o endereço do objeto (ADR 0013); o MD5 existe só
+   * para casar contra o banco público No-Intro, que nunca cataloga SHA-256.
+   */
+  readonly md5: string;
+  /** MD5 sem o cabeçalho de copiador, pelo mesmo motivo de `sha256SemHeader`. */
+  readonly md5SemHeader: string | null;
   readonly sizeBytes: number;
   /** O nome já higienizado — sem diretório, sem caractere de controle. */
   readonly fileName: string;
@@ -205,6 +217,10 @@ export function verificarRom(bytes: Uint8Array, nomeInformado: string): RomVerif
     sha256SemHeader: temCabecalhoDeCopiador
       ? sha256De(bytes.subarray(TAMANHO_DO_CABECALHO_DE_COPIADOR))
       : null,
+    md5: md5De(bytes),
+    md5SemHeader: temCabecalhoDeCopiador
+      ? md5De(bytes.subarray(TAMANHO_DO_CABECALHO_DE_COPIADOR))
+      : null,
     sizeBytes: bytes.byteLength,
     fileName,
   };
@@ -212,6 +228,10 @@ export function verificarRom(bytes: Uint8Array, nomeInformado: string): RomVerif
 
 function sha256De(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
+}
+
+function md5De(bytes: Uint8Array): string {
+  return createHash('md5').update(bytes).digest('hex');
 }
 
 function conferirTamanho(bytes: Uint8Array, systemId: SystemId): void {

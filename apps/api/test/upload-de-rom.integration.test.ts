@@ -75,6 +75,9 @@ const armazenamento = criarArmazenamentoS3({
 /** O que este arquivo escreveu no bucket e precisa apagar no fim. */
 const objetosCriados: string[] = [];
 
+/** Slugs de `games` que a suíte da issue #134 criou — apagados no fim. */
+const slugsMd5Criados: string[] = [];
+
 let app: FastifyInstance;
 
 type RespostaInjetada = Awaited<ReturnType<FastifyInstance['inject']>>;
@@ -238,6 +241,7 @@ afterAll(async () => {
   // O jogo sai por último e por id: `game_roms` cai por cascata com ele, e
   // `user_roms` cai por cascata com os usuários.
   await prisma.game.deleteMany({ where: { id: jogoId } });
+  await prisma.game.deleteMany({ where: { slug: { in: slugsMd5Criados } } });
   await rastro.limpar();
 });
 
@@ -545,5 +549,70 @@ describe('POST /api/library/uploads/:uploadId/complete', () => {
     const resposta = await concluir(cookie, 'nao-e-um-uuid');
 
     expect(resposta.statusCode).toBe(400);
+  }, 60_000);
+});
+
+/**
+ * O critério de aceite da issue #134: ROM cujo MD5 bate com uma entrada do
+ * No-Intro é reconhecida na confirmação do upload, mesmo sem SHA-256 nenhum
+ * em `game_roms` — é exatamente a forma como a importação em lote
+ * (`scripts/no-intro/importar-no-intro.ts`) povoa o catálogo: sem
+ * `storageKey`, sem `sha256`, só o hash que o banco público traz.
+ */
+describe('POST /api/library/uploads/:uploadId/complete — reconhecimento por MD5 (issue #134)', () => {
+  it('reconhece pelo MD5 quando o catálogo não tem SHA-256 nenhum para o jogo', async () => {
+    const marcador = new Uint8Array(randomBytes(32));
+    const rom = romDeSnes({ marcador });
+    const md5DoArquivo = createHash('md5').update(rom).digest('hex');
+
+    await prisma.system.upsert({
+      where: { id: 'snes' },
+      create: { id: 'snes', name: 'Super Nintendo', coreSlug: 'snes9x2010' },
+      update: {},
+    });
+    const slug = `zz-teste-upload-md5-${randomUUID().slice(0, 8)}`;
+    slugsMd5Criados.push(slug);
+    const jogo = await prisma.game.create({
+      data: {
+        slug,
+        title: 'Jogo importado do No-Intro',
+        systemId: 'snes',
+        isHomebrew: false,
+        // Igual à importação em lote: sha256 nulo, só o md5 que o No-Intro
+        // cataloga — é o que a issue #134 chama de "banco sem SHA-256".
+        roms: { create: { md5: md5DoArquivo, sizeBytes: rom.length } },
+      },
+      select: { id: true },
+    });
+
+    const cookie = await logar(conta);
+    const corpo = await biblioteca(cookie, contaId, rom, 'importado-do-no-intro.sfc');
+
+    expect(corpo.gameId).toBe(jogo.id);
+
+    const linha = await prisma.userRom.findUniqueOrThrow({
+      where: { userId_sha256: { userId: contaId, sha256: corpo.sha256 } },
+      select: { gameId: true, md5: true },
+    });
+    expect(linha.gameId).toBe(jogo.id);
+    // O MD5 calculado no upload foi persistido — é ele que o reprocessamento
+    // (issue #114) reaproveitaria se o catálogo aprendesse este jogo depois.
+    expect(linha.md5).toBe(md5DoArquivo);
+  }, 60_000);
+
+  it('ROM sem match nenhum, nem por SHA-256 nem por MD5, fica com game_id nulo — sem erro', async () => {
+    const marcador = new Uint8Array(randomBytes(32));
+    const rom = romDeSnes({ marcador });
+
+    const cookie = await logar(conta);
+    const corpo = await biblioteca(cookie, contaId, rom, 'ninguem-conhece.sfc');
+
+    expect(corpo.gameId).toBeNull();
+    const linha = await prisma.userRom.findUniqueOrThrow({
+      where: { userId_sha256: { userId: contaId, sha256: corpo.sha256 } },
+      select: { gameId: true, md5: true },
+    });
+    expect(linha.gameId).toBeNull();
+    expect(linha.md5).toBe(createHash('md5').update(rom).digest('hex'));
   }, 60_000);
 });
