@@ -1,137 +1,92 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
-  ChevronLeft,
+  ArrowLeft,
+  Check,
   ChevronRight,
   Gamepad2,
-  Heart,
-  Menu,
-  Play,
+  Grid2X2,
+  Maximize,
+  Minimize,
   Search,
   Settings2,
-  Volume2,
-  X,
 } from 'lucide-react';
 import type { LibraryRom, SystemId } from '@pixelvault/contracts';
 import { useBiblioteca, useFavoritarRom } from '../library/use-biblioteca.js';
+import { ConsoleTheme } from './ConsoleThemes.js';
+import { ConfiguracoesConsole, ConsoleDialog, moverFocoDoDialogo } from './ConsoleDialog.js';
+import {
+  lerPreferencias,
+  salvarPreferencias,
+  type ItemDoConsole,
+  type PreferenciasConsole,
+} from './temas.js';
 import './console.css';
-
-/**
- * Modo console — navegar a própria biblioteca 100% por joystick (issue #116).
- *
- * Portado de um protótipo que o Fernando fez no Manus (`retrobox-arcade`):
- * carrossel de jogos, polling de gamepad a cada 120ms com detecção de borda
- * (`navigator.getGamepads()`), teclado (setas/WASD) como fallback, teclado
- * virtual em tela para buscar sem teclado físico, favoritos e filtro por
- * coleção/sistema. O visual é o dele, de propósito (ver `console.css`) — não
- * é a direção "Arquivo" do resto do site.
- *
- * ## O que é fiel ao protótipo e o que foi adaptado
- *
- * Fiel: toda a máquina de navegação (polling, edge-detection, teclado
- * virtual, atalhos) e a folha de estilo.
- *
- * Adaptado: a fonte de dados. O protótipo tinha um array fixo de jogos de
- * mentira com nota, ano, gênero e descrição — nada disso existe na
- * biblioteca real (`LibraryRom`). Aqui só entra o que é real: título,
- * sistema, capa (quando existe), tamanho do arquivo e data de envio. O nome
- * do tema ("FANARTSTAR") e do app ("RETROBAT") do showcase original foram
- * trocados pela marca do produto — eram só o rótulo de demonstração do
- * protótipo, não conteúdo que o Fernando pediu para preservar.
- *
- * "Play" leva a `/biblioteca/$romId`, a rota real de jogar (#99) — não
- * simula.
- */
-
-type ItemDoConsole = {
-  readonly id: string;
-  readonly titulo: string;
-  readonly sistema: SystemId | null;
-  readonly capaUrl: string | null;
-  readonly favorito: boolean;
-  readonly tamanho: string;
-  readonly enviadoEm: string;
-};
+import { entrarEmTelaCheiaDoConsole } from './tela-cheia.js';
 
 const TODOS = 'TODOS OS JOGOS';
 const FAVORITOS = 'FAVORITOS';
-
-const virtualKeyboard = [
-  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '-', '_'],
-];
-const keyboardKeys = virtualKeyboard.flat();
-
-function emBytesLegiveis(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const kb = bytes / 1024;
-  if (kb < 1024) return `${kb.toFixed(1)} KB`;
-  return `${(kb / 1024).toFixed(1)} MB`;
-}
+const TECLADO = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM-_'];
+const TECLAS = TECLADO.join('').split('');
+type Painel = 'settings' | 'search' | 'collections' | null;
 
 function paraItem(rom: LibraryRom): ItemDoConsole {
+  const bytes = rom.sizeBytes;
   return {
     id: rom.id,
     titulo: rom.title,
     sistema: rom.systemId,
     capaUrl: rom.coverUrl,
     favorito: rom.isFavorite,
-    tamanho: emBytesLegiveis(rom.sizeBytes),
-    enviadoEm: new Date(rom.uploadedAt).toLocaleDateString('pt-BR'),
+    tamanho:
+      bytes < 1024
+        ? `${bytes} B`
+        : bytes < 1024 * 1024
+          ? `${(bytes / 1024).toFixed(1)} KB`
+          : `${(bytes / 1024 / 1024).toFixed(1)} MB`,
   };
 }
 
-export function ConsolePage() {
+export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined } = {}) {
   const biblioteca = useBiblioteca();
   const favoritar = useFavoritarRom();
   const navigate = useNavigate();
-
-  const jogos = useMemo(() => (biblioteca.data ?? []).map(paraItem), [biblioteca.data]);
-
-  const colecoes = useMemo(() => {
-    const sistemas = Array.from(
-      new Set(jogos.map((jogo) => jogo.sistema).filter((s): s is SystemId => s !== null)),
-    ).sort();
-    return [TODOS, FAVORITOS, ...sistemas.map((s) => s.toUpperCase())];
-  }, [jogos]);
-
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const raiz = useRef<HTMLDivElement>(null);
+  const anteriores = useRef<boolean[]>([]);
+  const [preferencias, setPreferencias] = useState(lerPreferencias);
+  const [persistido, setPersistido] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(jogoInicial ?? null);
   const [colecao, setColecao] = useState(TODOS);
   const [query, setQuery] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [painel, setPainel] = useState<Painel>(null);
   const [keyboardCursor, setKeyboardCursor] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
-  const gamepadButtons = useRef<boolean[]>([]);
-
-  // Assim que a biblioteca carrega, o primeiro jogo entra selecionado. Sem
-  // isto o carrossel abriria sem destaque nenhum.
-  useEffect(() => {
-    if (selectedId === null && jogos.length > 0) setSelectedId(jogos[0]!.id);
-  }, [jogos, selectedId]);
-
+  const [hora, setHora] = useState(() => new Date());
+  const [controleConectado, setControleConectado] = useState(false);
+  const [telaCheia, setTelaCheia] = useState(false);
+  const jogos = useMemo(() => (biblioteca.data ?? []).map(paraItem), [biblioteca.data]);
+  const colecoes = useMemo(
+    () => [
+      TODOS,
+      FAVORITOS,
+      ...Array.from(
+        new Set(jogos.map((jogo) => jogo.sistema).filter((s): s is SystemId => s !== null)),
+      )
+        .sort()
+        .map((s) => s.toUpperCase()),
+    ],
+    [jogos],
+  );
   const filtrados = useMemo(
     () =>
-      jogos.filter((jogo) => {
-        const bateBusca = jogo.titulo.toLowerCase().includes(query.toLowerCase());
-        const bateColecao =
-          colecao === TODOS
-            ? true
-            : colecao === FAVORITOS
-              ? jogo.favorito
-              : jogo.sistema?.toUpperCase() === colecao;
-        return bateBusca && bateColecao;
-      }),
-    [jogos, query, colecao],
+      jogos.filter(
+        (jogo) =>
+          jogo.titulo.toLocaleLowerCase().includes(query.toLocaleLowerCase()) &&
+          (colecao === TODOS ||
+            (colecao === FAVORITOS ? jogo.favorito : jogo.sistema?.toUpperCase() === colecao)),
+      ),
+    [jogos, colecao, query],
   );
-
-  // A navegação anda dentro da lista FILTRADA — ao contrário do protótipo
-  // original, que girava entre todos os jogos e só destacava a coleção no
-  // carrossel (o D-pad "escapava" do filtro). Aqui filtrar de fato limita o
-  // que o joystick alcança, que é o comportamento que faz sentido para
-  // "navegar por coleção/sistema" pedido na issue.
   const indiceAtual = Math.max(
     0,
     filtrados.findIndex((jogo) => jogo.id === selectedId),
@@ -142,525 +97,421 @@ export function ConsolePage() {
       ? filtrados
       : Array.from(
           { length: 6 },
-          (_, offset) =>
-            filtrados[(indiceAtual + offset - 2 + filtrados.length) % filtrados.length]!,
+          (_, i) => filtrados[(indiceAtual + i - 2 + filtrados.length) % filtrados.length]!,
         );
 
-  const selecionarProximo = (direcao: number) => {
-    if (filtrados.length === 0) return;
-    const proximo = (indiceAtual + direcao + filtrados.length) % filtrados.length;
-    setSelectedId(filtrados[proximo]!.id);
-  };
-
-  const iniciarJogo = () => {
-    if (selecionado === null) return;
-    void navigate({ to: '/biblioteca/$romId', params: { romId: selecionado.id } });
-  };
-
-  const alternarFavorito = () => {
-    if (selecionado === null) return;
-    favoritar.mutate({ romId: selecionado.id, favorito: !selecionado.favorito });
-    setAviso(selecionado.favorito ? 'Removido dos favoritos' : 'Adicionado aos favoritos');
-  };
-
-  const digitarTecla = (tecla: string) => setQuery((valor) => `${valor}${tecla}`.slice(0, 28));
-  const apagarTecla = () => setQuery((valor) => valor.slice(0, -1));
-  const fecharBusca = () => {
-    setSearchOpen(false);
-  };
-
-  // Aviso próprio no lugar do `sonner` do protótipo (issue #116: decidir e
-  // documentar). O projeto já tem uma convenção — `setAviso` +
-  // `window.setTimeout` para limpar — em `EmulatorPlayer.tsx`. Introduzir uma
-  // segunda biblioteca de notificação só para esta tela seria duplicar o que
-  // já existe; este componente repete o mesmo padrão local em vez disso.
+  useEffect(() => {
+    setPersistido(salvarPreferencias(preferencias));
+  }, [preferencias]);
+  useEffect(() => {
+    const atualizarTela = () => setTelaCheia(document.fullscreenElement !== null);
+    const intervalo = window.setInterval(() => setHora(new Date()), 30_000);
+    document.addEventListener('fullscreenchange', atualizarTela);
+    return () => {
+      window.clearInterval(intervalo);
+      document.removeEventListener('fullscreenchange', atualizarTela);
+    };
+  }, []);
   useEffect(() => {
     if (aviso === null) return;
-    const temporizador = window.setTimeout(() => setAviso(null), 2400);
-    return () => window.clearTimeout(temporizador);
+    const timeout = window.setTimeout(() => setAviso(null), 2800);
+    return () => window.clearTimeout(timeout);
   }, [aviso]);
 
-  // Teclado (setas/WASD) como alternativa ao gamepad — é o caminho que dá
-  // para testar sem controle físico e o que o critério de aceite da #116
-  // pede para exercitar.
+  const alterarPreferencias = (patch: Partial<PreferenciasConsole>) =>
+    setPreferencias((atual) => ({ ...atual, ...patch }));
+  const selecionarProximo = (direcao: number) => {
+    if (filtrados.length)
+      setSelectedId(filtrados[(indiceAtual + direcao + filtrados.length) % filtrados.length]!.id);
+  };
+  const iniciarJogo = () => {
+    if (!selecionado) return;
+    void entrarEmTelaCheiaDoConsole().then(() =>
+      navigate({ to: '/console/$romId', params: { romId: selecionado.id } }),
+    );
+  };
+  const alternarFavorito = () => {
+    if (!selecionado || favoritar.isPending) return;
+    favoritar.mutate(
+      { romId: selecionado.id, favorito: !selecionado.favorito },
+      {
+        onSuccess: () =>
+          setAviso(selecionado.favorito ? 'Removido dos favoritos' : 'Adicionado aos favoritos'),
+        onError: () => setAviso('Não foi possível atualizar os favoritos. Tente novamente.'),
+      },
+    );
+  };
+  const alternarTelaCheia = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (!(await entrarEmTelaCheiaDoConsole()))
+        setAviso('Não foi possível ativar a tela cheia.');
+    } catch {
+      setAviso('Não foi possível ativar a tela cheia.');
+    }
+  };
+  const digitar = (tecla: string) => setQuery((valor) => `${valor}${tecla}`.slice(0, 28));
+
+  // O painel ativo recebe o input com exclusividade, inclusive o botão A do
+  // controle. Uma troca de tema nunca pode iniciar o jogo atrás do diálogo.
   useEffect(() => {
     const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.altKey || evento.ctrlKey || evento.metaKey) return;
       const tecla = evento.key.toLowerCase();
-      if (searchOpen) {
-        if (
-          [
-            'arrowleft',
-            'arrowright',
-            'arrowup',
-            'arrowdown',
-            'w',
-            'a',
-            's',
-            'd',
-            'enter',
-            'escape',
-          ].includes(tecla)
-        ) {
+      if (tecla === 'escape') {
+        setPainel(null);
+        return;
+      }
+      if (painel !== null) {
+        if (evento.target instanceof HTMLInputElement) {
+          if (tecla === 'enter') {
+            evento.preventDefault();
+            setPainel(null);
+          }
+          return;
+        }
+        if (painel === 'search' && !(evento.target instanceof HTMLElement)) {
+          const delta = { arrowleft: -1, arrowright: 1, arrowup: -10, arrowdown: 10 }[tecla];
+          if (delta !== undefined) {
+            evento.preventDefault();
+            setKeyboardCursor((cursor) => (cursor + delta + TECLAS.length) % TECLAS.length);
+          }
+          if (tecla === 'enter') {
+            evento.preventDefault();
+            digitar(TECLAS[keyboardCursor]!);
+          }
+          return;
+        }
+        if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(tecla)) {
           evento.preventDefault();
-        }
-        if (tecla === 'escape') {
-          fecharBusca();
-          return;
-        }
-        if (tecla === 'enter') {
-          digitarTecla(keyboardKeys[keyboardCursor]!);
-          return;
-        }
-        if (tecla === 'arrowleft' || tecla === 'a') {
-          setKeyboardCursor((cursor) => (cursor > 0 ? cursor - 1 : keyboardKeys.length - 1));
-        }
-        if (tecla === 'arrowright' || tecla === 'd') {
-          setKeyboardCursor((cursor) => (cursor < keyboardKeys.length - 1 ? cursor + 1 : 0));
-        }
-        if (tecla === 'arrowup' || tecla === 'w') {
-          setKeyboardCursor((cursor) => Math.max(0, cursor - 10));
-        }
-        if (tecla === 'arrowdown' || tecla === 's') {
-          setKeyboardCursor((cursor) => Math.min(keyboardKeys.length - 1, cursor + 10));
+          moverFocoDoDialogo(tecla === 'arrowleft' || tecla === 'arrowup' ? -1 : 1);
         }
         return;
       }
-      if (evento.key === 'ArrowLeft' || tecla === 'a') {
+      if (tecla === '/' || tecla === 'f2') {
+        evento.preventDefault();
+        setPainel(tecla === '/' ? 'search' : 'settings');
+        return;
+      }
+      if (evento.target instanceof HTMLButtonElement && (tecla === 'enter' || tecla === ' '))
+        return;
+      if (tecla === 'arrowleft' || tecla === 'a') {
         evento.preventDefault();
         selecionarProximo(-1);
       }
-      if (evento.key === 'ArrowRight' || tecla === 'd') {
+      if (tecla === 'arrowright' || tecla === 'd') {
         evento.preventDefault();
         selecionarProximo(1);
       }
-      if (evento.key === 'ArrowUp' || tecla === 'w') {
+      if (['arrowup', 'arrowdown', 'w', 's'].includes(tecla)) {
         evento.preventDefault();
-        setMenuOpen(true);
+        if (preferencias.tema === 'obsidian')
+          selecionarProximo(tecla === 'arrowup' || tecla === 'w' ? -1 : 1);
+        else setPainel('collections');
       }
-      if (evento.key === 'ArrowDown' || tecla === 's') {
-        evento.preventDefault();
-        setMenuOpen(true);
-      }
-      if (evento.key === 'Enter') {
+      if (tecla === 'enter') {
         evento.preventDefault();
         iniciarJogo();
       }
-      if (evento.key === 'Escape') setMenuOpen(false);
+      if (tecla === 'f') alternarFavorito();
     };
     window.addEventListener('keydown', aoTeclar);
     return () => window.removeEventListener('keydown', aoTeclar);
   });
 
-  // Polling de gamepad a cada 120ms, com detecção de borda (botão que
-  // acabou de ser pressionado, não o que está sendo mantido) — mesma lógica
-  // do protótipo. `navigator.getGamepads` não dispara evento; sem polling
-  // ativo nada se move.
   useEffect(() => {
-    const consultarGamepad = () => {
-      // `?.()?.[0]`, e não `?.()[0]`: em ambiente sem Gamepad API
-      // (jsdom nos testes, e qualquer navegador que não o implemente)
-      // `getGamepads` é `undefined`, e indexar `undefined[0]` sem a segunda
-      // opcional derrubaria o polling com um TypeError a cada 120ms.
-      const controle = navigator.getGamepads?.()?.[0];
-      if (!controle) return;
-      const pressionados = controle.buttons.map((botao) => botao.pressed);
-      const jaEstavaPressionado = gamepadButtons.current;
-      const acabouDeApertar = (indice: number) =>
-        pressionados[indice] === true && jaEstavaPressionado[indice] !== true;
-      if (searchOpen) {
-        if (acabouDeApertar(14) || (acabouDeApertar(0) && controle.axes[0]! < -0.5)) {
-          setKeyboardCursor((cursor) => (cursor > 0 ? cursor - 1 : keyboardKeys.length - 1));
-        }
-        if (acabouDeApertar(15) || (acabouDeApertar(0) && controle.axes[0]! > 0.5)) {
-          setKeyboardCursor((cursor) => (cursor < keyboardKeys.length - 1 ? cursor + 1 : 0));
-        }
-        if (acabouDeApertar(12) || (acabouDeApertar(0) && controle.axes[1]! < -0.5)) {
-          setKeyboardCursor((cursor) => Math.max(0, cursor - 10));
-        }
-        if (acabouDeApertar(13) || (acabouDeApertar(0) && controle.axes[1]! > 0.5)) {
-          setKeyboardCursor((cursor) => Math.min(keyboardKeys.length - 1, cursor + 10));
-        }
-        if (acabouDeApertar(0)) digitarTecla(keyboardKeys[keyboardCursor]!);
-        gamepadButtons.current = pressionados;
+    const intervalo = window.setInterval(() => {
+      const controle = Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad?.connected);
+      setControleConectado(Boolean(controle));
+      if (!controle) {
+        anteriores.current = [];
         return;
       }
-      if (acabouDeApertar(14) || (acabouDeApertar(0) && controle.axes[0]! < -0.5))
-        selecionarProximo(-1);
-      if (acabouDeApertar(15) || (acabouDeApertar(0) && controle.axes[0]! > 0.5))
-        selecionarProximo(1);
-      if (acabouDeApertar(12) || (acabouDeApertar(0) && controle.axes[1]! < -0.5))
-        setMenuOpen(true);
-      if (acabouDeApertar(13) || (acabouDeApertar(0) && controle.axes[1]! > 0.5)) setMenuOpen(true);
-      if (acabouDeApertar(0)) iniciarJogo();
-      gamepadButtons.current = pressionados;
-    };
-    const intervalo = window.setInterval(consultarGamepad, 120);
+      const botoes = controle.buttons.map((botao) => botao.pressed);
+      // Eixos têm suas próprias bordas; mover o analógico não depende de A.
+      botoes[12] = Boolean(botoes[12]) || (controle.axes[1] ?? 0) < -0.55;
+      botoes[13] = Boolean(botoes[13]) || (controle.axes[1] ?? 0) > 0.55;
+      botoes[14] = Boolean(botoes[14]) || (controle.axes[0] ?? 0) < -0.55;
+      botoes[15] = Boolean(botoes[15]) || (controle.axes[0] ?? 0) > 0.55;
+      const novo = (i: number) => botoes[i] === true && anteriores.current[i] !== true;
+      const esquerda = novo(14);
+      const direita = novo(15);
+      const cima = novo(12);
+      const baixo = novo(13);
+      if (painel) {
+        if (novo(1) || novo(9)) setPainel(null);
+        else if (esquerda || cima) moverFocoDoDialogo(-1);
+        else if (direita || baixo) moverFocoDoDialogo(1);
+        else if (
+          novo(0) &&
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement.closest('.cx-dialog')
+        ) {
+          if (document.activeElement instanceof HTMLInputElement) setPainel(null);
+          else document.activeElement.click();
+        }
+      } else {
+        if (novo(9)) setPainel('settings');
+        else if (novo(3)) setPainel('search');
+        else if (novo(4) || novo(5)) setPainel('collections');
+        else if (esquerda || (cima && preferencias.tema === 'obsidian')) selecionarProximo(-1);
+        else if (direita || (baixo && preferencias.tema === 'obsidian')) selecionarProximo(1);
+        else if (cima || baixo) setPainel('collections');
+        else if (novo(2)) alternarFavorito();
+        else if (novo(0)) iniciarJogo();
+      }
+      anteriores.current = botoes;
+    }, 80);
     return () => window.clearInterval(intervalo);
   });
 
-  if (biblioteca.isPending) {
-    return (
-      <div className="showcase-page" data-testid="modo-console-carregando">
-        <div className="showcase-wash" />
-      </div>
-    );
-  }
-
-  if (jogos.length === 0) {
-    return (
-      <div className="showcase-page">
-        <div className="showcase-wash" />
-        <main className="showcase-shell">
-          <div className="theme-title">
-            <div className="theme-title-main">
-              PIXEL<span>VAULT</span>
-            </div>
-            <div className="theme-title-sub">Modo console</div>
-          </div>
-          <div className="no-results" style={{ textAlign: 'center', marginTop: '2rem' }}>
-            Sua biblioteca está vazia. Envie uma ROM para jogar por aqui.
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="showcase-page">
-      {/*
-        `url("...")` com aspas, não `url(...)` cru: a URL do libretro-thumbnails
-        vem com parênteses literais não escapados no nome do arquivo (ex.
-        `Super Mario World (USA).png`), e dentro de um token `url()` sem aspas
-        um `(`/`)` sem escape é inválido pela gramática do CSS. O navegador
-        rejeita o valor inteiro em silêncio — nenhum erro, nenhum atributo
-        `style` chega a ser criado no DOM — e o fundo fica preto sem pista
-        nenhuma no console. `<img src>` ao lado não sofre porque src não segue
-        gramática de CSS. Confirmado inspecionando o DOM renderizado: o
-        elemento chegava como `<div class="showcase-bg"></div>`, sem o
-        `style` que o JSX escreve logo abaixo.
-      */}
-      {selecionado?.capaUrl ? (
-        <div className="showcase-bg" style={{ backgroundImage: `url("${selecionado.capaUrl}")` }} />
-      ) : (
-        <div className="showcase-bg showcase-bg-placeholder" />
-      )}
-      <div className="showcase-wash" />
-      <div className="scanlines" />
-
-      <header className="topbar">
-        <button
-          type="button"
-          className="round-control menu-control"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Menu"
-        >
-          <Menu size={19} />
-        </button>
-        <div className="retro-logo">
-          <span className="logo-orbit">P</span>
-          <div>
-            <strong>PIXELVAULT</strong>
-            <small>MODO CONSOLE</small>
+    <div
+      ref={raiz}
+      className="console-experience"
+      data-console-theme={preferencias.tema}
+      data-motion={preferencias.movimento}
+      data-ambient={preferencias.ambiente}
+    >
+      <div className="cx-atmosphere" aria-hidden="true">
+        <div />
+        <i />
+        <b />
+      </div>
+      <div className="cx-chrome" inert={painel !== null}>
+        <header className="cx-header">
+          <div className="cx-brand">
+            <span className="cx-brand-mark">
+              p<span>v</span>
+            </span>
+            <span>
+              PIXELVAULT<small>PLAY YOUR WAY</small>
+            </span>
           </div>
-        </div>
-        <div className="topbar-center">
-          <span className="online-light" /> BIBLIOTECA CARREGADA <i />
-          {jogos.length} JOGO{jogos.length === 1 ? '' : 'S'}
-        </div>
-        <div className="topbar-actions">
-          <button
-            type="button"
-            className="round-control"
-            onClick={() => setSearchOpen((open) => !open)}
-            aria-label="Buscar"
-          >
-            <Search size={17} />
+          <nav className="cx-main-nav" aria-label="Modo console">
+            <button
+              type="button"
+              className="is-active"
+              onClick={() => {
+                setColecao(TODOS);
+                setQuery('');
+              }}
+            >
+              Jogos
+            </button>
+            <button type="button" onClick={() => setPainel('collections')} aria-label="Menu">
+              <Grid2X2 size={16} />
+              <span>Coleções</span>
+            </button>
+          </nav>
+          <div className="cx-system-actions">
+            <button
+              type="button"
+              className="cx-icon-button"
+              onClick={() => setPainel('search')}
+              aria-label="Buscar"
+            >
+              <Search size={21} />
+            </button>
+            <button
+              type="button"
+              className="cx-icon-button"
+              onClick={() => setPainel('settings')}
+              aria-label="Configurações"
+            >
+              <Settings2 size={21} />
+            </button>
+            <button
+              type="button"
+              className="cx-icon-button cx-fullscreen-button"
+              onClick={() => void alternarTelaCheia()}
+              aria-label={telaCheia ? 'Sair da tela cheia' : 'Tela cheia'}
+            >
+              {telaCheia ? <Minimize size={19} /> : <Maximize size={19} />}
+            </button>
+            <time className="cx-clock" dateTime={hora.toISOString()}>
+              {hora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </time>
+          </div>
+        </header>
+        {query && (
+          <button type="button" className="cx-active-search" onClick={() => setQuery('')}>
+            Busca: “{query}” <span>Limpar ×</span>
           </button>
-          <button
-            type="button"
-            className="round-control hide-mobile"
-            onClick={() => setAviso('Volume do sistema — ajuste ainda não disponível aqui.')}
-            aria-label="Volume"
-          >
-            <Volume2 size={17} />
+        )}
+        {biblioteca.isPending ? (
+          <main className="cx-empty" data-testid="modo-console-carregando" role="status">
+            <span className="cx-loading-orbit" />
+            <p className="cx-overline">PIXELVAULT</p>
+            <h1>Preparando seus mundos.</h1>
+            <p>Carregando biblioteca…</p>
+          </main>
+        ) : biblioteca.isError ? (
+          <main className="cx-empty" role="alert">
+            <Gamepad2 size={48} />
+            <h1>A biblioteca não respondeu.</h1>
+            <p>Verifique sua conexão e tente novamente.</p>
+            <button type="button" className="cx-play" onClick={() => void biblioteca.refetch()}>
+              Tentar novamente
+            </button>
+          </main>
+        ) : selecionado ? (
+          <ConsoleTheme
+            tema={preferencias.tema}
+            selecionado={selecionado}
+            jogos={visiveis}
+            indice={indiceAtual}
+            total={filtrados.length}
+            colecao={colecao}
+            selecionar={setSelectedId}
+            mover={selecionarProximo}
+            iniciar={iniciarJogo}
+            favoritar={alternarFavorito}
+            favoritando={favoritar.isPending}
+          />
+        ) : (
+          <main className="cx-empty">
+            <Gamepad2 size={48} />
+            <h1>
+              {jogos.length ? 'Nenhum jogo nesta coleção.' : 'Seu próximo mundo começa aqui.'}
+            </h1>
+            <p>
+              {jogos.length
+                ? 'Experimente outra coleção ou limpe a busca.'
+                : 'Sua biblioteca está vazia. Envie uma ROM para jogar por aqui.'}
+            </p>
+            <button
+              type="button"
+              className="cx-play"
+              onClick={() => {
+                if (jogos.length) {
+                  setQuery('');
+                  setColecao(TODOS);
+                } else void navigate({ to: '/enviar-rom' });
+              }}
+            >
+              {jogos.length ? 'Ver todos os jogos' : 'Adicionar meu primeiro jogo'}
+              <ChevronRight size={18} />
+            </button>
+          </main>
+        )}
+        <footer className="cx-footer">
+          <div className="cx-controller-status">
+            <Gamepad2 size={18} />
+            <span>{controleConectado ? 'Controle conectado' : 'Teclado e mouse'}</span>
+          </div>
+          <div className="cx-input-hints">
+            <span>
+              <kbd>{controleConectado ? '✚' : '← →'}</kbd>Navegar
+            </span>
+            <span>
+              <kbd>{controleConectado ? 'A' : '↵'}</kbd>Jogar
+            </span>
+            <span>
+              <kbd>{controleConectado ? 'X' : 'F'}</kbd>Favorito
+            </span>
+            <button type="button" onClick={() => setPainel('settings')}>
+              <kbd>{controleConectado ? '☰' : 'F2'}</kbd>Temas
+            </button>
+          </div>
+          <button type="button" className="cx-exit" onClick={() => void navigate({ to: '/' })}>
+            <ArrowLeft size={15} />
+            <span>Sair do console</span>
           </button>
-          <button
-            type="button"
-            className="round-control"
-            onClick={() => setAviso('Configurações do sistema disponíveis em breve.')}
-            aria-label="Configurações"
-          >
-            <Settings2 size={17} />
-          </button>
-        </div>
-      </header>
-
-      {aviso !== null && (
-        <div
-          role="status"
-          style={{
-            position: 'fixed',
-            top: 84,
-            right: 20,
-            zIndex: 70,
-            padding: '10px 16px',
-            borderRadius: 8,
-            background: 'rgba(10,12,20,.95)',
-            border: '1px solid rgba(246,218,120,.4)',
-            color: '#f6da78',
-            fontSize: 12,
-            letterSpacing: '.04em',
-          }}
-        >
+        </footer>
+      </div>
+      {painel === 'settings' && (
+        <ConfiguracoesConsole
+          preferencias={preferencias}
+          alterar={alterarPreferencias}
+          fechar={() => setPainel(null)}
+          persistido={persistido}
+        />
+      )}
+      {painel === 'collections' && (
+        <ConsoleDialog titulo="Coleções" fechar={() => setPainel(null)}>
+          <p className="cx-dialog-description">
+            Encontre seu próximo jogo por sistema ou pelos favoritos.
+          </p>
+          <div className="cx-collections">
+            {colecoes.map((item) => (
+              <button
+                key={item}
+                type="button"
+                data-autofocus={item === colecao ? '' : undefined}
+                aria-pressed={item === colecao}
+                onClick={() => {
+                  setColecao(item);
+                  setPainel(null);
+                }}
+              >
+                <Gamepad2 size={20} />
+                <span>{item}</span>
+                {item === colecao ? <Check size={17} /> : <ChevronRight size={17} />}
+              </button>
+            ))}
+          </div>
+        </ConsoleDialog>
+      )}
+      {painel === 'search' && (
+        <ConsoleDialog titulo="Pesquisar jogos" fechar={() => setPainel(null)}>
+          <div className="cx-search-input">
+            <Search size={20} />
+            <input
+              data-autofocus=""
+              aria-label="Nome do jogo"
+              value={query}
+              maxLength={28}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Digite o nome do jogo..."
+            />
+            <span>{query.length}/28</span>
+          </div>
+          <p className="cx-search-results" role="status">
+            {filtrados.length} resultado{filtrados.length === 1 ? '' : 's'} em{' '}
+            {colecao.toLocaleLowerCase()}
+          </p>
+          <div className="cx-keyboard">
+            {TECLADO.map((linha) => (
+              <div key={linha}>
+                {linha.split('').map((tecla) => (
+                  <button
+                    key={tecla}
+                    type="button"
+                    className={TECLAS[keyboardCursor] === tecla ? 'is-selected' : ''}
+                    onClick={() => {
+                      setKeyboardCursor(TECLAS.indexOf(tecla));
+                      digitar(tecla);
+                    }}
+                  >
+                    {tecla}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="cx-keyboard-actions">
+            <button type="button" onClick={() => digitar(' ')}>
+              Espaço
+            </button>
+            <button type="button" onClick={() => setQuery((atual) => atual.slice(0, -1))}>
+              ⌫ Apagar
+            </button>
+            <button type="button" onClick={() => setQuery('')}>
+              Limpar
+            </button>
+            <button type="button" onClick={() => setPainel(null)}>
+              Ver jogos <ChevronRight size={16} />
+            </button>
+          </div>
+        </ConsoleDialog>
+      )}
+      {aviso && (
+        <div className="cx-toast" role="status">
+          <Check size={16} />
           {aviso}
         </div>
       )}
-
-      {searchOpen && (
-        <div className="search-overlay">
-          <button
-            type="button"
-            className="search-backdrop"
-            onClick={fecharBusca}
-            aria-label="Fechar pesquisa"
-          />
-          <div className="search-console" role="dialog" aria-label="Pesquisar jogos">
-            <div className="search-console-head">
-              <div>
-                <span className="rail-label">PIXELVAULT / BUSCA</span>
-                <h2>ENCONTRE SEU JOGO</h2>
-              </div>
-              <button
-                type="button"
-                className="round-control"
-                onClick={fecharBusca}
-                aria-label="Fechar"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="search-input-large">
-              <Search size={21} />
-              <input
-                autoFocus
-                value={query}
-                onChange={(evento) => setQuery(evento.target.value)}
-                placeholder="Digite o nome do jogo..."
-              />
-              <span>{query.length}/28</span>
-            </div>
-            <div className="search-results-label">
-              {query
-                ? `${filtrados.length} RESULTADO${filtrados.length === 1 ? '' : 'S'} ENCONTRADO${filtrados.length === 1 ? '' : 'S'}`
-                : 'DIGITE PARA PESQUISAR NA BIBLIOTECA'}
-            </div>
-            <div className="virtual-keyboard">
-              {virtualKeyboard.map((linha, indiceLinha) => (
-                <div className="keyboard-row" key={indiceLinha}>
-                  {linha.map((tecla) => {
-                    const indiceTecla = keyboardKeys.indexOf(tecla);
-                    return (
-                      <button
-                        type="button"
-                        key={tecla}
-                        className={keyboardCursor === indiceTecla ? 'keyboard-focused' : ''}
-                        onClick={() => {
-                          setKeyboardCursor(indiceTecla);
-                          digitarTecla(tecla);
-                        }}
-                      >
-                        {tecla}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-              <div className="keyboard-row keyboard-actions">
-                <button type="button" onClick={() => digitarTecla(' ')} className="space-key">
-                  ESPAÇO
-                </button>
-                <button type="button" onClick={apagarTecla} className="backspace-key">
-                  ⌫ APAGAR
-                </button>
-                <button type="button" onClick={() => setQuery('')} className="clear-key">
-                  LIMPAR
-                </button>
-              </div>
-            </div>
-            <div className="search-console-footer">
-              <span>
-                <b>↑↓←→ / WASD</b> MOVER
-              </span>
-              <span>
-                <b>ENTER / A</b> DIGITAR
-              </span>
-              <span>
-                <b>B / ESC</b> FECHAR
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {menuOpen && (
-        <div className="menu-drawer">
-          <div className="menu-title">
-            PIXELVAULT{' '}
-            <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar menu">
-              <X size={17} />
-            </button>
-          </div>
-          <p>Selecione uma coleção abaixo para navegar pela sua biblioteca.</p>
-          {colecoes.map((item) => (
-            <button
-              type="button"
-              key={item}
-              className={item === colecao ? 'active' : ''}
-              onClick={() => {
-                setColecao(item);
-                setMenuOpen(false);
-              }}
-            >
-              {item}
-              <ChevronRight size={15} />
-            </button>
-          ))}
-        </div>
-      )}
-
-      <main className="showcase-shell">
-        <div className="theme-title">
-          <div className="theme-title-main">
-            PIXEL<span>VAULT</span>
-          </div>
-          <div className="theme-title-sub">Modo console</div>
-        </div>
-        <div className="cabinet-frame">
-          <div className="frame-top-glow" />
-          {selecionado === null ? (
-            <div className="no-results" style={{ textAlign: 'center', padding: '3rem' }}>
-              Nenhum jogo nesta coleção.
-            </div>
-          ) : (
-            <>
-              <section className="feature-area">
-                <div className="feature-info">
-                  <div className="feature-badge">
-                    <span className="online-light" /> EM DESTAQUE <span>•</span>{' '}
-                    {(selecionado.sistema ?? 'sistema não identificado').toUpperCase()}
-                  </div>
-                  <h1>{selecionado.titulo}</h1>
-                  <div className="feature-meta">
-                    <span>{selecionado.tamanho}</span>
-                    <span>enviado em {selecionado.enviadoEm}</span>
-                  </div>
-                  <div className="feature-actions">
-                    <button type="button" className="start-button" onClick={iniciarJogo}>
-                      <Play size={15} fill="currentColor" /> INICIAR JOGO
-                    </button>
-                    <button
-                      type="button"
-                      className={`heart-button ${selecionado.favorito ? 'is-favorite' : ''}`}
-                      onClick={alternarFavorito}
-                    >
-                      <Heart size={16} fill={selecionado.favorito ? 'currentColor' : 'none'} />{' '}
-                      {selecionado.favorito ? 'FAVORITO' : 'FAVORITAR'}
-                    </button>
-                  </div>
-                </div>
-                <div className="preview-screen">
-                  <div className="preview-header">
-                    <span>PREVIEW / {String(indiceAtual + 1).padStart(2, '0')}</span>
-                    <Gamepad2 size={15} />
-                  </div>
-                  {selecionado.capaUrl ? (
-                    <img src={selecionado.capaUrl} alt="" />
-                  ) : (
-                    <div className="preview-screen-placeholder" />
-                  )}
-                  <div className="preview-overlay">
-                    <span>{(selecionado.sistema ?? 'sistema não identificado').toUpperCase()}</span>
-                    <strong>{selecionado.titulo}</strong>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="hero-arrow hero-arrow-left"
-                  onClick={() => selecionarProximo(-1)}
-                  aria-label="Jogo anterior"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button
-                  type="button"
-                  className="hero-arrow hero-arrow-right"
-                  onClick={() => selecionarProximo(1)}
-                  aria-label="Próximo jogo"
-                >
-                  <ChevronRight size={24} />
-                </button>
-              </section>
-              <section className="library-strip">
-                <div className="library-infinite-head">
-                  <div>
-                    <span className="rail-label">BIBLIOTECA</span>
-                    <strong>{colecao}</strong>
-                  </div>
-                  <div className="joystick-hint">
-                    <span className="dpad-icon">✦</span>
-                    <span>←→</span> NAVEGAR <span className="hint-separator">•</span>{' '}
-                    <span>ENTER</span> INICIAR
-                  </div>
-                </div>
-                <div className="cover-marquee">
-                  <div className="cover-track">
-                    {visiveis.map((jogo) => (
-                      <button
-                        type="button"
-                        key={jogo.id}
-                        className={`cover-card ${jogo.id === selecionado.id ? 'selected' : ''}`}
-                        onClick={() => setSelectedId(jogo.id)}
-                      >
-                        <div className="cover-image">
-                          {jogo.capaUrl ? (
-                            <img src={jogo.capaUrl} alt="" />
-                          ) : (
-                            <div className="cover-image-placeholder" />
-                          )}
-                          <span>{(jogo.sistema ?? '—').toUpperCase()}</span>
-                        </div>
-                        <strong>{jogo.titulo}</strong>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            </>
-          )}
-        </div>
-        <div className="bottom-rail">
-          <div>
-            <span className="rail-label">COLEÇÃO ATUAL</span>
-            <strong>{colecao}</strong>
-          </div>
-          <div className="rail-center">
-            <button type="button" onClick={() => selecionarProximo(-1)} aria-label="Jogo anterior">
-              <ChevronLeft size={15} />
-            </button>
-            <span>
-              {String(indiceAtual + 1).padStart(2, '0')} /{' '}
-              {String(filtrados.length).padStart(2, '0')}
-            </span>
-            <button type="button" onClick={() => selecionarProximo(1)} aria-label="Próximo jogo">
-              <ChevronRight size={15} />
-            </button>
-          </div>
-          <div className="rail-hint">
-            ENTER <span>iniciar</span>
-            <span>•</span> A / D <span>navegar</span>
-          </div>
-        </div>
-      </main>
     </div>
   );
 }

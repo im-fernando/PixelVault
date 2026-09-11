@@ -16,6 +16,7 @@ import { RecuperarSenhaPage } from '../features/auth/RecuperarSenhaPage.js';
 import { RedefinirSenhaPage } from '../features/auth/RedefinirSenhaPage.js';
 import { exigirSessao, retornoSeguro } from '../features/auth/rota-protegida.js';
 import { ConsolePage } from '../features/console/ConsolePage.js';
+import { ConsolePlayPage } from '../features/console/ConsolePlayPage.js';
 import { EnviarRomPage } from '../features/library/EnviarRomPage.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 import { Frontispicio } from '../features/library/Frontispicio.js';
@@ -285,7 +286,25 @@ const consoleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/console',
   beforeLoad: exigirSessao,
-  component: ConsolePage,
+  validateSearch: (busca: Record<string, unknown>): { jogo?: string } =>
+    typeof busca.jogo === 'string' ? { jogo: busca.jogo } : {},
+  component: function BibliotecaDoConsole() {
+    return <ConsolePage jogoInicial={consoleRoute.useSearch().jogo} />;
+  },
+});
+
+const consolePlayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/console/$romId',
+  beforeLoad: exigirSessao,
+  component: function JogarNoConsole() {
+    return (
+      <ConsolePlayPage
+        key={consolePlayRoute.useParams().romId}
+        romId={consolePlayRoute.useParams().romId}
+      />
+    );
+  },
 });
 
 /**
@@ -344,6 +363,7 @@ const routeTree = rootRoute.addChildren([
   meusJogosRoute,
   enviarRomRoute,
   consoleRoute,
+  consolePlayRoute,
   conquistasRoute,
   rankingRoute,
   perfilPublicoRoute,

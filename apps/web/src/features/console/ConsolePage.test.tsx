@@ -12,6 +12,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProvedorDeSessao } from '../auth/sessao.js';
 import { ConsolePage } from './ConsolePage.js';
+import { CHAVE_PREFERENCIAS, TEMAS } from './temas.js';
 
 /**
  * O critério de aceite da #116 pede navegação por gamepad físico — que este
@@ -69,21 +70,21 @@ function respostaJson(body: unknown, status = 200): Response {
 
 /**
  * `ConsolePage` usa `<Link>`/`useNavigate` de verdade (o "Play" leva a
- * `/biblioteca/$romId`) — precisa de um router com essa rota registrada, não
+ * `/console/$romId`) — precisa de um router com essa rota registrada, não
  * só de uma raiz qualquer como o teste de `BibliotecaPlayPage` usa.
  */
 function renderizarComRouter(elemento: ReactNode) {
   const rootRoute = createRootRoute({ component: () => elemento });
   const bibliotecaPlayRoute = createRoute({
     getParentRoute: () => rootRoute,
-    path: '/biblioteca/$romId',
+    path: '/console/$romId',
     component: () => null,
   });
   const router = createRouter({
     routeTree: rootRoute.addChildren([bibliotecaPlayRoute]),
     history: createMemoryHistory({ initialEntries: ['/console'] }),
   });
-  return render(<RouterProvider router={router} />);
+  return { ...render(<RouterProvider router={router} />), router };
 }
 
 function clienteDeConsultaAutenticado(): QueryClient {
@@ -117,6 +118,7 @@ function montar(favoritarFetch?: (url: string, init?: RequestInit) => Response |
 }
 
 beforeEach(() => {
+  localStorage.clear();
   // O polling de gamepad roda em intervalo real (120ms) fora do controle do
   // teste; como nenhum destes testes usa fake timers, ele só teria efeito se
   // `navigator.getGamepads` existisse — não existe em jsdom, então o handler
@@ -125,10 +127,86 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
 describe('ConsolePage', () => {
+  it.each(TEMAS)('preserva seleção, filtro e rota de jogar ao aplicar $nome', async (tema) => {
+    const { router } = montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'GENESIS' }));
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    fireEvent.click(screen.getByRole('button', { name: `Tema ${tema.nome}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao console' }));
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await screen.findByRole('heading', { name: 'Sonic Adventure 2' });
+    fireEvent.click(screen.getByRole('button', { name: /Iniciar jogo/i }));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/console/22222222-2222-4222-8222-222222222222'),
+    );
+  });
+
+  it('restaura tema e preferências ao entrar novamente no console', async () => {
+    const primeira = montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tema Solstice' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Animações' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Efeitos de ambiente' }));
+    primeira.unmount();
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    expect(screen.getByRole('button', { name: 'Tema Solstice' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('switch', { name: 'Animações' }).getAttribute('aria-checked')).toBe(
+      'false',
+    );
+    expect(
+      screen.getByRole('switch', { name: 'Efeitos de ambiente' }).getAttribute('aria-checked'),
+    ).toBe('false');
+  });
+
+  it('consome teclado e gamepad no painel sem navegar ou iniciar o jogo ao fundo', async () => {
+    const { router } = montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+    const buttons = Array.from({ length: 16 }, () => ({ pressed: false }));
+    buttons[15]!.pressed = true;
+    vi.stubGlobal('navigator', { getGamepads: () => [{ connected: true, buttons, axes: [0, 0] }] });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Tema Solstice' })).toBe(document.activeElement),
+    );
+    buttons[15]!.pressed = false;
+    buttons[0]!.pressed = true;
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Tema Solstice' }).getAttribute('aria-pressed'),
+      ).toBe('true'),
+    );
+    expect(router.state.location.pathname).toBe('/console');
+    buttons[0]!.pressed = false;
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+  });
+
+  it('abre o console mesmo com preferências inválidas no armazenamento', async () => {
+    localStorage.setItem(CHAVE_PREFERENCIAS, '{inválido');
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    expect(screen.getByRole('button', { name: 'Tema Aurora' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+  });
+
   it('troca de jogo em destaque com as setas do teclado (fallback sem gamepad)', async () => {
     montar();
 
