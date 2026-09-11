@@ -16,7 +16,6 @@ import type { Config } from './config.js';
 import { registerErrorHandler } from './infrastructure/error-handler.js';
 import { RateLimitedError } from './infrastructure/errors.js';
 import { criarArmazenamentoS3 } from './infrastructure/storage/armazenamento-s3.js';
-import { perfilPublicoRoutes } from './http/perfil-publico-routes.js';
 import { achievementsRoutes } from './modules/achievements/index.js';
 import { catalogRoutes } from './modules/catalog/index.js';
 import {
@@ -26,6 +25,7 @@ import {
 } from './modules/identity/index.js';
 import { leaderboardsRoutes } from './modules/leaderboards/index.js';
 import { contarRomsNaBiblioteca, libraryRoutes } from './modules/library/index.js';
+import { profilesRoutes } from './modules/profiles/index.js';
 import { agregadoDeJogoDoUsuario, progressRoutes } from './modules/progress/index.js';
 import { criarSessoes, sessionsRoutes } from './modules/sessions/index.js';
 
@@ -187,11 +187,11 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   // fachadas direto em `http/routes.ts`. Ver o cabeçalho de
   // `modules/leaderboards/index.ts`.
   await app.register(leaderboardsRoutes, { prefix: '/api', sessoes });
-  // O perfil público (#123) não é dono de módulo nenhum: pergunta a
-  // `identity`, `achievements` e `progress` direto, sem sessão. Ver o
-  // cabeçalho de `http/perfil-publico-routes.ts` para o porquê de viver
-  // aqui, fora de `modules/`.
-  await app.register(perfilPublicoRoutes, { prefix: '/api' });
+  // O perfil público (#123), mesmo padrão de `leaderboards`: pergunta a
+  // `identity`, `achievements` e `progress` direto pela fachada de cada um,
+  // sem injeção pela composition root (não há ciclo a evitar) e sem sessão.
+  // Ver o cabeçalho de `modules/profiles/index.ts`.
+  await app.register(profilesRoutes, { prefix: '/api' });
 
   return app;
 }
