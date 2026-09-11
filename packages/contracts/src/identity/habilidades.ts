@@ -35,13 +35,20 @@ export type AbilityAction = z.infer<typeof abilityActionSchema>;
 /**
  * Sobre o que se age. `Game` é o catálogo de metadados; `Library` é o acervo
  * privado de uma pessoa (as ROMs que ela subiu); `Progress` é o save e o
- * playtime dela; `Profile` é a conta dela.
+ * playtime dela; `Profile` é a conta dela; `Achievement` são as conquistas de
+ * plataforma que ela já desbloqueou (M6, issue #120).
  *
  * `Library` e `Progress` ainda não têm rota (M3 e M4), e é de propósito que
  * o vocabulário venha antes: a regra que os protege é a mesma para os dois,
  * e escrevê-la agora evita que cada módulo invente a sua quando chegar.
  */
-export const abilitySubjectSchema = z.enum(['Game', 'Library', 'Progress', 'Profile']);
+export const abilitySubjectSchema = z.enum([
+  'Game',
+  'Library',
+  'Progress',
+  'Profile',
+  'Achievement',
+]);
 export type AbilitySubject = z.infer<typeof abilitySubjectSchema>;
 
 /**

@@ -13,6 +13,8 @@ const OUTRA_PESSOA = 'usuario-2';
 const biblioteca = (userId: string): ReturnType<typeof recurso> => recurso('Library', { userId });
 const progresso = (userId: string): ReturnType<typeof recurso> => recurso('Progress', { userId });
 const perfil = (userId: string): ReturnType<typeof recurso> => recurso('Profile', { userId });
+const conquistas = (userId: string): ReturnType<typeof recurso> =>
+  recurso('Achievement', { userId });
 
 const homebrew = recurso('Game', { slug: 'demo', isHomebrew: true });
 const comercial = recurso('Game', { slug: 'super-jogo', isHomebrew: false });
@@ -29,13 +31,21 @@ describe('habilidades do dono', () => {
     expect(habilidades.can('update', perfil(DONO.id))).toBe(true);
   });
 
-  it('não alcança a biblioteca nem o progresso de outra pessoa', () => {
+  it('lê as próprias conquistas, mas não escreve nem apaga', () => {
+    expect(habilidades.can('read', conquistas(DONO.id))).toBe(true);
+    expect(habilidades.can('create', conquistas(DONO.id))).toBe(false);
+    expect(habilidades.can('update', conquistas(DONO.id))).toBe(false);
+    expect(habilidades.can('delete', conquistas(DONO.id))).toBe(false);
+  });
+
+  it('não alcança a biblioteca, o progresso nem as conquistas de outra pessoa', () => {
     expect(habilidades.can('read', biblioteca(OUTRA_PESSOA))).toBe(false);
     expect(habilidades.can('update', biblioteca(OUTRA_PESSOA))).toBe(false);
     expect(habilidades.can('delete', biblioteca(OUTRA_PESSOA))).toBe(false);
     expect(habilidades.can('read', progresso(OUTRA_PESSOA))).toBe(false);
     expect(habilidades.can('update', progresso(OUTRA_PESSOA))).toBe(false);
     expect(habilidades.can('read', perfil(OUTRA_PESSOA))).toBe(false);
+    expect(habilidades.can('read', conquistas(OUTRA_PESSOA))).toBe(false);
   });
 
   it('não administra o catálogo', () => {
@@ -73,10 +83,11 @@ describe('habilidades de qualquer um', () => {
     expect(logado.can('play', comercial)).toBe(false);
   });
 
-  it('não dá ao visitante acervo nem progresso de ninguém', () => {
+  it('não dá ao visitante acervo, progresso nem conquista de ninguém', () => {
     expect(visitante.can('read', biblioteca(DONO.id))).toBe(false);
     expect(visitante.can('read', progresso(DONO.id))).toBe(false);
     expect(visitante.can('read', perfil(DONO.id))).toBe(false);
+    expect(visitante.can('read', conquistas(DONO.id))).toBe(false);
   });
 });
 
@@ -125,7 +136,10 @@ describe('negar por padrão', () => {
       can(acao: string, assunto: string): boolean;
     };
 
-    expect(habilidades.can('read', 'Achievement')).toBe(false);
+    // `Leaderboard` ainda não existe (nasce com `achievements` na M6, mas
+    // ainda não recebeu regra nenhuma) — `Achievement` já é assunto real
+    // desde a #120, então deixou de servir a este teste.
+    expect(habilidades.can('read', 'Leaderboard')).toBe(false);
     expect(habilidades.can('publicar', 'Game')).toBe(false);
     expect(habilidades.can('manage', 'all')).toBe(false);
   });
@@ -142,7 +156,7 @@ describe('negar por padrão', () => {
 
   it('condiciona ao dono toda regra sobre recurso de alguém', () => {
     const comDono = definirRegrasDeHabilidade(DONO).filter((regra) =>
-      ['Library', 'Progress', 'Profile'].includes(String(regra.subject)),
+      ['Library', 'Progress', 'Profile', 'Achievement'].includes(String(regra.subject)),
     );
 
     expect(comDono).not.toHaveLength(0);
