@@ -978,8 +978,8 @@ body {
     outline: none;
     animation: pv-revelar 0.25s both;
   }
-  .pv-dialogo > h2 {
-    margin-top: 10px;
+  .pv-dialogo h2 {
+    margin-top: 8px;
     font-size: clamp(24px, 3vw, 34px);
   }
   .pv-toast {
@@ -1364,9 +1364,21 @@ body {
   }
   .pv-cabecalho {
     flex-wrap: wrap;
-    gap: 12px 20px;
+    gap: 12px 14px;
     min-height: 0;
     padding: 14px 5vw;
+  }
+  .pv-marca {
+    gap: 9px;
+  }
+  .pv-marca-simbolo {
+    font-size: 30px;
+  }
+  .pv-marca-nome small {
+    display: none;
+  }
+  .pv-escultura-legenda {
+    display: none;
   }
   .pv-nav {
     order: 3;

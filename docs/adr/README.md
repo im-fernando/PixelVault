@@ -24,7 +24,7 @@ referencia a antiga.
 | [0013](0013-enderecar-roms-pelo-conteudo.md)                      | Endereçar ROMs pelo conteúdo, com contagem de referências                      | aceita |
 | [0014](0014-verificar-a-rom-em-quarentena-antes-de-promover.md)   | Verificar a ROM em quarentena antes de promover o objeto                       | aceita |
 | [0015](0015-audio-do-emulador-no-navegador.md)                    | Manter a saída de áudio do RetroArch e pendurar um barramento nela             | aceita |
-| [0016](0016-identidade-visual-arquivo.md)                         | Adotar a direção visual "Arquivo"                                              | aceita |
+| [0016](0016-identidade-visual-arquivo.md)                         | Adotar a direção visual "Arquivo"                                              | substituída em parte pela 0024 |
 | [0017](0017-sessao-em-banco.md)                                   | Usar sessão em banco, com renovação deslizante e cookie assinado               | aceita |
 | [0018](0018-autorizacao-com-casl-e-negacao-como-inexistente.md)   | Autorizar com CASL e negar recurso alheio como inexistente                     | aceita |
 | [0019](0019-contador-de-tentativas-no-postgresql.md)              | Contar tentativas de autenticação no PostgreSQL                                | aceita |
@@ -32,6 +32,7 @@ referencia a antiga.
 | [0021](0021-usar-resend-para-email-transacional.md)               | Usar Resend para e-mail transacional                                           | aceita |
 | [0022](0022-banco-de-teste-pelo-compose-do-projeto.md)            | Subir o banco de teste pelo compose do projeto, não por Testcontainers         | aceita |
 | [0023](0023-input-do-teclado-por-configuracao-do-retroarch.md)    | Configurar o teclado do RetroArch no boot, em vez de simular estado por quadro | aceita |
+| [0024](0024-direcao-visual-vitrine.md)                            | Levar o site inteiro à direção visual "Vitrine", a do modo console            | aceita |
 
 O código de investigação que sustenta os números da 0008 e da 0011 está em
 [docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por
