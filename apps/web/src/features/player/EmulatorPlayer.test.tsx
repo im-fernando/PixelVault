@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { StrictMode } from 'react';
+import { StrictMode, type ReactElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmulatorRegistry, romFromUrl } from '@pixelvault/emulator-runtime';
@@ -9,6 +10,18 @@ import { EmulatorPlayer } from './EmulatorPlayer.js';
 const ROM = romFromUrl('/roms/sure-instinct/sure-instinct.sfc', {
   fileName: 'sure-instinct.sfc',
 });
+
+/**
+ * `EmulatorPlayer` passou a chamar `useSaveStatesNaNuvem` (React Query)
+ * incondicionalmente desde a #108 — mesmo desligado (`sincronizarSaveStateNaNuvem`
+ * ausente, `enabled: false` na consulta), o hook exige um `QueryClientProvider`
+ * no galho, senão lança na hora do render. Nenhum destes testes passa
+ * `romId`/liga a sincronização; existe só para o hook não explodir.
+ */
+function comQueryClient(elemento: ReactElement): ReactElement {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={client}>{elemento}</QueryClientProvider>;
+}
 
 function bancada(capabilities?: { saveState: boolean; sram: boolean }) {
   const registry = new EmulatorRegistry();
@@ -46,9 +59,11 @@ describe('EmulatorPlayer', () => {
   it('sobe até rodando com o adapter que veio do registry', async () => {
     const { registry, criados } = bancada();
     render(
-      <StrictMode>
-        <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />
-      </StrictMode>,
+      comQueryClient(
+        <StrictMode>
+          <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />
+        </StrictMode>,
+      ),
     );
 
     expect(await screen.findByText('rodando')).toBeTruthy();
@@ -60,9 +75,11 @@ describe('EmulatorPlayer', () => {
 
     for (let i = 0; i < 20; i += 1) {
       const tela = render(
-        <StrictMode>
-          <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />
-        </StrictMode>,
+        comQueryClient(
+          <StrictMode>
+            <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />
+          </StrictMode>,
+        ),
       );
       await assentar();
       tela.unmount();
@@ -77,7 +94,11 @@ describe('EmulatorPlayer', () => {
 
   it('mostra salvar e carregar estado quando o core suporta', async () => {
     const { registry } = bancada({ saveState: true, sram: true });
-    render(<EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />);
+    render(
+      comQueryClient(
+        <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />,
+      ),
+    );
     await assentar();
 
     expect(screen.queryByRole('button', { name: /Salvar estado/ })).not.toBeNull();
@@ -86,7 +107,11 @@ describe('EmulatorPlayer', () => {
 
   it('esconde salvar estado quando o core não suporta, em vez de deixar botão quebrado', async () => {
     const { registry } = bancada({ saveState: false, sram: true });
-    render(<EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />);
+    render(
+      comQueryClient(
+        <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />,
+      ),
+    );
     await assentar();
 
     expect(screen.queryByRole('button', { name: /Salvar estado/ })).toBeNull();
@@ -95,7 +120,11 @@ describe('EmulatorPlayer', () => {
 
   it('a legenda do teclado mostra o mapa padrão de SNES', async () => {
     const { registry } = bancada();
-    render(<EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />);
+    render(
+      comQueryClient(
+        <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />,
+      ),
+    );
     await assentar();
 
     const legenda = screen.getByLabelText('Mapeamento do teclado');
@@ -108,7 +137,11 @@ describe('EmulatorPlayer', () => {
     const registry = new EmulatorRegistry();
     registry.register('snes', () => new FakeAdapter({ failures: { mount: true } }));
 
-    render(<EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />);
+    render(
+      comQueryClient(
+        <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />,
+      ),
+    );
 
     expect(await screen.findByText('CORE_LOAD_FAILED')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy();
