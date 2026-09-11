@@ -6,6 +6,7 @@ import {
   libraryRomListSchema,
   romDownloadResponseSchema,
   romFavoriteResponseSchema,
+  romRecognitionSweepResponseSchema,
   romRemovedResponseSchema,
   romUploadCompletedResponseSchema,
   romUploadCompletionSchema,
@@ -33,6 +34,7 @@ import { confirmarEnvioDeRom } from '../application/confirmar-envio-de-rom.js';
 import { definirFavoritoDaRom } from '../application/favoritar-rom.js';
 import { listarBiblioteca } from '../application/listar-biblioteca.js';
 import { removerRomDaBiblioteca } from '../application/remover-rom-da-biblioteca.js';
+import { reprocessarReconhecimento } from '../application/reprocessar-reconhecimento.js';
 import { solicitarEnvioDeRom } from '../application/solicitar-envio-de-rom.js';
 import { prismaUserRomRepository } from '../infrastructure/prisma-user-rom-repository.js';
 
@@ -364,6 +366,60 @@ export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app,
         request.params.romId,
         false,
       );
+    },
+  );
+
+  /**
+   * A lacuna 2 da issue #114: religar `user_roms.game_id` quando o catálogo
+   * ganha uma entrada nova depois que alguém já subiu aquele jogo.
+   *
+   * Fica em `library`, e não em `catalog`, porque quem muda é `user_roms` —
+   * tabela deste módulo — e é `library` quem já importa `identificarRomPorHash`
+   * pela fachada do `catalog` (mesmo caminho de `confirmar-envio-de-rom.ts`).
+   * `catalog` continua sem saber que `user_roms` existe.
+   *
+   * É rota administrativa e global — nenhum `:userId` no caminho — porque o
+   * evento que a justifica é "a curadoria mudou o catálogo", não "esta conta
+   * quer tentar de novo". Ver o cabeçalho de `reprocessar-reconhecimento.ts`
+   * para as alternativas descartadas. A habilidade exigida é `manage` sobre
+   * `Game` — a mesma que já administra o catálogo (docs/adr/0018) — e não uma
+   * habilidade sobre `Library`: não há biblioteca de ninguém específico em
+   * jogo aqui, e uma pessoa comum promovida a `admin` só manualmente, por
+   * decisão deliberada (ver `schema.prisma`, coluna `User.role`).
+   */
+  app.post(
+    '/admin/library/roms/recognize',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['library', 'admin'],
+        summary: 'Reprocessa ROMs sem jogo reconhecido contra o catálogo atual',
+        description:
+          'Varre toda a `user_roms` com `game_id` nulo — de qualquer conta, não só da de ' +
+          'quem chama — e tenta casar cada hash contra o catálogo pela mesma lógica do ' +
+          'upload (`identificarRomPorHash`). ROM que casar tem o `game_id` religado e ' +
+          'entra na busca de capa (#77) do mesmo jeito que um upload recém-reconhecido ' +
+          'entraria. Existe porque hoje o match só acontece na confirmação do envio: se o ' +
+          'catálogo ganha uma entrada depois que alguém já subiu aquele jogo, sem esta ' +
+          'rota o único jeito de religar o vínculo seria SQL manual (issue #114). Exige ' +
+          '`manage` sobre `Game` — a mesma habilidade que administra o catálogo — e não ' +
+          'uma habilidade sobre a própria biblioteca: é operação de catálogo, não de ' +
+          'acervo de ninguém específico.',
+        response: {
+          200: romRecognitionSweepResponseSchema,
+          401: apiErrorSchema,
+          403: apiErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const userId = sessoes.usuarioAutenticado(request);
+      autorizarOuProibido(await habilidadesDoUsuario(userId), 'manage', 'Game');
+
+      return reprocessarReconhecimento({
+        roms: prismaUserRomRepository,
+        catalogo: identificarRomPorHash,
+      });
     },
   );
 };

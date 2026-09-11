@@ -101,3 +101,19 @@ export const romFavoriteResponseSchema = z.object({
   isFavorite: z.boolean(),
 });
 export type RomFavoriteResponse = z.infer<typeof romFavoriteResponseSchema>;
+
+/**
+ * Resposta de `POST /api/admin/library/roms/recognize` (issue #114).
+ *
+ * `analisadas` é quantas `user_roms` sem `game_id` existiam no momento da
+ * varredura; `reconhecidas`, quantas casaram com o catálogo de hoje e tiveram
+ * o vínculo religado. A diferença entre as duas não é erro — é o tamanho da
+ * lacuna 1 (curadoria) que ainda falta preencher: toda ROM que segue sem
+ * `game_id` depois de rodar isto é uma ROM para a qual o catálogo ainda não
+ * tem hash cadastrado.
+ */
+export const romRecognitionSweepResponseSchema = z.object({
+  analisadas: z.number().int().nonnegative(),
+  reconhecidas: z.number().int().nonnegative(),
+});
+export type RomRecognitionSweepResponse = z.infer<typeof romRecognitionSweepResponseSchema>;

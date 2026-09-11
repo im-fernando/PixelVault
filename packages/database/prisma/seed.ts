@@ -112,6 +112,14 @@ const HOMEBREWS: Homebrew[] = [
  *
  * Só entra aqui conteúdo que podemos distribuir — sistemas, metadados e
  * homebrew. Nenhuma ROM comercial. Ver docs/adr/0006.
+ *
+ * A issue #114 documentou a lacuna de não haver hash de jogo comercial
+ * nenhum aqui — só homebrew, então `identificarRomPorHash` nunca casa para o
+ * caso mais comum do BYOR. Esta sessão não adicionou nenhum, por falta de
+ * acesso a hash confiável (No-Intro/Redump) para conferir contra fonte
+ * pública: ver docs/curadoria-de-catalogo.md para o processo de cadastrar um
+ * jogo comercial no futuro, e para o motivo detalhado de ter pulado isso
+ * agora.
  */
 async function main(): Promise<void> {
   await prisma.system.createMany({
