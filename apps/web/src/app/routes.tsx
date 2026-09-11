@@ -6,6 +6,7 @@ import {
   Outlet,
   useRouterState,
 } from '@tanstack/react-router';
+import { Gamepad2 } from 'lucide-react';
 import { NotificacaoDeConquista } from '../features/achievements/NotificacaoDeConquista.js';
 import { PainelDeConquistas } from '../features/achievements/PainelDeConquistas.js';
 import { CadastroPage } from '../features/auth/CadastroPage.js';
@@ -19,14 +20,15 @@ import { ConsolePage } from '../features/console/ConsolePage.js';
 import { ConsolePlayPage } from '../features/console/ConsolePlayPage.js';
 import { EnviarRomPage } from '../features/library/EnviarRomPage.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
-import { Frontispicio } from '../features/library/Frontispicio.js';
 import { LocalLibrary } from '../features/library/LocalLibrary.js';
 import { MinhaBiblioteca } from '../features/library/MinhaBiblioteca.js';
+import { Vitrine } from '../features/library/Vitrine.js';
 import { LeaderboardPage } from '../features/leaderboards/LeaderboardPage.js';
 import { BibliotecaPlayPage } from '../features/player/BibliotecaPlayPage.js';
 import { LocalPlayPage } from '../features/player/LocalPlayPage.js';
 import { PlayPage } from '../features/player/PlayPage.js';
 import { PerfilPublicoPage } from '../features/profile/PerfilPublicoPage.js';
+import { classesDaPilula } from '../ui/Botao.js';
 
 /**
  * O modo console (#116) é para ser "tela cheia, tipo ligar um console de
@@ -60,59 +62,87 @@ function Shell() {
   if (emModoConsole) return <Outlet />;
 
   return (
-    <div className="min-h-screen">
+    <div className="pv-shell">
       {/*
-        A marca é estampada como a faixa de nome de uma etiqueta de cartucho:
-        larga, apertada, caixa alta. É o único lugar da interface onde a
-        tipografia grita — o resto fica quieto, para a prateleira ser o que se
-        vê. Ver docs/design.md.
+        A mesma luz do tema Aurora do console: dois anéis em órbita e um
+        gradiente radial sobre a tinta. Fica fixa atrás de tudo, para o site
+        inteiro ser a mesma sala em que o console acende.
       */}
-      <header className="border-b border-ink-850">
-        <div className="flex items-center gap-6 px-6 py-5">
-          <Link
-            to="/"
-            className="titulo-estampado text-xl leading-none outline-none focus-visible:underline"
-          >
-            Pixel<span className="text-label-400">Vault</span>
-          </Link>
-          {/*
-            "Enviar ROM" fica visível para todo mundo, inclusive para quem não
-            entrou: o BYOR é a razão de existir de uma conta aqui, e esconder a
-            porta de quem ainda não tem uma esconde o motivo de criar. Quem
-            chegar deslogado é levado ao login pelo `exigirSessao` da rota, com
-            o `retorno` que traz a pessoa de volta para cá — o mesmo caminho
-            que `/configuracoes` já usa.
+      <div className="pv-atmosfera" aria-hidden="true">
+        <i />
+        <i />
+      </div>
 
+      <header className="pv-cabecalho">
+        {/*
+          A marca é a mesma do console: o símbolo "pv" inclinado e o nome
+          estampado com a assinatura embaixo. Quem vai da home ao console e
+          volta precisa reconhecer o mesmo produto nos dois lados.
+        */}
+        <Link to="/" className="pv-marca">
+          <span className="pv-marca-simbolo" aria-hidden="true">
+            p<span>v</span>
+          </span>
+          <span className="pv-marca-nome">
+            PIXELVAULT<small>PLAY YOUR WAY</small>
+          </span>
+        </Link>
+        {/*
+          "Enviar ROM" fica visível para todo mundo, inclusive para quem não
+          entrou: o BYOR é a razão de existir de uma conta aqui, e esconder a
+          porta de quem ainda não tem uma esconde o motivo de criar. Quem
+          chegar deslogado é levado ao login pelo `exigirSessao` da rota, com
+          o `retorno` que traz a pessoa de volta para cá — o mesmo caminho
+          que `/configuracoes` já usa. "Conquistas" é a vitrine da #121 e
+          ganha o mesmo tratamento.
+        */}
+        <nav className="pv-nav" aria-label="Principal">
+          <Link to="/" activeOptions={{ exact: true }} activeProps={{ 'aria-current': 'page' }}>
+            Acervo
+          </Link>
+          <Link to="/enviar-rom" activeProps={{ 'aria-current': 'page' }}>
+            Enviar ROM
+          </Link>
+          <Link to="/conquistas" activeProps={{ 'aria-current': 'page' }}>
+            Conquistas
+          </Link>
+        </nav>
+        <div className="ml-auto flex items-center gap-3">
+          {/*
             "Modo console" só faz sentido para quem já tem biblioteca —
-            `exigirSessao` cuida disso na própria rota, do mesmo jeito.
+            `exigirSessao` cuida disso na própria rota. Fica como pílula, e
+            não como item da navegação, porque não é uma página do site: é
+            a porta para a outra metade do produto.
           */}
-          <nav className="flex gap-4 text-sm text-ink-500">
-            <Link to="/" className="hover:text-label-100">
-              Acervo
-            </Link>
-            <Link to="/enviar-rom" className="hover:text-label-100">
-              Enviar ROM
-            </Link>
-            <Link to="/console" className="hover:text-label-100">
-              Modo console
-            </Link>
-            {/*
-              "Conquistas" fica no cabeçalho, não só em `/configuracoes`: é a
-              vitrine da issue #121, e o cabeçalho já é onde `/enviar-rom` e
-              `/console` — ações da conta — vivem. Quem não tem sessão que
-              clicar cai no login pelo mesmo `exigirSessao` com `retorno`.
-            */}
-            <Link to="/conquistas" className="hover:text-label-100">
-              Conquistas
-            </Link>
-          </nav>
-          <span className="leitura hidden text-ink-700 lg:block">snes · o save fica</span>
+          <Link
+            to="/console"
+            className={classesDaPilula({ variante: 'secundaria', pequena: true })}
+          >
+            <Gamepad2 size={15} />
+            <span className="hidden sm:inline">Modo console</span>
+          </Link>
           <ContaNoCabecalho />
         </div>
       </header>
-      <main className="py-10">
+
+      <main className="pv-pagina pt-4 pb-10">
         <Outlet />
       </main>
+
+      <footer className="pv-rodape">
+        <p className="max-w-md leading-relaxed">
+          Cartucho guarda o save numa pilha, e pilha acaba. Aqui não acaba: o acervo roda no
+          navegador e o progresso fica onde você deixou.
+        </p>
+        <nav aria-label="Rodapé">
+          <Link to="/">Acervo</Link>
+          <Link to="/enviar-rom">Enviar ROM</Link>
+          <Link to="/console">Modo console</Link>
+          <Link to="/conquistas">Conquistas</Link>
+        </nav>
+        <span className="leitura text-ink-700">snes · o save fica</span>
+      </footer>
+
       <NotificacaoDeConquista />
     </div>
   );
@@ -131,7 +161,7 @@ const indexRoute = createRoute({
     // rota própria.
     return (
       <>
-        <Frontispicio />
+        <Vitrine />
         <MinhaBiblioteca />
         <GameLibrary />
         <LocalLibrary />
@@ -148,11 +178,7 @@ const playRoute = createRoute({
     // `key`: trocar de jogo pela URL precisa recriar o player do zero. Sem
     // isso, o React reaproveitaria o componente e o emulador teria que
     // adivinhar que a ROM mudou.
-    return (
-      <div className="mx-auto max-w-6xl px-6">
-        <PlayPage key={slug} slug={slug} />
-      </div>
-    );
+    return <PlayPage key={slug} slug={slug} />;
   },
 });
 
@@ -167,11 +193,7 @@ const bibliotecaPlayRoute = createRoute({
   beforeLoad: exigirSessao,
   component: function JogarDaBiblioteca() {
     const { romId } = bibliotecaPlayRoute.useParams();
-    return (
-      <div className="mx-auto max-w-6xl px-6">
-        <BibliotecaPlayPage key={romId} romId={romId} />
-      </div>
-    );
+    return <BibliotecaPlayPage key={romId} romId={romId} />;
   },
 });
 
@@ -179,11 +201,7 @@ const meusJogosRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/meus-jogos/$id',
   component: function MeusJogos() {
-    return (
-      <div className="mx-auto max-w-6xl px-6">
-        <LocalPlayPage id={meusJogosRoute.useParams().id} />
-      </div>
-    );
+    return <LocalPlayPage id={meusJogosRoute.useParams().id} />;
   },
 });
 

@@ -1,12 +1,21 @@
-import { useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
+import {
+  useId,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
+import { Arte } from '../../ui/Arte.js';
+import { useGames } from '../library/use-games.js';
 
 /**
- * As peças de formulário da autenticação, no vocabulário do acervo.
+ * As peças de formulário da autenticação, no desenho do console.
  *
- * Entrar e se cadastrar são a **ficha de inscrição**: papel pautado, campo
- * com pauta embaixo, sem canto arredondado e sem sombra. O desenho é
- * deliberadamente quieto — a ousadia do produto está gasta na prateleira
- * (ver docs/design.md), e um formulário chamativo aqui competiria com ela.
+ * Entrar e se cadastrar acontecem num painel de vidro à direita; à esquerda,
+ * a mesma cena que a pessoa vai encontrar do outro lado — três caixas do
+ * catálogo em leque e a promessa do produto em uma frase. Não é herói com
+ * manchete vaga: as caixas são jogos de verdade, lidos do catálogo público,
+ * e quem chega sem conta vê o que vai poder jogar antes mesmo de entrar.
  */
 
 export function Ficha({
@@ -19,13 +28,51 @@ export function Ficha({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-md px-6">
-      <div className="border-b-2 border-ink-850 pb-1.5">
-        <h1 className="titulo-estampado text-lg text-label-100">{titulo}</h1>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-ink-500">{nota}</p>
-      {children}
+    <div className="mx-auto grid max-w-[1120px] items-center gap-12 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+      <Cena />
+      <section className="pv-painel px-7 py-8 sm:px-9 sm:py-10">
+        <p className="sobrelinha">PixelVault · sua conta</p>
+        <h1 className="titulo-cena mt-3 text-[clamp(30px,3.4vw,42px)] text-label-100">{titulo}</h1>
+        <p className="mt-3 text-[13.5px] leading-relaxed text-ink-500">{nota}</p>
+        {children}
+      </section>
     </div>
+  );
+}
+
+/** As três caixas em leque e a frase — a vitrine vista de fora. */
+function Cena() {
+  const { data: games } = useGames();
+  const caixas = (games ?? [])
+    .filter((game) => game.coverUrl !== null)
+    .slice(0, 3)
+    .map((game, indice) => ({ game, desvio: indice - 1 }));
+
+  return (
+    <aside className="hidden lg:block" aria-hidden="true">
+      <p className="sobrelinha">Super Nintendo · no navegador</p>
+      <h2 className="titulo-cena mt-4 max-w-[520px] text-[clamp(34px,3.8vw,58px)] text-label-100">
+        Seu acervo. Seu progresso. <span className="text-label-400">Em qualquer tela.</span>
+      </h2>
+      <p className="mt-4 max-w-md text-[14px] leading-relaxed text-ink-500">
+        Cartucho guarda o save numa pilha, e pilha acaba. Aqui o save fica na conta, e a ROM que
+        você envia é sua e só sua.
+      </p>
+      {caixas.length > 0 && (
+        <div className="pv-leque mt-6 min-h-[340px]">
+          <div className="pv-orbita" />
+          {caixas.map(({ game, desvio }) => (
+            <div
+              key={game.id}
+              className="pv-caixa"
+              style={{ '--desvio': desvio, '--distancia': Math.abs(desvio) } as CSSProperties}
+            >
+              <Arte titulo={game.title} sistema={game.systemId} capaUrl={game.coverUrl} />
+            </div>
+          ))}
+        </div>
+      )}
+    </aside>
   );
 }
 
@@ -42,7 +89,7 @@ export function Campo({ rotulo, ajuda, erro, ...props }: PropsDoCampo) {
 
   return (
     <div className="mt-5">
-      <label htmlFor={id} className="block text-xs font-medium text-ink-500">
+      <label htmlFor={id} className="pv-rotulo">
         {rotulo}
       </label>
       <input
@@ -50,17 +97,10 @@ export function Campo({ rotulo, ajuda, erro, ...props }: PropsDoCampo) {
         id={id}
         aria-invalid={erro === undefined ? undefined : true}
         aria-describedby={erro === undefined && ajuda === undefined ? undefined : idDaAjuda}
-        className={`mt-1.5 w-full border-b bg-ink-900/60 px-3 py-2 text-sm text-label-100 caret-label-400 outline-none transition-colors placeholder:text-ink-700 focus:bg-ink-900 disabled:opacity-50 ${
-          erro === undefined
-            ? 'border-ink-700 focus:border-label-400'
-            : 'border-alert focus:border-alert'
-        }`}
+        className="pv-campo"
       />
       {(erro ?? ajuda) !== undefined && (
-        <p
-          id={idDaAjuda}
-          className={`mt-1.5 text-xs ${erro === undefined ? 'text-ink-700' : 'text-alert'}`}
-        >
+        <p id={idDaAjuda} className={`pv-ajuda ${erro === undefined ? '' : 'pv-ajuda--erro'}`}>
           {erro ?? ajuda}
         </p>
       )}
@@ -80,18 +120,13 @@ export function Caixa({
 
   return (
     <div className="mt-6">
-      <div className="flex items-start gap-2.5">
-        <input
-          {...props}
-          id={id}
-          type="checkbox"
-          className="mt-0.5 h-4 w-4 shrink-0 accent-label-400"
-        />
-        <label htmlFor={id} className="text-xs leading-relaxed text-ink-500">
+      <div className="flex items-start gap-3">
+        <input {...props} id={id} type="checkbox" className="pv-marcador" />
+        <label htmlFor={id} className="text-[12.5px] leading-relaxed text-ink-500">
           {children}
         </label>
       </div>
-      {erro !== undefined && <p className="mt-1.5 text-xs text-alert">{erro}</p>}
+      {erro !== undefined && <p className="pv-ajuda pv-ajuda--erro">{erro}</p>}
     </div>
   );
 }
@@ -105,10 +140,7 @@ export function Caixa({
  */
 export function Recusa({ children }: { readonly children: ReactNode }) {
   return (
-    <p
-      role="alert"
-      className="mt-6 border-l-2 border-alert bg-ink-900 px-4 py-3 text-sm text-label-100"
-    >
+    <p role="alert" className="pv-aviso mt-6 text-[13.5px] leading-relaxed text-label-100">
       {children}
     </p>
   );
@@ -127,7 +159,7 @@ export function BotaoPrincipal({
       {...props}
       type="submit"
       disabled={ocupado}
-      className="titulo-estampado mt-7 w-full bg-label-100 px-4 py-2.5 text-sm text-ink-950 outline-none transition-colors hover:bg-label-200 focus-visible:ring-2 focus-visible:ring-label-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 disabled:cursor-progress disabled:opacity-45"
+      className="pv-pilula pv-pilula--larga mt-7 disabled:cursor-progress"
     >
       {children}
     </button>

@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react';
+import { Cloud, Trash2 } from 'lucide-react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { BotaoIcone, BotaoPilula } from '../../ui/Botao.js';
+import { LinhaDeSecao } from '../../ui/Texto.js';
 import type { EstadoDoSlotNaNuvem } from './sincronizacao-de-save-states.js';
 import {
   revokeThumbnailUrl,
@@ -17,6 +20,10 @@ import {
  *
  * A miniatura vem do próprio quadro no instante do save, e é o que transforma
  * "Slot 1, Slot 2, Slot 3" numa galeria em que a pessoa reconhece onde parou.
+ *
+ * A cor entra pela variável `--slot` do `.pv-slot`: é ela que pinta a letra
+ * e o brilho da borda ao passar o mouse, e é o único lugar da tela em que as
+ * quatro cores aparecem.
  */
 
 const BOTOES: Readonly<Record<SaveSlot, { readonly letra: string; readonly cor: string }>> = {
@@ -54,21 +61,20 @@ export function GaleriaDeSlots({
   sincronizandoSlot,
   aoSincronizar,
 }: Props) {
+  const gravados = slots.filter((s) => s.metadata !== null).length;
+
   return (
-    <section>
-      <div className="mb-2 flex items-baseline gap-3 border-b border-ink-850 pb-1.5">
-        <h2 className="titulo-estampado text-xs text-label-100">Estados salvos</h2>
-        <span className="leitura text-ink-700">
-          {slots.filter((s) => s.metadata !== null).length}/4
-        </span>
+    <section aria-labelledby="estados-salvos">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <LinhaDeSecao id="estados-salvos" nome="Estados salvos" contagem={`${gravados}/4`} />
         {volatil && (
-          <span className="ml-auto text-[0.7rem] text-alert">
+          <span className="text-[11px] text-alert">
             este navegador não guarda nada: o progresso some ao fechar a aba
           </span>
         )}
       </div>
 
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {slots.map((vista) => (
           <li key={vista.slot}>
             <Slot
@@ -114,90 +120,101 @@ function Slot({
   const botao = BOTOES[vista.slot];
   const gravado = vista.metadata;
   const incompativel = vista.incompatibleReason !== null;
+  const carregavel = gravado !== null && !incompativel;
   const url = useMiniatura(vista.thumbnail);
 
   return (
-    <div className="group/slot relative">
-      <button
-        type="button"
-        onClick={() =>
-          gravado !== null && !incompativel ? aoCarregar(vista.slot) : aoSalvar(vista.slot)
-        }
-        disabled={incompativel}
-        title={vista.incompatibleReason ?? undefined}
-        className="block w-full text-left outline-none disabled:cursor-not-allowed"
-      >
-        <div
-          className="relative aspect-[4/3] overflow-hidden border-t-2 bg-ink-900 transition group-hover/slot:bg-ink-850 group-focus-visible/slot:ring-1"
-          style={{ borderTopColor: botao.cor }}
-        >
-          {url !== null ? (
-            <img src={url} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <span className="leitura text-ink-700">
-                {gravado !== null ? 'sem miniatura' : 'vazio'}
-              </span>
-            </div>
-          )}
-
-          {/* A letra do botão. É o nome do slot, e a cor é a mesma do console. */}
-          <span
-            className="titulo-estampado absolute top-1 left-1.5 text-sm leading-none"
-            style={{ color: botao.cor }}
-          >
-            {botao.letra}
-          </span>
-
-          {incompativel && (
-            <span className="absolute inset-x-0 bottom-0 bg-ink-950/90 px-1.5 py-1 text-[0.65rem] leading-tight text-alert">
-              incompatível
+    <article className="pv-slot" style={{ '--slot': botao.cor } as CSSProperties}>
+      <div className="pv-slot-previa">
+        {url !== null ? (
+          <img src={url} alt="" />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <span className="leitura text-ink-700">
+              {gravado !== null ? 'sem miniatura' : 'vazio'}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
-        <p className="leitura mt-1 truncate text-ink-700">
+        {/* A letra do botão. É o nome do slot, e a cor é a mesma do console. */}
+        <span className="pv-slot-letra" aria-hidden="true">
+          {botao.letra}
+        </span>
+
+        {incompativel && (
+          <span className="absolute inset-x-0 bottom-0 bg-ink-950/90 px-2.5 py-1 text-[10px] leading-tight text-alert">
+            incompatível
+          </span>
+        )}
+      </div>
+
+      <div className="p-3">
+        <p className="leitura truncate text-ink-500">
           {gravado !== null ? formatarInstante(gravado.updatedAt) : 'gravar aqui'}
         </p>
-      </button>
 
-      {gravado !== null && (
-        <button
-          type="button"
-          onClick={() => aoApagar(vista.slot)}
-          className="leitura absolute top-1 right-1 bg-ink-950/85 px-1.5 py-0.5 text-ink-500 opacity-0 transition-opacity group-hover/slot:opacity-100 focus-visible:opacity-100"
-          aria-label={`Apagar o estado do slot ${botao.letra}`}
-        >
-          apagar
-        </button>
-      )}
-
-      {estadoNaNuvem !== undefined && (
-        <div className="mt-1 flex items-center justify-between gap-1">
-          <span
-            className={`leitura ${estadoNaNuvem === 'divergente' ? 'text-alert' : 'text-ink-700'}`}
+        {/*
+          `flex-wrap`: no ponto em que a grade vira quatro colunas o slot fica
+          estreito demais para a pílula e a lixeira lado a lado; a lixeira
+          desce uma linha em vez de sair cortada pela moldura.
+        */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-1">
+          <BotaoPilula
+            variante="secundaria"
+            pequena
+            className="flex-1"
+            disabled={incompativel}
+            title={vista.incompatibleReason ?? undefined}
+            aria-label={
+              carregavel
+                ? `Carregar o estado do slot ${botao.letra}`
+                : `Gravar no slot ${botao.letra}`
+            }
+            onClick={() => (carregavel ? aoCarregar(vista.slot) : aoSalvar(vista.slot))}
           >
-            {ROTULO_DO_ESTADO[estadoNaNuvem]}
-          </span>
-          {estadoNaNuvem !== 'sincronizado' && aoSincronizar !== undefined && (
-            <button
-              type="button"
-              onClick={() => aoSincronizar(vista.slot)}
-              disabled={sincronizando}
-              className="leitura text-label-200 underline-offset-2 hover:underline disabled:opacity-50"
+            {carregavel ? 'Carregar' : 'Gravar'}
+          </BotaoPilula>
+          {gravado !== null && (
+            <BotaoIcone
+              rotulo={`Apagar o estado do slot ${botao.letra}`}
+              className="hover:text-alert"
+              onClick={() => aoApagar(vista.slot)}
             >
-              {sincronizando
-                ? '…'
-                : estadoNaNuvem === 'apenas-nuvem'
-                  ? 'baixar'
-                  : estadoNaNuvem === 'divergente'
-                    ? 'resolver'
-                    : 'enviar'}
-            </button>
+              <Trash2 size={15} />
+            </BotaoIcone>
           )}
         </div>
-      )}
-    </div>
+
+        {estadoNaNuvem !== undefined && (
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span
+              className={`leitura inline-flex items-center gap-1.5 ${
+                estadoNaNuvem === 'divergente' ? 'text-alert' : 'text-ink-700'
+              }`}
+            >
+              <Cloud size={11} className="shrink-0" />
+              {ROTULO_DO_ESTADO[estadoNaNuvem]}
+            </span>
+            {estadoNaNuvem !== 'sincronizado' && aoSincronizar !== undefined && (
+              <button
+                type="button"
+                onClick={() => aoSincronizar(vista.slot)}
+                disabled={sincronizando}
+                className="leitura text-label-200 underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                {sincronizando
+                  ? '…'
+                  : estadoNaNuvem === 'apenas-nuvem'
+                    ? 'baixar'
+                    : estadoNaNuvem === 'divergente'
+                      ? 'resolver'
+                      : 'enviar'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 

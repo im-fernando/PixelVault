@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router';
 import type { Game } from '@pixelvault/contracts';
 import { ApiRequestError } from '../../lib/api.js';
-import { Cartucho } from './Cartucho.js';
-import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
+import { Aviso, Vazio } from '../../ui/Painel.js';
+import { Cartucho, MioloDoCartucho } from './Cartucho.js';
+import { CartuchoEsqueleto, EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
 import { useGames } from './use-games.js';
 
 export function GameLibrary() {
@@ -10,11 +11,14 @@ export function GameLibrary() {
 
   if (isPending) {
     return (
-      <Prateleira>
-        {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} className="h-[17rem] w-14 shrink-0 animate-pulse bg-ink-900" />
-        ))}
-      </Prateleira>
+      <section className="mt-10">
+        <EtiquetaDeGaveta nome="Catálogo público" itens={0} nota="homebrew · jogável sem conta" />
+        <Prateleira>
+          {Array.from({ length: 8 }, (_, i) => (
+            <CartuchoEsqueleto key={i} />
+          ))}
+        </Prateleira>
+      </section>
     );
   }
 
@@ -24,28 +28,30 @@ export function GameLibrary() {
         ? `${error.payload.code}: ${error.payload.message}`
         : 'Não foi possível falar com a API.';
     return (
-      <div className="mx-6 border-l-2 border-alert bg-ink-900 p-5">
-        <h3 className="titulo-estampado text-sm text-label-100">O acervo não respondeu</h3>
-        <p className="mt-1 text-sm text-ink-500">{detalhe}</p>
-        <p className="leitura mt-3 text-ink-700">verifique a API — pnpm dev</p>
-      </div>
+      <section className="mt-10">
+        <EtiquetaDeGaveta nome="Catálogo público" itens={0} nota="homebrew · jogável sem conta" />
+        <Aviso titulo="O acervo não respondeu" className="mt-5">
+          {detalhe}
+          <p className="leitura mt-3 text-ink-700">verifique a API — pnpm dev</p>
+        </Aviso>
+      </section>
     );
   }
 
   if (games.length === 0) {
     return (
-      <div className="mx-6 border border-dashed border-ink-850 p-8">
-        <h3 className="titulo-estampado text-sm text-label-100">A prateleira está vazia</h3>
-        <p className="mt-1 text-sm text-ink-500">
+      <section className="mt-10">
+        <EtiquetaDeGaveta nome="Catálogo público" itens={0} nota="homebrew · jogável sem conta" />
+        <Vazio className="mt-5" titulo="A prateleira está vazia.">
           Rode <code className="leitura text-label-200">pnpm db:seed</code> para trazer os
           homebrews.
-        </p>
-      </div>
+        </Vazio>
+      </section>
     );
   }
 
   return (
-    <section>
+    <section className="mt-10">
       <EtiquetaDeGaveta
         nome="Catálogo público"
         itens={games.length}
@@ -66,19 +72,18 @@ export function GameLibrary() {
  * do clique, em vez de levar a uma tela que só sabe explicar por que não dá.
  */
 function NaPrateleira({ game }: { readonly game: Game }) {
-  const selo = [game.publisher, game.releaseYear].filter(Boolean).join(' · ') || undefined;
+  const nota = [game.publisher, game.releaseYear].filter(Boolean).join(' · ') || undefined;
 
   if (!game.isHomebrew) {
     return (
-      <div className="group" title={`${game.title} — precisa da sua ROM`}>
-        <Cartucho
-          titulo={game.title}
-          systemId={game.systemId}
-          selo={selo}
-          capaUrl={game.coverUrl}
-          desbotado
-        />
-      </div>
+      <Cartucho
+        titulo={game.title}
+        systemId={game.systemId}
+        capaUrl={game.coverUrl}
+        nota={nota}
+        selo="Precisa da sua ROM"
+        desbotado
+      />
     );
   }
 
@@ -86,10 +91,16 @@ function NaPrateleira({ game }: { readonly game: Game }) {
     <Link
       to="/play/$slug"
       params={{ slug: game.slug }}
-      className="group block outline-none"
+      className="pv-cartucho"
       aria-label={`Jogar ${game.title}`}
     >
-      <Cartucho titulo={game.title} systemId={game.systemId} selo={selo} capaUrl={game.coverUrl} />
+      <MioloDoCartucho
+        titulo={game.title}
+        systemId={game.systemId}
+        capaUrl={game.coverUrl}
+        nota={nota}
+        selo="Homebrew"
+      />
     </Link>
   );
 }

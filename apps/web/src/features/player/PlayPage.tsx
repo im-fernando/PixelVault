@@ -4,8 +4,10 @@ import { romFromUrl, type RomSource } from '@pixelvault/emulator-runtime';
 import type { HomebrewRom } from '@pixelvault/contracts';
 import { useGame } from '../library/use-game.js';
 import { ApiRequestError } from '../../lib/api.js';
+import { classesDaPilula } from '../../ui/Botao.js';
+import { Aviso } from '../../ui/Painel.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
-import { FichaDeAcervo } from './FichaDeAcervo.js';
+import { FichaDeAcervo, TelaDeJogoFantasma } from './FichaDeAcervo.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
 
 interface Props {
@@ -27,14 +29,7 @@ export function PlayPage({ slug }: Props) {
     return referencia === null ? null : fonteDaRom(referencia);
   }, [jogo?.homebrewRom]);
 
-  if (isPending) {
-    return (
-      <div className="space-y-4">
-        <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
-        <div className="aspect-video w-full animate-pulse rounded-xl bg-ink-850" />
-      </div>
-    );
-  }
+  if (isPending) return <TelaDeJogoFantasma />;
 
   if (error) {
     const naoEncontrado = error instanceof ApiRequestError && error.status === 404;
@@ -53,7 +48,7 @@ export function PlayPage({ slug }: Props) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1180px] space-y-6">
       <FichaDeAcervo
         titulo={jogo.title}
         systemId={jogo.systemId}
@@ -82,16 +77,14 @@ export function PlayPage({ slug }: Props) {
           detalhe="O catálogo é de metadados: só homebrew é servido por nós. Envie o seu arquivo quando a biblioteca pessoal chegar."
         />
       ) : (
-        <>
-          <PlayerErrorBoundary>
-            <EmulatorPlayer
-              systemId={jogo.systemId}
-              rom={rom}
-              titulo={jogo.title}
-              romId={jogo.homebrewRom?.sha256}
-            />
-          </PlayerErrorBoundary>
-        </>
+        <PlayerErrorBoundary>
+          <EmulatorPlayer
+            systemId={jogo.systemId}
+            rom={rom}
+            titulo={jogo.title}
+            romId={jogo.homebrewRom?.sha256}
+          />
+        </PlayerErrorBoundary>
       )}
     </div>
   );
@@ -111,15 +104,16 @@ function fonteDaRom(referencia: HomebrewRom): RomSource {
 
 function Recado({ titulo, detalhe }: { readonly titulo: string; readonly detalhe: string }) {
   return (
-    <div className="rounded-xl border border-ink-850 bg-ink-900 p-8 text-center">
-      <h2 className="font-semibold text-alert">{titulo}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{detalhe}</p>
-      <Link
-        to="/"
-        className="mt-5 inline-block rounded-md border border-ink-700 px-4 py-2 text-sm text-label-100 hover:border-alert"
-      >
-        Voltar para a biblioteca
-      </Link>
-    </div>
+    <Aviso
+      className="mx-auto max-w-[1180px]"
+      titulo={titulo}
+      acao={
+        <Link to="/" className={classesDaPilula({ variante: 'secundaria', pequena: true })}>
+          Voltar para a biblioteca
+        </Link>
+      }
+    >
+      {detalhe}
+    </Aviso>
   );
 }

@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { BotaoPilula } from '../../ui/Botao.js';
+import { Aviso } from '../../ui/Painel.js';
 
 interface Props {
   readonly children: ReactNode;
@@ -37,17 +39,16 @@ export class PlayerErrorBoundary extends Component<Props, Estado> {
     if (this.props.fallback) return this.props.fallback(erro, () => this.setState({ erro: null }));
 
     return (
-      <div className="rounded-xl border border-ink-850 bg-ink-900 p-8 text-center">
-        <h2 className="font-semibold text-alert">O player parou de responder</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{erro.message}</p>
-        <button
-          type="button"
-          onClick={() => this.setState({ erro: null })}
-          className="mt-5 rounded-md bg-alert px-4 py-2 text-sm font-semibold text-ink-950 hover:brightness-110"
-        >
-          Recarregar o player
-        </button>
-      </div>
+      <Aviso
+        titulo="O player parou de responder"
+        acao={
+          <BotaoPilula pequena onClick={() => this.setState({ erro: null })}>
+            Recarregar o player
+          </BotaoPilula>
+        }
+      >
+        {erro.message}
+      </Aviso>
     );
   }
 }

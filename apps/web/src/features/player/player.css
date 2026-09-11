@@ -1,0 +1,67 @@
+/*
+ * O que a tela de jogo do site precisa além do que `styles.css` já dá: a luz
+ * atrás da moldura, o aviso que flutua sobre o palco e a tecla dentro do
+ * botão do HUD. Fica em `@layer components` pelo mesmo motivo das classes
+ * `pv-*` compartilhadas: as utilities do Tailwind precisam continuar
+ * vencendo quando um componente ajusta um detalhe.
+ *
+ * A declaração de camadas abaixo é rede de segurança. A ordem das camadas
+ * do cascade é a da primeira ocorrência, e hoje quem abre a cascata é o
+ * `styles.css` (importado antes das rotas em `main.tsx`). Se um dia esse
+ * import mudar de lugar, este arquivo passaria a entrar primeiro e, sem a
+ * declaração, `components` nasceria antes de `base` — e o preflight do
+ * Tailwind venceria TODA classe `pv-*` do site.
+ */
+@layer properties, theme, base, components, utilities;
+
+@layer components {
+  /* A luz do título por trás do palco — o mesmo matiz que a arte substituta
+     usa na prateleira, para o jogo sem capa ter a mesma cor aqui e lá. Vive
+     dentro de um `relative isolate` para o z-index negativo não escapar para
+     trás da página. Só bleed do blur passa da borda: é tinta, não caixa, e
+     por isso não cria rolagem horizontal. */
+  .pv-player-luz {
+    position: absolute;
+    inset: -6% 0 -12%;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at 50% 60%,
+      hsl(var(--matiz) 60% 50% / 0.25),
+      transparent 62%
+    );
+    filter: blur(40px);
+  }
+
+  /* O aviso da partida ("Estado salvo no slot A.") em cima do palco. É o
+     `.pv-toast` preso à moldura em vez de à janela: em tela cheia a janela É
+     o palco, e um aviso fixo no rodapé da tela ficaria em cima do HUD.
+     `translate` em vez de `transform` para a centralização não ser
+     sobrescrita pelo último quadro da animação de revelar. */
+  .pv-player-aviso {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    z-index: 20;
+    max-width: calc(100% - 28px);
+    padding: 9px 16px;
+    border: 1px solid oklch(1 0 0 / 0.14);
+    border-radius: 30px;
+    background: oklch(0.1 0.03 262 / 0.85);
+    color: var(--color-label-100);
+    font-size: 12.5px;
+    text-align: center;
+    box-shadow: 0 10px 40px oklch(0 0 0 / 0.4);
+    backdrop-filter: blur(12px);
+    translate: -50% 0;
+    animation: pv-revelar 0.3s both;
+  }
+
+  /* A tecla dentro do botão do HUD herda a cor do botão: no botão de
+     destaque (papel sobre tinta) a tecla branca do rodapé sumiria. */
+  .pv-player-atalho {
+    color: inherit;
+    border-color: color-mix(in oklch, currentColor 40%, transparent);
+    opacity: 0.75;
+  }
+}

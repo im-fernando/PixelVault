@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react';
+import type { UnlockedAchievement } from '@pixelvault/contracts';
+import { ApiRequestError } from '../../lib/api.js';
+import { Aviso } from '../../ui/Painel.js';
+import { LinhaDeSecao, Numero, Sobrelinha } from '../../ui/Texto.js';
+import { CartaoDeConquista } from '../achievements/CartaoDeConquista.js';
 import { CATALOGO_DE_CONQUISTAS } from '../achievements/catalogo-de-conquistas.js';
 import { formatarPlaytime } from '../leaderboards/formatar-playtime.js';
-import { ApiRequestError } from '../../lib/api.js';
 import { usePerfilPublico } from './use-perfil-publico.js';
 
 /**
@@ -10,7 +14,7 @@ import { usePerfilPublico } from './use-perfil-publico.js';
  *
  * O que aparece é deliberadamente pouco: nome de exibição, conquistas
  * desbloqueadas (reaproveitando o catálogo estático de `achievements`, o
- * mesmo texto que `PainelDeConquistas` usa) e tempo jogado/jogos distintos
+ * mesmo cartão que `PainelDeConquistas` usa) e tempo jogado/jogos distintos
  * agregados. Nunca a biblioteca de ROMs — BYOR, ver ADR 0006 — e nunca uma
  * posição de ranking: o ranking da #122 é POR JOGO, não existe "a posição
  * desta pessoa" fora do contexto de um jogo específico (ver o cabeçalho de
@@ -21,81 +25,102 @@ export function PerfilPublicoPage({ handle }: { readonly handle: string }) {
 
   if (isPending) {
     return (
-      <Secao>
-        <div className="animate-pulse space-y-2">
-          <div className="h-8 w-48 bg-ink-900" />
-          <div className="h-4 w-64 bg-ink-900" />
+      <Pagina>
+        <Sobrelinha>perfil público</Sobrelinha>
+        <div aria-hidden="true" className="mt-4 flex items-center gap-6">
+          <div className="h-18 w-18 shrink-0 animate-pulse rounded-full bg-white/5" />
+          <div className="flex-1 space-y-3">
+            <div className="h-10 max-w-72 animate-pulse rounded-lg bg-white/5" />
+            <div className="h-7 w-32 animate-pulse rounded-full bg-white/5" />
+          </div>
         </div>
-      </Secao>
+      </Pagina>
     );
   }
 
   if (error) {
     const naoEncontrado = error instanceof ApiRequestError && error.status === 404;
     return (
-      <Secao>
-        <div className="border-l-2 border-alert bg-ink-900 p-5">
-          <h3 className="titulo-estampado text-sm text-label-100">
-            {naoEncontrado ? 'Perfil não encontrado' : 'O perfil não respondeu'}
-          </h3>
-          <p className="mt-1 text-sm text-ink-500">
-            {naoEncontrado
-              ? `Não existe conta com o handle "${handle}".`
-              : 'Não foi possível falar com a API agora.'}
-          </p>
-        </div>
-      </Secao>
+      <Pagina>
+        <Sobrelinha>perfil público</Sobrelinha>
+        <Aviso
+          className="mt-6"
+          titulo={naoEncontrado ? 'Perfil não encontrado' : 'O perfil não respondeu'}
+        >
+          {naoEncontrado
+            ? `Não existe conta com o handle "${handle}".`
+            : 'Não foi possível falar com a API agora.'}
+        </Aviso>
+      </Pagina>
     );
   }
 
-  const desbloqueadasPorCodigo = new Set(perfil.achievements.map((item) => item.code));
+  const desbloqueadasPorCodigo = new Map<string, UnlockedAchievement>(
+    perfil.achievements.map((item) => [item.code, item]),
+  );
   const conquistasDesbloqueadas = CATALOGO_DE_CONQUISTAS.filter((conquista) =>
     desbloqueadasPorCodigo.has(conquista.code),
   );
+  const inicial = perfil.displayName.trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <Secao>
-      <p className="leitura mb-3 text-ink-700">perfil público</p>
-      <h1 className="titulo-estampado text-3xl leading-none text-label-100">
-        {perfil.displayName}
-      </h1>
-      <p className="leitura mt-1 text-ink-700">@{perfil.handle}</p>
-
-      <dl className="mt-6 flex gap-8 text-sm">
-        <div>
-          <dt className="leitura text-ink-700">tempo jogado</dt>
-          <dd className="mt-1 text-label-100">{formatarPlaytime(perfil.totalPlaytimeSeconds)}</dd>
+    <Pagina>
+      <header className="flex flex-wrap items-center gap-x-7 gap-y-5">
+        {/*
+          A mesma medalha de avatar do chip de conta no cabeçalho, só que do
+          tamanho de um título: o perfil não tem foto, e a inicial em luz é
+          o que faz duas contas de nome parecido se distinguirem de longe.
+        */}
+        <span
+          aria-hidden="true"
+          className="grid h-18 w-18 shrink-0 place-items-center rounded-full bg-luz font-display text-[28px] font-bold text-ink-950"
+        >
+          {inicial}
+        </span>
+        <div className="min-w-0 flex-1">
+          <Sobrelinha>perfil público</Sobrelinha>
+          <h1 className="titulo-cena mt-2 text-[clamp(34px,4.4vw,64px)] text-label-100">
+            {perfil.displayName}
+          </h1>
+          <div className="mt-4">
+            <span className="pv-chip">@{perfil.handle}</span>
+          </div>
         </div>
-        <div>
-          <dt className="leitura text-ink-700">jogos distintos</dt>
-          <dd className="mt-1 text-label-100">{perfil.distinctGamesCount}</dd>
-        </div>
-      </dl>
+      </header>
 
-      <section aria-labelledby="conquistas-do-perfil" className="mt-8">
-        <h2 id="conquistas-do-perfil" className="leitura border-b border-ink-850 pb-2 text-ink-500">
-          Conquistas ({conquistasDesbloqueadas.length})
-        </h2>
+      <div className="mt-12 flex flex-wrap gap-x-12 gap-y-6">
+        <Numero rotulo="tempo jogado" valor={formatarPlaytime(perfil.totalPlaytimeSeconds)} />
+        <Numero rotulo="jogos distintos" valor={perfil.distinctGamesCount} />
+      </div>
+
+      <section aria-labelledby="conquistas-do-perfil" className="mt-12">
+        <LinhaDeSecao
+          id="conquistas-do-perfil"
+          nome={`Conquistas (${conquistasDesbloqueadas.length})`}
+          nota={`de ${CATALOGO_DE_CONQUISTAS.length} possíveis`}
+        />
         {conquistasDesbloqueadas.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-700">Nenhuma conquista desbloqueada ainda.</p>
+          <div className="pv-vazio mt-4">
+            <p className="text-[13.5px] leading-relaxed text-ink-500">
+              Nenhuma conquista desbloqueada ainda.
+            </p>
+          </div>
         ) : (
-          <ul className="mt-3 flex flex-col gap-3">
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {conquistasDesbloqueadas.map((conquista) => (
-              <li
+              <CartaoDeConquista
                 key={conquista.code}
-                className="rounded border border-ink-800 bg-ink-900 px-4 py-3"
-              >
-                <p className="text-sm font-medium text-label-100">{conquista.titulo}</p>
-                <p className="mt-0.5 text-xs text-ink-500">{conquista.descricao}</p>
-              </li>
+                conquista={conquista}
+                unlockedAt={desbloqueadasPorCodigo.get(conquista.code)!.unlockedAt}
+              />
             ))}
           </ul>
         )}
       </section>
-    </Secao>
+    </Pagina>
   );
 }
 
-function Secao({ children }: { readonly children: ReactNode }) {
-  return <section className="mx-6 mb-12 max-w-2xl">{children}</section>;
+function Pagina({ children }: { readonly children: ReactNode }) {
+  return <div className="mx-auto max-w-[1080px] pt-6">{children}</div>;
 }

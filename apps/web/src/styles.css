@@ -1,51 +1,64 @@
 @import 'tailwindcss';
 
-@import '@fontsource-variable/archivo';
+@import '@fontsource-variable/archivo/wdth.css';
 @import '@fontsource-variable/instrument-sans';
 @import '@fontsource/silkscreen/400.css';
 
 /*
- * PixelVault — direção "Arquivo".
+ * PixelVault — direção "Vitrine".
  *
- * O produto é um acervo, não um fliperama. A tensão que o desenho persegue é
- * entre o objeto nostálgico (o cartucho, o papel da etiqueta) e a catalogação
- * fria (o índice, o hash, o número de acervo). Ver docs/design.md.
+ * O modo console provou que o produto fica melhor quando a arte do jogo é a
+ * imagem e a interface é luz em volta dela. O site inteiro passa a falar essa
+ * língua — a do tema Aurora, que é o padrão do console — sem abrir mão do que
+ * o acervo tem de honesto: contagem lida do conteúdo, hash, número de acervo,
+ * as quatro cores dos slots com significado. Ver docs/design.md e a ADR 0024.
  *
- * O que NÃO fazemos, e é deliberado: neon synthwave, scanline de CRT por cima
- * da interface, e fonte de pixel em título. São os três clichês da categoria.
+ * O que continua proibido: neon synthwave, scanline por cima da interface e
+ * fonte de pixel em título. O CRT do console é um TEMA, escolhido; aqui é o
+ * padrão, e o padrão não pode ser clichê.
  */
 
 @theme {
   /* ── Tinta de arquivo ────────────────────────────────────────────────────
-     Azul-ardósia profundo, levemente frio. É o interior do cofre: o fundo
-     contra o qual o papel da etiqueta aparece. Não é preto — preto puro achata
-     a etiqueta e é o segundo lugar-comum de interface gerada por IA. */
-  --color-ink-950: oklch(0.17 0.021 245);
-  --color-ink-900: oklch(0.22 0.024 245);
-  --color-ink-850: oklch(0.26 0.026 245);
-  --color-ink-800: oklch(0.31 0.028 245);
-  --color-ink-700: oklch(0.42 0.03 245);
-  --color-ink-500: oklch(0.58 0.026 245);
+     Azul-marinho profundo, o mesmo chão do Aurora. Não é preto: preto puro
+     achata a arte da capa e é o padrão que sai de graça. */
+  --color-ink-950: oklch(0.15 0.034 262);
+  --color-ink-900: oklch(0.2 0.034 260);
+  --color-ink-850: oklch(0.245 0.034 258);
+  --color-ink-800: oklch(0.3 0.032 256);
+  --color-ink-700: oklch(0.44 0.03 254);
+  --color-ink-500: oklch(0.7 0.03 262);
 
-  /* ── Papel de etiqueta ───────────────────────────────────────────────────
-     O creme impresso da etiqueta do cartucho, e não o creme de fundo de página
-     — é cor de OBJETO, aplicada em superfície pequena. */
-  --color-label-100: oklch(0.94 0.014 85);
-  --color-label-200: oklch(0.88 0.02 82);
-  --color-label-400: oklch(0.72 0.028 78);
+  /* ── Papel ───────────────────────────────────────────────────────────────
+     O branco frio do console: texto principal, e o fundo do botão que manda. */
+  --color-label-100: oklch(0.965 0.012 280);
+  --color-label-200: oklch(0.9 0.02 280);
+  --color-label-400: oklch(0.76 0.045 280);
+
+  /* ── Luz ─────────────────────────────────────────────────────────────────
+     O acento do Aurora: seleção, foco, link, o ponto que pulsa. É luz, não
+     tinta — nunca fundo de botão principal (esse é papel). */
+  --color-luz: oklch(0.84 0.075 278);
 
   /* ── Os quatro botões do Super Famicom ───────────────────────────────────
-     Cor com significado, nunca decoração: estas quatro marcam os quatro slots
-     de save state. Slot 0 é A, 1 é B, 2 é X, 3 é Y — o mesmo console que a
-     pessoa está emulando. Não use nenhuma delas para outra coisa. */
+     Cor com significado, nunca decoração: marcam os quatro slots de save
+     state. Slot 0 é A, 1 é B, 2 é X, 3 é Y. Não use nenhuma delas para outra
+     coisa. */
   --color-slot-0: oklch(0.62 0.19 25);
   --color-slot-1: oklch(0.78 0.16 88);
   --color-slot-2: oklch(0.62 0.15 250);
   --color-slot-3: oklch(0.66 0.15 150);
 
+  /* ── Níveis de conquista ─────────────────────────────────────────────────
+     Bronze, prata e ouro são um eixo do domínio (ADR 0010), e por isso ganham
+     token próprio em vez de emprestar um slot. */
+  --color-bronze: oklch(0.68 0.11 58);
+  --color-prata: oklch(0.84 0.015 250);
+  --color-ouro: oklch(0.82 0.14 88);
+
   /* ── Estado ──────────────────────────────────────────────────────────────
      Separado dos slots de propósito: erro não é um slot. */
-  --color-alert: oklch(0.66 0.2 28);
+  --color-alert: oklch(0.68 0.19 28);
 
   --font-display: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
   --font-sans: 'Instrument Sans Variable', 'Instrument Sans', system-ui, sans-serif;
@@ -62,16 +75,38 @@ body {
   background-color: var(--color-ink-950);
   color: var(--color-label-100);
   font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Título estampado, como a faixa de nome numa etiqueta de cartucho: largo,
-   apertado, caixa alta. É onde a personalidade mora. */
+/* Título de cena: o mesmo desenho do título do jogo no console — Archivo
+   semi-pesada, apertada, caixa normal. É onde a personalidade mora. */
+.titulo-cena {
+  font-family: var(--font-display);
+  font-weight: 550;
+  letter-spacing: -0.05em;
+  line-height: 1.02;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+/* Rótulo estampado: caixa alta, largo, para nome de seção e marca. */
 .titulo-estampado {
   font-family: var(--font-display);
-  font-stretch: 125%;
+  font-stretch: 112%;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+/* Sobrelinha: a linha pequena e espaçada que diz de que se trata a cena. */
+.sobrelinha {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
 }
 
 /* Leitura de máquina. Números que o computador produziu, não que uma pessoa
@@ -81,6 +116,1304 @@ body {
   font-size: 0.7rem;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  /* ── Chão ─────────────────────────────────────────────────────────────── */
+  .pv-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+  }
+  .pv-shell > main {
+    flex: 1;
+  }
+  .pv-atmosfera {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 72% 40%, oklch(0.36 0.08 268 / 0.32), transparent 58%),
+      radial-gradient(ellipse at 8% 0%, oklch(0.4 0.09 292 / 0.18), transparent 62%),
+      var(--color-ink-950);
+  }
+  .pv-atmosfera > i {
+    position: absolute;
+    border-radius: 50%;
+    border-top: 1px solid oklch(0.8 0.08 262 / 0.25);
+    box-shadow:
+      0 -12px 25px oklch(0.7 0.12 262 / 0.04),
+      0 -45px 90px oklch(0.75 0.1 275 / 0.08);
+    transform: rotate(-23deg);
+    animation: pv-orbitar 14s ease-in-out infinite alternate;
+  }
+  .pv-atmosfera > i:first-child {
+    width: 120%;
+    height: 65%;
+    left: 20%;
+    top: 25%;
+  }
+  .pv-atmosfera > i:last-child {
+    width: 90%;
+    height: 55%;
+    left: 40%;
+    top: 48%;
+    border-top-color: oklch(0.85 0.08 300 / 0.15);
+    animation-delay: -6s;
+  }
+  .pv-pagina {
+    padding: 0 5vw;
+  }
+
+  /* ── Cabeçalho e rodapé ───────────────────────────────────────────────── */
+  .pv-cabecalho {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: clamp(18px, 3vw, 56px);
+    min-height: 84px;
+    padding: 14px 5vw;
+    background: color-mix(in oklch, var(--color-ink-950) 72%, transparent);
+    backdrop-filter: blur(16px);
+  }
+  .pv-marca {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    white-space: nowrap;
+    color: var(--color-label-100);
+    outline: none;
+  }
+  .pv-marca:focus-visible .pv-marca-nome {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .pv-marca-nome {
+    display: flex;
+    flex-direction: column;
+  }
+  .pv-marca-nome small {
+    margin-top: 3px;
+    font-size: 7px;
+    font-weight: 500;
+    letter-spacing: 0.29em;
+    color: var(--color-ink-500);
+  }
+  .pv-marca-simbolo {
+    font: 700 36px/0.8 var(--font-display);
+    letter-spacing: -0.19em;
+    transform: skew(-9deg);
+    padding-right: 8px;
+  }
+  .pv-marca-simbolo > span {
+    color: var(--color-luz);
+  }
+  .pv-nav {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+  }
+  .pv-nav a {
+    position: relative;
+    padding: 8px 0;
+    color: var(--color-ink-500);
+    font-size: 15px;
+    outline: none;
+    transition: color 0.2s;
+  }
+  .pv-nav a:hover,
+  .pv-nav a:focus-visible,
+  .pv-nav a[aria-current='page'] {
+    color: var(--color-label-100);
+  }
+  .pv-nav a[aria-current='page']::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 18px;
+    height: 2px;
+    border-radius: 5px;
+    background: var(--color-label-100);
+  }
+  .pv-nav a:focus-visible::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    border-radius: 5px;
+    background: var(--color-luz);
+  }
+  .pv-rodape {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px 32px;
+    margin: 56px 5vw 0;
+    padding: 22px 0 28px;
+    border-top: 1px solid oklch(1 0 0 / 0.11);
+    color: var(--color-ink-500);
+    font-size: 12px;
+  }
+  .pv-rodape nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .pv-rodape a:hover {
+    color: var(--color-label-100);
+  }
+
+  /* ── Controles ────────────────────────────────────────────────────────── */
+  .pv-pilula {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    min-height: 50px;
+    padding: 0 24px;
+    border: 1px solid oklch(1 0 0 / 0.27);
+    border-radius: 50px;
+    background: var(--color-label-100);
+    color: var(--color-ink-950);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    outline: none;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s,
+      background 0.2s,
+      border-color 0.2s;
+  }
+  .pv-pilula:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 28px oklch(0.85 0.06 275 / 0.16);
+  }
+  .pv-pilula:focus-visible {
+    outline: 2px solid var(--color-luz);
+    outline-offset: 4px;
+  }
+  .pv-pilula:disabled {
+    cursor: default;
+    opacity: 0.45;
+    transform: none;
+    box-shadow: none;
+  }
+  .pv-pilula > kbd {
+    margin-left: 6px;
+    padding-left: 14px;
+    border-left: 1px solid oklch(0.15 0.03 262 / 0.18);
+    font: 600 12px var(--font-sans);
+    opacity: 0.6;
+  }
+  .pv-pilula--secundaria {
+    background: oklch(1 0 0 / 0.04);
+    border-color: oklch(1 0 0 / 0.16);
+    color: var(--color-label-100);
+  }
+  .pv-pilula--secundaria:hover {
+    background: oklch(1 0 0 / 0.1);
+    box-shadow: none;
+  }
+  .pv-pilula--secundaria > kbd {
+    border-left-color: oklch(1 0 0 / 0.18);
+  }
+  .pv-pilula--perigo {
+    background: transparent;
+    border-color: color-mix(in oklch, var(--color-alert) 55%, transparent);
+    color: var(--color-alert);
+  }
+  .pv-pilula--perigo:hover {
+    background: color-mix(in oklch, var(--color-alert) 14%, transparent);
+    box-shadow: none;
+  }
+  .pv-pilula--pequena {
+    min-height: 38px;
+    padding: 0 16px;
+    font-size: 12px;
+    gap: 8px;
+  }
+  .pv-pilula--larga {
+    width: 100%;
+  }
+  .pv-icone {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    transition:
+      background 0.2s,
+      transform 0.2s,
+      color 0.2s;
+  }
+  .pv-icone:hover,
+  .pv-icone[aria-pressed='true'] {
+    background: oklch(1 0 0 / 0.11);
+    transform: translateY(-2px);
+  }
+  .pv-icone[aria-pressed='true'] {
+    color: var(--color-luz);
+  }
+  .pv-icone:focus-visible {
+    outline: 2px solid var(--color-luz);
+    outline-offset: 3px;
+  }
+  .pv-icone:disabled {
+    opacity: 0.45;
+    cursor: default;
+    transform: none;
+  }
+  .pv-icone--borda {
+    border: 1px solid oklch(1 0 0 / 0.16);
+    background: oklch(1 0 0 / 0.04);
+    width: 50px;
+    height: 50px;
+  }
+  .pv-tecla {
+    display: inline-grid;
+    place-items: center;
+    min-width: 23px;
+    height: 23px;
+    padding: 0 6px;
+    border: 1px solid oklch(1 0 0 / 0.16);
+    border-radius: 6px;
+    color: var(--color-label-100);
+    font: 10px/1 var(--font-sans);
+    white-space: nowrap;
+  }
+  .pv-dica {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--color-ink-500);
+    font-size: 11px;
+  }
+  .pv-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 28px;
+    padding: 0 11px;
+    border: 1px solid oklch(1 0 0 / 0.12);
+    border-radius: 20px;
+    background: oklch(1 0 0 / 0.04);
+    color: var(--color-ink-500);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .pv-chip > b {
+    font-weight: 500;
+    color: var(--color-label-100);
+  }
+  .pv-chip--luz {
+    border-color: color-mix(in oklch, var(--color-luz) 45%, transparent);
+    color: var(--color-luz);
+  }
+  .pv-chip--alerta {
+    border-color: color-mix(in oklch, var(--color-alert) 50%, transparent);
+    color: var(--color-alert);
+  }
+  .pv-ponto {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-luz);
+    box-shadow: 0 0 14px var(--color-luz);
+  }
+
+  /* ── Formulário ───────────────────────────────────────────────────────── */
+  .pv-campo {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 16px;
+    border: 1px solid oklch(1 0 0 / 0.13);
+    border-radius: 12px;
+    background: oklch(1 0 0 / 0.045);
+    color: var(--color-label-100);
+    font: inherit;
+    caret-color: var(--color-luz);
+    outline: none;
+    transition:
+      border-color 0.2s,
+      background 0.2s,
+      box-shadow 0.2s;
+  }
+  .pv-campo::placeholder {
+    color: var(--color-ink-700);
+  }
+  .pv-campo:focus {
+    border-color: var(--color-luz);
+    background: oklch(1 0 0 / 0.07);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-luz) 18%, transparent);
+  }
+  .pv-campo[aria-invalid='true'] {
+    border-color: var(--color-alert);
+  }
+  .pv-campo:disabled {
+    opacity: 0.5;
+  }
+  .pv-rotulo {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-label-200);
+  }
+  .pv-ajuda {
+    margin-top: 7px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--color-ink-500);
+  }
+  .pv-ajuda--erro {
+    color: var(--color-alert);
+  }
+  .pv-marcador {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    accent-color: var(--color-luz);
+  }
+  .pv-radio {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-luz);
+  }
+  .pv-faixa {
+    height: 3px;
+    border-radius: 3px;
+    accent-color: var(--color-luz);
+  }
+
+  /* ── Superfícies ──────────────────────────────────────────────────────── */
+  .pv-painel {
+    border: 1px solid oklch(1 0 0 / 0.11);
+    border-radius: 20px;
+    background: color-mix(in oklch, var(--color-ink-900) 82%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .pv-painel--vidro {
+    background: oklch(1 0 0 / 0.03);
+  }
+  .pv-aviso {
+    position: relative;
+    padding: 20px 22px 20px 26px;
+    border: 1px solid color-mix(in oklch, var(--color-alert) 35%, transparent);
+    border-radius: 16px;
+    background: color-mix(in oklch, var(--color-alert) 7%, var(--color-ink-900));
+  }
+  .pv-aviso::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 18px;
+    bottom: 18px;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--color-alert);
+  }
+  .pv-vazio {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 34px 32px;
+    border: 1px dashed oklch(1 0 0 / 0.16);
+    border-radius: 20px;
+    background: oklch(1 0 0 / 0.02);
+  }
+  .pv-secao {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 18px;
+    padding: 8px 0 4px;
+  }
+  .pv-secao > h2 {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-label-100);
+  }
+  .pv-secao > .leitura {
+    color: var(--color-ink-500);
+  }
+  .pv-secao > span:last-child:not(.leitura) {
+    margin-left: auto;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--color-ink-500);
+  }
+  .pv-verbete dt {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ink-500);
+  }
+  .pv-verbete dd {
+    margin-top: 5px;
+    font-size: 14px;
+    color: var(--color-label-100);
+  }
+  .pv-numero {
+    font-family: var(--font-display);
+    font-weight: 550;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Arte de capa ─────────────────────────────────────────────────────── */
+  .pv-arte {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    background: hsl(var(--matiz) 25% 13%);
+  }
+  .pv-arte > img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .pv-arte > img.pv-arte-fundo {
+    object-fit: cover;
+    filter: blur(18px) brightness(0.45);
+    transform: scale(1.15);
+  }
+  .pv-arte-substituta {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10%;
+    color: #fff;
+    text-align: center;
+    background:
+      radial-gradient(ellipse at 20% 5%, hsl(var(--matiz) 68% 53%), transparent 67%),
+      linear-gradient(145deg, hsl(var(--matiz) 25% 26%), #0d1729);
+  }
+  .pv-arte-substituta::before {
+    content: '';
+    position: absolute;
+    inset: -30%;
+    background: repeating-radial-gradient(
+      ellipse at 100% 100%,
+      transparent 0 19%,
+      #ffffff1c 19.3% 19.5%,
+      transparent 19.8% 25%
+    );
+    transform: rotate(-25deg);
+  }
+  .pv-arte-substituta > * {
+    position: relative;
+  }
+  .pv-arte-substituta > span {
+    font-size: clamp(7px, 0.65vw, 10px);
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+  }
+  .pv-arte-substituta > svg {
+    width: 32%;
+    height: 28%;
+    min-height: 20px;
+    opacity: 0.85;
+  }
+  .pv-arte-substituta > strong {
+    font: 650 clamp(10px, 1.5vw, 25px) / 1.05 var(--font-display);
+    letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
+  }
+  .pv-arte-substituta > small {
+    margin-top: 8px;
+    font-size: 6px;
+    letter-spacing: 0.3em;
+    opacity: 0.7;
+  }
+
+  /* ── Trilho e cartucho ────────────────────────────────────────────────── */
+  .pv-trilho {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    margin: 0 -5vw;
+    padding: 14px 5vw 24px;
+    overflow-x: auto;
+    scroll-padding: 0 5vw;
+    scrollbar-width: none;
+  }
+  .pv-trilho::-webkit-scrollbar {
+    display: none;
+  }
+  .pv-cartucho {
+    position: relative;
+    flex: 0 0 clamp(150px, 15vw, 210px);
+    width: clamp(150px, 15vw, 210px);
+    outline: none;
+    text-align: left;
+    color: inherit;
+  }
+  .pv-cartucho > .pv-arte {
+    aspect-ratio: 1;
+    height: auto;
+    border-radius: 17px;
+    outline: 1px solid oklch(1 0 0 / 0.14);
+    outline-offset: -1px;
+    opacity: 0.86;
+    transition:
+      opacity 0.25s,
+      box-shadow 0.25s,
+      transform 0.25s,
+      outline-color 0.25s;
+  }
+  .pv-cartucho:hover > .pv-arte,
+  .pv-cartucho:focus-visible > .pv-arte,
+  .pv-cartucho:focus-within > .pv-arte,
+  .pv-cartucho[aria-current='true'] > .pv-arte {
+    opacity: 1;
+    transform: translateY(-4px);
+    outline: 2px solid var(--color-luz);
+    outline-offset: 5px;
+    box-shadow: 0 0 24px oklch(0.85 0.07 275 / 0.15);
+  }
+  .pv-cartucho--desbotado > .pv-arte {
+    opacity: 0.4;
+    filter: saturate(0.4);
+  }
+  .pv-cartucho--desbotado:hover > .pv-arte {
+    opacity: 0.55;
+    outline-color: oklch(1 0 0 / 0.3);
+    box-shadow: none;
+  }
+  .pv-cartucho-titulo {
+    display: block;
+    overflow: hidden;
+    margin-top: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-label-200);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+  .pv-cartucho:hover .pv-cartucho-titulo,
+  .pv-cartucho:focus-within .pv-cartucho-titulo {
+    color: var(--color-label-100);
+  }
+  .pv-cartucho-nota {
+    display: block;
+    overflow: hidden;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--color-ink-500);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pv-cartucho-selo {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: oklch(0.1 0.03 262 / 0.7);
+    color: var(--color-label-100);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    backdrop-filter: blur(6px);
+  }
+  .pv-cartucho-favorito {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1;
+    color: #fff;
+    filter: drop-shadow(0 1px 2px #000);
+  }
+  .pv-cartucho-acoes {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid oklch(1 0 0 / 0.14);
+    border-radius: 40px;
+    background: oklch(0.1 0.03 262 / 0.78);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 0.2s,
+      transform 0.2s;
+  }
+  .pv-cartucho:hover .pv-cartucho-acoes,
+  .pv-cartucho:focus-within .pv-cartucho-acoes {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .pv-cartucho-acoes > a:first-child {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 30px;
+    background: var(--color-label-100);
+    color: var(--color-ink-950);
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+  }
+  .pv-cartucho-acoes > a:first-child:focus-visible {
+    outline: 2px solid var(--color-luz);
+    outline-offset: 2px;
+  }
+  .pv-cartucho-acoes .pv-icone {
+    width: 32px;
+    height: 32px;
+  }
+  .pv-cartucho-acoes .pv-icone:hover {
+    transform: none;
+  }
+  .pv-cartucho-acoes .pv-icone--perigo:hover {
+    color: var(--color-alert);
+  }
+  .pv-esqueleto {
+    flex: 0 0 clamp(150px, 15vw, 210px);
+    aspect-ratio: 1;
+    border-radius: 17px;
+    background: oklch(1 0 0 / 0.05);
+    animation: pv-pulsar 1.6s ease-in-out infinite;
+  }
+
+  /* ── Vitrine: o jogo em exposição ─────────────────────────────────────── */
+  .pv-vitrine {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 40px;
+    min-height: clamp(360px, 52vh, 620px);
+    padding: 24px 0 8px;
+  }
+  .pv-vitrine-texto {
+    position: relative;
+    z-index: 2;
+    animation: pv-revelar 0.45s both;
+  }
+  .pv-vitrine-texto > h1 {
+    margin: 22px 0 18px;
+    font-size: clamp(38px, 4.6vw, 80px);
+    max-width: 800px;
+  }
+  .pv-vitrine-linha {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-500);
+  }
+  .pv-vitrine-linha > i {
+    width: 1px;
+    height: 12px;
+    background: oklch(1 0 0 / 0.16);
+  }
+  .pv-vitrine-detalhes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--color-ink-500);
+  }
+  .pv-vitrine-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-top: 30px;
+  }
+  .pv-escultura {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 100%;
+    min-height: 330px;
+    perspective: 1100px;
+  }
+  .pv-orbita {
+    position: absolute;
+    width: 100%;
+    max-width: 500px;
+    aspect-ratio: 1.25;
+    border-radius: 50%;
+    pointer-events: none;
+    border: 1px solid oklch(0.85 0.07 262 / 0.36);
+    transform: rotate(-30deg) rotateX(55deg);
+    box-shadow:
+      0 0 22px oklch(0.85 0.07 275 / 0.08),
+      inset 0 0 30px oklch(0.85 0.07 262 / 0.05);
+    animation: pv-orbitar 12s ease-in-out infinite alternate;
+  }
+  .pv-orbita--dois {
+    width: 95%;
+    transform: rotate(36deg) rotateY(60deg);
+    border-color: oklch(0.88 0.08 300 / 0.23);
+    animation-delay: -5s;
+  }
+  .pv-caixa {
+    width: clamp(160px, 17vw, 300px);
+    aspect-ratio: 0.8;
+    max-height: 350px;
+    overflow: hidden;
+    border: 1px solid oklch(0.93 0.03 262 / 0.37);
+    border-radius: 19px;
+    transform: rotateY(-18deg) rotateX(8deg) rotateZ(8deg);
+    box-shadow:
+      12px 17px 0 -10px oklch(0.62 0.05 262 / 0.35),
+      0 30px 70px oklch(0.05 0.03 262 / 0.7),
+      0 0 70px oklch(0.7 0.12 262 / 0.1);
+    animation: pv-chegar 0.65s both;
+  }
+  .pv-escultura-legenda {
+    position: absolute;
+    bottom: 4%;
+    font-size: 8px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--color-ink-500);
+  }
+  .pv-leque {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 100%;
+    min-height: 300px;
+    perspective: 1300px;
+  }
+  .pv-leque > .pv-caixa {
+    position: absolute;
+    width: clamp(150px, 15vw, 240px);
+    transform: rotateY(calc(var(--desvio) * -16deg)) rotateZ(calc(var(--desvio) * 4deg))
+      translateX(calc(var(--desvio) * 78%)) translateY(calc(var(--distancia) * 8%))
+      scale(calc(1 - var(--distancia) * 0.12));
+    opacity: calc(1 - var(--distancia) * 0.3);
+    z-index: calc(5 - var(--distancia));
+    animation: none;
+  }
+
+  /* ── Diálogo e aviso flutuante ────────────────────────────────────────── */
+  .pv-sobreposicao {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+  .pv-sobreposicao-fundo {
+    position: absolute;
+    inset: 0;
+    background: oklch(0.08 0.03 262 / 0.66);
+    backdrop-filter: blur(20px);
+  }
+  .pv-dialogo {
+    position: relative;
+    width: min(560px, 100%);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 30px;
+    border: 1px solid oklch(1 0 0 / 0.11);
+    border-radius: 24px;
+    background: var(--color-ink-900);
+    box-shadow: 0 35px 150px oklch(0 0 0 / 0.5);
+    outline: none;
+    animation: pv-revelar 0.25s both;
+  }
+  .pv-dialogo h2 {
+    margin-top: 8px;
+    font-size: clamp(24px, 3vw, 34px);
+  }
+  .pv-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 90vw;
+    padding: 12px 20px;
+    border: 1px solid oklch(1 0 0 / 0.14);
+    border-radius: 30px;
+    background: var(--color-ink-900);
+    color: var(--color-label-100);
+    font-size: 12.5px;
+    box-shadow: 0 10px 40px oklch(0 0 0 / 0.4);
+    /* `translate`, e não `transform`: a animação de revelar termina em
+       `transform: translateY(0)` e, com fill `both`, apagaria a centralização. */
+    translate: -50% 0;
+    animation: pv-revelar 0.3s both;
+  }
+  .pv-toast > svg {
+    color: var(--color-luz);
+    flex-shrink: 0;
+  }
+
+  /* ── Medalha de conquista ─────────────────────────────────────────────── */
+  .pv-medalha {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid color-mix(in oklch, var(--nivel, var(--color-luz)) 55%, transparent);
+    background:
+      radial-gradient(
+        circle at 35% 30%,
+        color-mix(in oklch, var(--nivel, var(--color-luz)) 45%, transparent),
+        transparent 70%
+      ),
+      oklch(1 0 0 / 0.04);
+    color: var(--nivel, var(--color-luz));
+    box-shadow: 0 0 24px color-mix(in oklch, var(--nivel, var(--color-luz)) 25%, transparent);
+  }
+  .pv-medalha--apagada {
+    border-style: dashed;
+    border-color: oklch(1 0 0 / 0.16);
+    background: transparent;
+    color: var(--color-ink-700);
+    box-shadow: none;
+  }
+
+  /* ── Slots de save (as quatro cores) ──────────────────────────────────── */
+  .pv-slot {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid oklch(1 0 0 / 0.11);
+    border-radius: 14px;
+    background: oklch(1 0 0 / 0.03);
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+  .pv-slot:hover,
+  .pv-slot:focus-within {
+    border-color: color-mix(in oklch, var(--slot) 60%, transparent);
+    box-shadow: 0 0 22px color-mix(in oklch, var(--slot) 18%, transparent);
+  }
+  .pv-slot-previa {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: oklch(0.1 0.03 262 / 0.5);
+  }
+  .pv-slot-previa > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+  }
+  .pv-slot-letra {
+    position: absolute;
+    top: 8px;
+    left: 9px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--slot);
+    color: var(--color-ink-950);
+    font: 700 12px/1 var(--font-display);
+  }
+
+  /* ── Palco do player ──────────────────────────────────────────────────── */
+  .pv-palco {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid oklch(1 0 0 / 0.11);
+    border-radius: 20px;
+    background: #000;
+    outline: none;
+    box-shadow: 0 30px 80px oklch(0 0 0 / 0.5);
+    transition: box-shadow 0.3s;
+  }
+  .pv-palco:focus-visible,
+  .pv-palco--focado {
+    box-shadow:
+      0 0 0 2px var(--color-luz),
+      0 30px 80px oklch(0 0 0 / 0.5);
+  }
+  .pv-palco--cheio {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .pv-hud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 6px;
+    border: 1px solid oklch(1 0 0 / 0.16);
+    border-radius: 40px;
+    background: oklch(0.1 0.03 262 / 0.78);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 40px oklch(0 0 0 / 0.4);
+  }
+  .pv-hud-botao {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 30px;
+    background: transparent;
+    color: var(--color-ink-500);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition:
+      background 0.2s,
+      color 0.2s;
+  }
+  .pv-hud-botao:hover,
+  .pv-hud-botao:focus-visible,
+  .pv-hud-botao[aria-pressed='true'] {
+    background: oklch(1 0 0 / 0.1);
+    color: var(--color-label-100);
+  }
+  .pv-hud-botao[aria-pressed='true'] {
+    color: var(--color-luz);
+  }
+  .pv-hud-botao--destaque {
+    background: var(--color-label-100);
+    color: var(--color-ink-950);
+  }
+  .pv-hud-botao--destaque:hover,
+  .pv-hud-botao--destaque:focus-visible {
+    background: var(--color-label-200);
+    color: var(--color-ink-950);
+  }
+  .pv-hud-botao:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: transparent;
+  }
+  .pv-hud-separador {
+    width: 1px;
+    height: 20px;
+    margin: 0 2px;
+    background: oklch(1 0 0 / 0.14);
+  }
+  .pv-cobertura {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px;
+    text-align: center;
+    background: oklch(0.08 0.03 262 / 0.8);
+    backdrop-filter: blur(10px);
+  }
+  .pv-cobertura > h2 {
+    font-size: clamp(26px, 3.4vw, 52px);
+  }
+  .pv-carregando {
+    width: 200px;
+    height: 2px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: oklch(1 0 0 / 0.12);
+  }
+  .pv-carregando > i {
+    display: block;
+    width: 45%;
+    height: 100%;
+    background: var(--color-luz);
+    animation: pv-carregar 1.5s ease-in-out infinite alternate;
+  }
+  .pv-legenda-tecla {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-width: 58px;
+    padding: 8px 10px;
+    border: 1px solid oklch(1 0 0 / 0.11);
+    border-radius: 10px;
+    background: oklch(1 0 0 / 0.03);
+    color: var(--color-ink-500);
+    transition:
+      background 0.15s,
+      color 0.15s,
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .pv-legenda-tecla[data-pressionado='true'] {
+    border-color: var(--color-luz);
+    background: color-mix(in oklch, var(--color-luz) 18%, transparent);
+    color: var(--color-label-100);
+    box-shadow: 0 0 18px color-mix(in oklch, var(--color-luz) 30%, transparent);
+  }
+
+  /* ── Linha do tempo (protocolo de entrada) ────────────────────────────── */
+  .pv-passo {
+    position: relative;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 22px;
+  }
+  .pv-passo:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 40px;
+    bottom: 0;
+    width: 1px;
+    background: oklch(1 0 0 / 0.12);
+  }
+  .pv-passo-numero {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid oklch(1 0 0 / 0.14);
+    border-radius: 50%;
+    font: 600 11px/1 var(--font-display);
+    letter-spacing: 0.05em;
+    color: var(--color-ink-500);
+    transition:
+      background 0.3s,
+      color 0.3s,
+      border-color 0.3s;
+  }
+  .pv-passo[data-situacao='feita'] .pv-passo-numero {
+    background: var(--color-label-100);
+    border-color: var(--color-label-100);
+    color: var(--color-ink-950);
+  }
+  .pv-passo[data-situacao='agora'] .pv-passo-numero {
+    border-color: var(--color-luz);
+    color: var(--color-luz);
+    box-shadow: 0 0 18px color-mix(in oklch, var(--color-luz) 35%, transparent);
+    animation: pv-pulsar 1.4s ease-in-out infinite;
+  }
+  .pv-passo[data-situacao='feita']::before {
+    background: var(--color-label-100);
+  }
+
+  /* ── Zona de entrada (soltar arquivo) ─────────────────────────────────── */
+  .pv-zona {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 28px;
+    border: 1px dashed oklch(1 0 0 / 0.2);
+    border-radius: 24px;
+    background: oklch(1 0 0 / 0.025);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.2s,
+      background 0.2s,
+      box-shadow 0.2s;
+  }
+  .pv-zona:hover,
+  .pv-zona:focus-within {
+    border-color: oklch(1 0 0 / 0.4);
+    background: oklch(1 0 0 / 0.04);
+  }
+  .pv-zona--por-cima {
+    border-color: var(--color-luz);
+    background: color-mix(in oklch, var(--color-luz) 8%, transparent);
+    box-shadow: 0 0 60px color-mix(in oklch, var(--color-luz) 20%, transparent);
+  }
+  .pv-zona--ocupada {
+    pointer-events: none;
+    opacity: 0.45;
+  }
+  .pv-zona-icone {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border: 1px solid oklch(1 0 0 / 0.14);
+    border-radius: 20px;
+    background: oklch(1 0 0 / 0.04);
+    color: var(--color-luz);
+  }
+
+  /* ── Pódio (ranking) ──────────────────────────────────────────────────── */
+  .pv-linha-ranking {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    transition: background 0.2s;
+  }
+  .pv-linha-ranking:hover {
+    background: oklch(1 0 0 / 0.04);
+  }
+  .pv-linha-ranking--eu {
+    border: 1px solid color-mix(in oklch, var(--color-luz) 45%, transparent);
+    background: color-mix(in oklch, var(--color-luz) 7%, transparent);
+  }
+}
+
+@keyframes pv-revelar {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pv-chegar {
+  from {
+    opacity: 0;
+    transform: rotateY(-30deg) rotateZ(12deg) translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: rotateY(-18deg) rotateX(8deg) rotateZ(8deg);
+  }
+}
+@keyframes pv-orbitar {
+  to {
+    rotate: 12deg;
+    translate: 0 -8px;
+  }
+}
+@keyframes pv-pulsar {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes pv-carregar {
+  to {
+    transform: translateX(122%);
+  }
+}
+
+@media (max-width: 900px) {
+  .pv-vitrine {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    min-height: 0;
+  }
+  .pv-escultura {
+    order: -1;
+    min-height: 260px;
+  }
+  .pv-cabecalho {
+    flex-wrap: wrap;
+    gap: 12px 14px;
+    min-height: 0;
+    padding: 14px 5vw;
+  }
+  .pv-marca {
+    gap: 9px;
+  }
+  .pv-marca-simbolo {
+    font-size: 30px;
+  }
+  .pv-marca-nome small {
+    display: none;
+  }
+  .pv-escultura-legenda {
+    display: none;
+  }
+  .pv-nav {
+    order: 3;
+    width: 100%;
+    gap: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .pv-nav a {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Só o símbolo: o nome não cabe ao lado da conta numa tela de celular, e o
+     "pv" inclinado é a marca que o console já ensinou. */
+  .pv-marca-nome {
+    display: none;
+  }
+  .pv-marca-simbolo {
+    padding-right: 0;
+  }
+  .pv-trilho {
+    gap: 14px;
+  }
+  .pv-cartucho,
+  .pv-esqueleto {
+    flex-basis: 150px;
+    width: 150px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

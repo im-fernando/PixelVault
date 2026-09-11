@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router';
+import { ArrowLeft } from 'lucide-react';
 import type { SystemId } from '@pixelvault/contracts';
+import { classesDaPilula } from '../../ui/Botao.js';
 import { numeroDeAcervo } from '../library/Cartucho.js';
 
 /**
@@ -9,6 +11,12 @@ import { numeroDeAcervo } from '../library/Cartucho.js';
  * veio, sob que número está catalogada. Os campos são dados reais que já
  * existem no sistema (hash, tamanho, procedência); nenhum deles é enfeite, e
  * é isso que separa ficha de decoração com cara de ficha.
+ *
+ * O desenho é o da vitrine da home: a sobrelinha diz de que console e de que
+ * procedência é o jogo, o título vem grande e apertado, e o resto da ficha
+ * fica em chips. Console e procedência sobem para a sobrelinha porque é onde
+ * a vitrine já os mostra; repeti-los num chip logo abaixo seria dizer a
+ * mesma coisa duas vezes na mesma tela.
  */
 
 export interface CampoDaFicha {
@@ -17,6 +25,8 @@ export interface CampoDaFicha {
   /** Dado que a máquina produziu — sai na bitmap. */
   readonly maquina?: boolean;
 }
+
+const NA_SOBRELINHA: ReadonlySet<string> = new Set(['console', 'procedência']);
 
 export function FichaDeAcervo({
   titulo,
@@ -27,34 +37,69 @@ export function FichaDeAcervo({
   readonly systemId: SystemId;
   readonly campos: readonly CampoDaFicha[];
 }) {
-  return (
-    <header className="mb-5">
-      <Link
-        to="/"
-        className="leitura text-ink-700 outline-none hover:text-ink-500 focus-visible:underline"
-      >
-        ← acervo
-      </Link>
+  const procedencia = campos.find((campo) => campo.rotulo === 'procedência')?.valor;
+  const chips = campos.filter((campo) => !NA_SOBRELINHA.has(campo.rotulo));
 
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b-2 border-ink-850 pb-2">
-        <h1 className="titulo-estampado text-2xl leading-none text-label-100">{titulo}</h1>
+  return (
+    <header>
+      {/*
+        A volta e a sobrelinha na mesma linha, de propósito: o runtime foca o
+        canvas ao subir, e o navegador rola o que for preciso para mostrá-lo
+        inteiro. Com o cabeçalho compacto o palco cabe na primeira dobra de
+        uma tela de 900px, e a página não rola sozinha para debaixo do
+        cabeçalho fixo.
+      */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Link to="/" className={classesDaPilula({ variante: 'secundaria', pequena: true })}>
+          <ArrowLeft size={14} /> Acervo
+        </Link>
+        <p className="sobrelinha">
+          {systemId}
+          {procedencia !== undefined && ` · ${procedencia}`}
+        </p>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+        <h1 className="titulo-cena text-[clamp(30px,3.6vw,56px)] text-label-100">{titulo}</h1>
         <span className="leitura text-ink-700">{numeroDeAcervo(titulo, systemId)}</span>
       </div>
 
-      <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-        {campos.map((campo) => (
-          <div key={campo.rotulo}>
-            <dt className="leitura text-ink-700">{campo.rotulo}</dt>
-            <dd
-              className={
-                campo.maquina === true ? 'leitura text-label-200' : 'text-sm text-label-100'
-              }
-            >
-              {campo.valor}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {chips.length > 0 && (
+        <dl className="mt-4 flex flex-wrap gap-2">
+          {chips.map((campo) => (
+            <div key={campo.rotulo} className="pv-chip">
+              <dt>{campo.rotulo}</dt>
+              <dd
+                className={
+                  campo.maquina === true
+                    ? 'leitura font-medium text-label-200'
+                    : 'font-medium text-label-100'
+                }
+              >
+                {campo.valor}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </header>
+  );
+}
+
+/**
+ * A tela antes de o item chegar: a ficha em branco e o palco apagado, no
+ * mesmo lugar em que vão aparecer — para a página não pular de altura quando
+ * o jogo resolver.
+ */
+export function TelaDeJogoFantasma() {
+  return (
+    <div className="mx-auto max-w-[1180px] animate-pulse" aria-hidden="true">
+      <div className="flex items-center gap-5">
+        <div className="h-[38px] w-[92px] rounded-full bg-ink-850" />
+        <div className="h-2.5 w-36 rounded bg-ink-850" />
+      </div>
+      <div className="mt-4 h-[clamp(30px,3.6vw,56px)] w-2/3 max-w-[520px] rounded-lg bg-ink-850" />
+      <div className="pv-palco mt-6 aspect-video max-h-[66vh] bg-ink-900" />
+    </div>
   );
 }

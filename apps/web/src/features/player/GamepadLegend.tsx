@@ -1,4 +1,6 @@
+import { Gamepad2, Keyboard } from 'lucide-react';
 import { useMemo } from 'react';
+import { LinhaDeSecao } from '../../ui/Texto.js';
 import { rotulosDoControle, type PerfilDoControle } from './input/gamepad-map.js';
 import { LEGENDA_DO_TECLADO, type BotaoDoSnes, type EstadoDoGamepad } from './input/snes-keymap.js';
 
@@ -29,6 +31,10 @@ const POR_BOTAO = new Map(LEGENDA_DO_TECLADO.map((item) => [item.botao, item]));
  * Com um controle plugado ele vira a mesma prova para o controle, e sem trocar
  * a legenda do teclado por outra: as duas fontes valem juntas, e mostrar só uma
  * faria a pessoa acreditar que a outra parou de funcionar.
+ *
+ * `data-pressionado` é o que acende a tecla (ver `.pv-legenda-tecla` em
+ * `styles.css`): fica como atributo, e não como classe condicional, para o
+ * estado ser legível no DOM por quem depura e por quem testa.
  */
 export function GamepadLegend({ estado, ativo, controle }: Props) {
   const rotulosNoControle = useMemo(
@@ -39,48 +45,41 @@ export function GamepadLegend({ estado, ativo, controle }: Props) {
   return (
     <section
       aria-label="Mapeamento do teclado"
-      className={`rounded-xl border border-ink-850 bg-ink-900/60 p-4 transition-opacity ${
-        ativo || controle !== null ? 'opacity-100' : 'opacity-60'
+      className={`pv-painel pv-painel--vidro p-5 transition-opacity ${
+        ativo || controle !== null ? 'opacity-100' : 'opacity-70'
       }`}
     >
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold text-label-100">Controle</h2>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <LinhaDeSecao nome="Controle" />
         {controle !== null ? (
-          <p className="text-xs text-alert">{controle.nome} ligado ao console</p>
+          <span className="pv-chip pv-chip--luz" title={`${controle.nome} ligado ao console`}>
+            <Gamepad2 size={13} className="shrink-0" />
+            <span className="max-w-56 truncate">{controle.nome}</span>
+          </span>
         ) : (
-          <p className="text-xs text-ink-700">
+          <span className="pv-dica">
+            <Keyboard size={13} className="shrink-0" />
             {ativo ? 'teclado ligado ao console' : 'clique na tela para jogar'}
-          </p>
+          </span>
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {GRUPOS.map((grupo) => (
           <div key={grupo.titulo}>
-            <p className="mb-2 text-[0.65rem] tracking-widest text-ink-700 uppercase">
-              {grupo.titulo}
-            </p>
-            <ul className="flex flex-wrap gap-1.5">
+            <p className="sobrelinha mb-2">{grupo.titulo}</p>
+            <ul className="flex flex-wrap gap-2">
               {grupo.botoes.map((botao) => {
                 const item = POR_BOTAO.get(botao);
                 if (item === undefined) return null;
                 const aceso = estado[botao];
                 return (
                   <li key={botao}>
-                    <span
-                      data-pressionado={aceso}
-                      className={`flex min-w-14 flex-col items-center rounded-md border px-2 py-1 transition-colors ${
-                        aceso
-                          ? 'border-alert bg-alert/20 text-label-100'
-                          : 'border-ink-850 bg-ink-950 text-ink-500'
-                      }`}
-                    >
-                      <span className="text-xs font-semibold">{item.rotulo}</span>
-                      <span className="font-mono text-[0.65rem] text-ink-700">{item.tecla}</span>
+                    <span className="pv-legenda-tecla" data-pressionado={aceso}>
+                      <span className="text-[12px] font-semibold">{item.rotulo}</span>
+                      <span className="leitura opacity-80">{item.tecla}</span>
                       {rotulosNoControle !== null && (
-                        <span className="font-mono text-[0.65rem] text-alert/80">
-                          {rotulosNoControle[botao]}
-                        </span>
+                        <span className="leitura text-luz">{rotulosNoControle[botao]}</span>
                       )}
                     </span>
                   </li>

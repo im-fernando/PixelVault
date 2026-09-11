@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
+import { classesDaPilula } from '../../ui/Botao.js';
 import { recurso, useHabilidades } from './habilidades.js';
 import { useSair, useSessao } from './sessao.js';
 
@@ -23,18 +24,15 @@ export function ContaNoCabecalho() {
 
   if (sessao.estado === 'anonimo') {
     return (
-      <div className="ml-auto flex items-center gap-4 text-sm">
+      <div className="flex items-center gap-3">
         <Link
           to="/login"
           search={{ retorno: ehTelaDeAutenticacao(caminhoAtual) ? undefined : caminhoAtual }}
-          className="text-ink-500 outline-none hover:text-label-100 focus-visible:underline"
+          className="px-2 py-1 text-[14px] text-ink-500 outline-none hover:text-label-100 focus-visible:underline"
         >
           Entrar
         </Link>
-        <Link
-          to="/cadastro"
-          className="border border-ink-700 px-3 py-1 text-xs text-label-200 outline-none hover:border-label-400 hover:text-label-100 focus-visible:border-label-400"
-        >
+        <Link to="/cadastro" className={classesDaPilula({ pequena: true })}>
           Criar conta
         </Link>
       </div>
@@ -55,24 +53,37 @@ export function ContaNoCabecalho() {
     await navegar({ to: '/', replace: true });
   }
 
+  const inicial = usuario.displayName.trim().charAt(0).toUpperCase() || '?';
+  const conta = (
+    <>
+      <span
+        aria-hidden="true"
+        className="grid h-7 w-7 place-items-center rounded-full bg-luz font-display text-[12px] font-bold text-ink-950"
+      >
+        {inicial}
+      </span>
+      <b className="max-w-36 truncate">{usuario.displayName}</b>
+    </>
+  );
+
   return (
-    <div className="ml-auto flex items-center gap-4">
+    <div className="flex items-center gap-3">
       {podeVerAConta ? (
         <Link
           to="/configuracoes"
-          className="max-w-40 truncate text-sm text-label-200 outline-none hover:text-label-100 focus-visible:underline"
+          className="pv-chip h-9 gap-2.5 pl-1 pr-3 outline-none transition-colors hover:border-label-400 focus-visible:border-luz"
           title={`Entrou como @${usuario.handle}`}
         >
-          {usuario.displayName}
+          {conta}
         </Link>
       ) : (
-        <span className="max-w-40 truncate text-sm text-label-200">{usuario.displayName}</span>
+        <span className="pv-chip h-9 gap-2.5 pl-1 pr-3">{conta}</span>
       )}
       <button
         type="button"
         onClick={() => void aoSair()}
         disabled={sair.isPending}
-        className="text-xs text-ink-500 outline-none hover:text-alert focus-visible:underline disabled:opacity-50"
+        className="px-1 text-[12px] text-ink-500 outline-none hover:text-alert focus-visible:underline disabled:opacity-50"
       >
         {sair.isPending ? 'Saindo…' : 'Sair'}
       </button>
@@ -89,7 +100,7 @@ export function ContaNoCabecalho() {
  * quando a resposta chega.
  */
 function Reservado() {
-  return <div aria-hidden className="ml-auto h-6 w-32" />;
+  return <div aria-hidden className="h-9 w-40" />;
 }
 
 /**
