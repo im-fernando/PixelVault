@@ -1,5 +1,17 @@
 export { COTA_DE_SAVE_NA_NUVEM_EM_BYTES } from './cota.js';
 export {
+  heartbeatCreditadoSchema,
+  heartbeatResponseSchema,
+  heartbeatSemJogoReconhecidoSchema,
+  INTERVALO_DE_HEARTBEAT_SEGUNDOS,
+  TETO_DE_CREDITO_POR_HEARTBEAT_SEGUNDOS,
+} from './heartbeat.js';
+export type {
+  HeartbeatCreditado,
+  HeartbeatResponse,
+  HeartbeatSemJogoReconhecido,
+} from './heartbeat.js';
+export {
   sramDownloadEncontradoSchema,
   sramDownloadResponseSchema,
   sramDownloadSemSaveSchema,

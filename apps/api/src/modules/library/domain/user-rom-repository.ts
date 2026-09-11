@@ -59,10 +59,18 @@ export interface RomDoUsuario {
  * dado que transforma "existe uma ROM com este id" em "esta ROM é sua". A
  * `storageKey` fica no servidor: é endereço de um objeto compartilhado por
  * conteúdo (ADR 0013), e o cliente nunca a vê.
+ *
+ * `gameId` veio para a #119: o heartbeat de playtime (`progress`) precisa
+ * saber em que jogo do catálogo creditar tempo, e a única fonte confiável
+ * disso é esta mesma linha que já resolve dono e conteúdo — nunca um valor
+ * que o cliente declare. `null` quando a ROM não bate com hash nenhum do
+ * catálogo (ADR 0006); ver docs/adr/0009 para o que isso implica no
+ * heartbeat.
  */
 export interface RomDoUsuarioParaDownload {
   id: string;
   userId: string;
+  gameId: string | null;
   sha256: string;
   storageKey: string;
   sizeBytes: number;

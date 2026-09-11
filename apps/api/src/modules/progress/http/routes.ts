@@ -4,6 +4,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   apiErrorSchema,
+  heartbeatResponseSchema,
   slotDeSaveStateParamSchema,
   sramDownloadResponseSchema,
   sramUploadRequestSchema,
@@ -15,6 +16,7 @@ import {
   TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES,
   TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES,
   TAMANHO_MAXIMO_DE_SRAM_EM_BYTES,
+  TETO_DE_CREDITO_POR_HEARTBEAT_SEGUNDOS,
   uuidSchema,
   type SlotDeSaveState,
 } from '@pixelvault/contracts';
@@ -23,11 +25,13 @@ import { avisarPrimeiraSincronizacao, avisarPrimeiroSaveState } from '../../achi
 import { habilidadesDoUsuario } from '../../identity/index.js';
 import { prismaUserRomRepository } from '../../library/index.js';
 import type { Sessoes } from '../../sessions/index.js';
+import { creditarHeartbeatDePlaytime } from '../application/creditar-heartbeat-de-playtime.js';
 import { gravarSaveState } from '../application/gravar-save-state.js';
 import { gravarSram } from '../application/gravar-sram.js';
 import { lerSaveState } from '../application/ler-save-state.js';
 import { lerSram } from '../application/ler-sram.js';
 import { listarSaveStates } from '../application/listar-save-states.js';
+import { prismaUserGameRepository } from '../infrastructure/prisma-user-game-repository.js';
 import { prismaUserSaveRepository } from '../infrastructure/prisma-user-save-repository.js';
 
 export interface OpcoesDeProgress extends FastifyPluginOptions {
@@ -263,6 +267,46 @@ export const progressRoutes: FastifyPluginAsyncZod<OpcoesDeProgress> = async (ap
         userId,
         request.params.romId,
         request.params.slot as SlotDeSaveState,
+      );
+    },
+  );
+
+  app.post(
+    '/progress/heartbeat/:romId',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['progress'],
+        summary: 'Heartbeat de playtime: credita, pelo relógio do servidor, o tempo desde o último',
+        description:
+          'Sem corpo — não existe timestamp de cliente aqui, de propósito (docs/adr/0009). ' +
+          'O servidor credita o intervalo desde o último heartbeat aceito para o jogo ' +
+          `daquela ROM, com teto de ${TETO_DE_CREDITO_POR_HEARTBEAT_SEGUNDOS}s por heartbeat ` +
+          '— um hiato maior (aba oculta e voltou, laptop suspenso) nunca credita o hiato ' +
+          'inteiro. `status: "sem-jogo-reconhecido"` é sucesso, não erro: a ROM é da conta ' +
+          'que pediu, só não bate com hash nenhum do catálogo (BYOR, ADR 0006) — sem ' +
+          '`gameId` não há `UserGame` para creditar. Só quem tem o `romId` na própria ' +
+          'biblioteca pode mandar heartbeat dele — o mesmo 404 uniforme da SRAM e do save ' +
+          'state.',
+        params: z.object({ romId: uuidSchema }),
+        response: {
+          200: heartbeatResponseSchema,
+          401: apiErrorSchema,
+          403: apiErrorSchema,
+          404: apiErrorSchema,
+        },
+      },
+    },
+    async (request) => {
+      const userId = sessoes.usuarioAutenticado(request);
+      const habilidades = await habilidadesDoUsuario(userId);
+
+      return creditarHeartbeatDePlaytime(
+        { roms: prismaUserRomRepository, userGames: prismaUserGameRepository },
+        habilidades,
+        userId,
+        request.params.romId,
+        TETO_DE_CREDITO_POR_HEARTBEAT_SEGUNDOS,
       );
     },
   );

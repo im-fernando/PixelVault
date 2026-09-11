@@ -53,6 +53,7 @@ export const prismaUserRomRepository: UserRomRepository = {
       select: {
         id: true,
         userId: true,
+        gameId: true,
         sha256: true,
         storageKey: true,
         sizeBytes: true,

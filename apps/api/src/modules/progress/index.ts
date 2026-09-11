@@ -12,7 +12,11 @@
  * estendeu o schema para save state (eixo `slot`, miniatura); a #105 trouxe
  * a gravação por slot (`POST /progress/state/:romId/:slot`); a #106 trouxe a
  * listagem dos 4 slots (`GET /progress/state/:romId`) e a leitura de um slot
- * (`GET /progress/state/:romId/:slot`). Ele não é dono da sessão (pede ao
+ * (`GET /progress/state/:romId/:slot`). A #119 trouxe o heartbeat de
+ * playtime (`POST /progress/heartbeat/:romId`) — o módulo passa a ser dono
+ * também de `UserGame.totalPlaytimeSeconds`/`lastPlayedAt`, pelo mesmo
+ * motivo que já é dono do save: é quem já credita tempo/estado pelo relógio
+ * do servidor (docs/adr/0009). Ele não é dono da sessão (pede ao
  * `sessions`), da autorização (pergunta ao `identity`), do storage (porta
  * compartilhada da aplicação) nem da ROM em si (pergunta ao `library` se
  * aquele `romId` é de quem está pedindo, pela fachada dele).
