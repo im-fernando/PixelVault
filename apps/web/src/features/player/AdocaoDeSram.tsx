@@ -1,4 +1,6 @@
+import { Cloud } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { BotaoPilula } from '../../ui/Botao.js';
 import { useSramLocal, type SaveStorage } from './storage/index.js';
 import { gravarRevisaoSincronizada } from './storage/sram-sync-revision.js';
 import { bytesParaBase64, useEnviarSramParaNuvem, useSramNaNuvem } from './sram-nuvem.js';
@@ -61,7 +63,8 @@ export function AdocaoDeSram({ romId, storage }: Props) {
 
   if (concluido) {
     return (
-      <p role="status" className="leitura text-ink-700">
+      <p role="status" className="pv-chip">
+        <Cloud size={13} className="shrink-0" />
         Save enviado para a nuvem.
       </p>
     );
@@ -69,20 +72,21 @@ export function AdocaoDeSram({ romId, storage }: Props) {
 
   if (nuvem.data.status === 'sem-save') {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-ink-850 bg-ink-900 p-3">
-        <p className="text-sm text-label-100">
+      <div className="pv-painel flex flex-wrap items-center gap-4 p-5">
+        <p className="text-[13.5px] leading-relaxed text-label-100">
           Este aparelho tem progresso deste jogo que a nuvem ainda não tem.
         </p>
-        <button
-          type="button"
+        <BotaoPilula
+          pequena
+          className="ml-auto"
           onClick={() => enviarAgora(0)}
           disabled={enviar.isPending}
-          className="ml-auto rounded-md border border-ink-700 px-3 py-1.5 text-sm text-label-100 hover:border-alert disabled:opacity-50"
         >
+          <Cloud size={15} />
           {enviar.isPending ? 'Enviando…' : 'Enviar para a nuvem'}
-        </button>
+        </BotaoPilula>
         {enviar.isError && (
-          <p className="w-full text-xs text-alert">Falha ao enviar. Tente de novo.</p>
+          <p className="w-full text-[12px] text-alert">Falha ao enviar. Tente de novo.</p>
         )}
       </div>
     );
@@ -91,13 +95,13 @@ export function AdocaoDeSram({ romId, storage }: Props) {
   const dadosDaNuvem = nuvem.data;
 
   return (
-    <div className="space-y-2 rounded-lg border border-ink-850 bg-ink-900 p-3">
-      <p className="text-sm text-label-100">
+    <div className="pv-painel space-y-4 p-5">
+      <p className="max-w-prose text-[13.5px] leading-relaxed text-label-100">
         A nuvem já tem um save deste jogo. Escolha qual fica lá — o save local não é apagado de
         nenhum jeito.
       </p>
 
-      <dl className="grid grid-cols-2 gap-3 text-xs">
+      <dl className="grid grid-cols-2 gap-3">
         <LadoDoSave
           rotulo="Este aparelho"
           tamanho={local.save.metadata.byteLength}
@@ -110,11 +114,12 @@ export function AdocaoDeSram({ romId, storage }: Props) {
         />
       </dl>
 
-      <fieldset className="flex flex-col gap-1 text-sm text-label-100">
+      <fieldset className="flex flex-col gap-2 text-[13.5px] text-label-100">
         <legend className="sr-only">Qual save manter na nuvem</legend>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-3">
           <input
             type="radio"
+            className="pv-radio"
             name={`escolha-sram-${romId}`}
             checked={escolha === 'nuvem'}
             onChange={() => {
@@ -124,9 +129,10 @@ export function AdocaoDeSram({ romId, storage }: Props) {
           />
           Manter o da nuvem
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-3">
           <input
             type="radio"
+            className="pv-radio"
             name={`escolha-sram-${romId}`}
             checked={escolha === 'local'}
             onChange={() => {
@@ -138,8 +144,8 @@ export function AdocaoDeSram({ romId, storage }: Props) {
         </label>
       </fieldset>
 
-      <button
-        type="button"
+      <BotaoPilula
+        pequena
         onClick={() => {
           setMantidoNaNuvem(false);
           if (escolha === 'nuvem') {
@@ -164,17 +170,17 @@ export function AdocaoDeSram({ romId, storage }: Props) {
           enviarAgora(dadosDaNuvem.revision);
         }}
         disabled={enviar.isPending}
-        className="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-label-100 hover:border-alert disabled:opacity-50"
       >
         {enviar.isPending ? 'Enviando…' : 'Confirmar'}
-      </button>
+      </BotaoPilula>
 
       {mantidoNaNuvem && (
-        <p role="status" className="leitura text-ink-700">
+        <p role="status" className="pv-chip">
+          <Cloud size={13} className="shrink-0" />
           Nada enviado — o save da nuvem foi mantido.
         </p>
       )}
-      {enviar.isError && <p className="text-xs text-alert">Falha ao enviar. Tente de novo.</p>}
+      {enviar.isError && <p className="text-[12px] text-alert">Falha ao enviar. Tente de novo.</p>}
     </div>
   );
 }
@@ -189,9 +195,9 @@ function LadoDoSave({
   readonly instante: number | string;
 }) {
   return (
-    <div>
-      <dt className="leitura text-ink-700">{rotulo}</dt>
-      <dd className="text-label-200">
+    <div className="pv-painel pv-painel--vidro min-w-0 p-4">
+      <dt className="sobrelinha">{rotulo}</dt>
+      <dd className="leitura mt-2 text-label-200">
         {(tamanho / 1024).toFixed(1)} KB ·{' '}
         {new Date(instante).toLocaleString('pt-BR', {
           day: '2-digit',

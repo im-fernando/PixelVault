@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BotaoPilula } from '../../ui/Botao.js';
 import {
   createSaveStorage,
   revokeThumbnailUrl,
@@ -165,8 +166,8 @@ export function ResolucaoDeConflitoDeSaveState({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-ink-850 bg-ink-900 p-3">
-      <p className="text-sm text-label-100">
+    <div className="pv-painel space-y-4 p-5">
+      <p className="max-w-prose text-[13.5px] leading-relaxed text-label-100">
         Este slot tem progresso diferente aqui e na nuvem. Escolha qual fica — nenhum dos dois lados
         some por conta própria.
       </p>
@@ -180,20 +181,22 @@ export function ResolucaoDeConflitoDeSaveState({
         />
       </div>
 
-      <fieldset className="flex flex-col gap-1 text-sm text-label-100">
+      <fieldset className="flex flex-col gap-2 text-[13.5px] text-label-100">
         <legend className="sr-only">Qual save state manter</legend>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-3">
           <input
             type="radio"
+            className="pv-radio"
             name={`escolha-state-${romId}-${slot}`}
             checked={escolha === 'nuvem'}
             onChange={() => setEscolha('nuvem')}
           />
           Manter o da nuvem
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-3">
           <input
             type="radio"
+            className="pv-radio"
             name={`escolha-state-${romId}-${slot}`}
             checked={escolha === 'local'}
             disabled={semMiniaturaLocal}
@@ -204,16 +207,11 @@ export function ResolucaoDeConflitoDeSaveState({
         </label>
       </fieldset>
 
-      <button
-        type="button"
-        onClick={() => void confirmar()}
-        disabled={aplicando}
-        className="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-label-100 hover:border-alert disabled:opacity-50"
-      >
+      <BotaoPilula pequena onClick={() => void confirmar()} disabled={aplicando}>
         {aplicando ? 'Aplicando…' : 'Confirmar'}
-      </button>
+      </BotaoPilula>
 
-      {erro !== null && <p className="text-xs text-alert">{erro}</p>}
+      {erro !== null && <p className="text-[12px] text-alert">{erro}</p>}
     </div>
   );
 }
@@ -228,26 +226,28 @@ function LadoDoConflito({
   readonly metadata: { readonly byteLength: number; readonly updatedAt: number };
 }) {
   return (
-    <div className="space-y-1">
-      <p className="leitura text-ink-700">{rotulo}</p>
-      <div className="aspect-[4/3] overflow-hidden rounded border border-ink-850 bg-ink-950">
+    <div className="pv-painel pv-painel--vidro min-w-0 overflow-hidden">
+      <div className="pv-slot-previa">
         {url !== null ? (
-          <img src={url} alt="" className="h-full w-full object-cover" />
+          <img src={url} alt="" />
         ) : (
           <div className="flex h-full items-center justify-center">
             <span className="leitura text-ink-700">sem miniatura</span>
           </div>
         )}
       </div>
-      <p className="text-xs text-label-200">
-        {(metadata.byteLength / 1024).toFixed(0)} KB ·{' '}
-        {new Date(metadata.updatedAt).toLocaleString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-      </p>
+      <div className="p-3">
+        <p className="sobrelinha">{rotulo}</p>
+        <p className="leitura mt-1.5 text-label-200">
+          {(metadata.byteLength / 1024).toFixed(0)} KB ·{' '}
+          {new Date(metadata.updatedAt).toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
+      </div>
     </div>
   );
 }

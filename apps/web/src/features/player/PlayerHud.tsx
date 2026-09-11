@@ -1,3 +1,15 @@
+import {
+  Gamepad2,
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  RotateCcw,
+  Save,
+  Upload,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { EmulatorCapabilities, EmulatorStatus } from '@pixelvault/emulator-runtime';
 import { PROPORCOES_DISPONIVEIS, type ProporcaoDeTela } from './aspect-ratio.js';
@@ -40,6 +52,11 @@ const COM_ROM: readonly EmulatorStatus[] = ['ready', 'running', 'paused'];
  * save state não ganha um botão desabilitado com explicação: ganha ausência.
  * Botão que existe e não funciona é promessa quebrada, e a pessoa só descobre
  * na hora em que precisava do save.
+ *
+ * É a barra flutuante do console, na base do palco: vidro escuro, canto
+ * redondo, e a tecla de atalho dentro de cada botão — a mesma gramática do
+ * "Iniciar jogo ↵" do modo console, para quem transita entre os dois lados
+ * não ter que aprender duas interfaces.
  */
 export function PlayerHud({
   status,
@@ -67,11 +84,11 @@ export function PlayerHud({
     <div
       // `hidden` não serve: o HUD precisa continuar alcançável por Tab, e um
       // painel que some da árvore de acessibilidade quebra quem só usa teclado.
-      className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3 transition-opacity duration-300 ${
+      className={`pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3 transition-opacity duration-300 ${
         visivel ? 'opacity-100' : 'opacity-0 focus-within:opacity-100'
       }`}
     >
-      <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-xl border border-ink-850 bg-ink-950/90 p-1.5 shadow-lg backdrop-blur">
+      <div className="pv-hud pointer-events-auto">
         <BotaoDoHud
           rotulo={rodando ? 'Pausar' : 'Jogar'}
           atalho="Espaço"
@@ -79,11 +96,11 @@ export function PlayerHud({
           aoClicar={acoes.alternarPausa}
           destaque={!rodando && temRom}
         >
-          {rodando ? <IconePausa /> : <IconePlay />}
+          {rodando ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
         </BotaoDoHud>
 
         <BotaoDoHud rotulo="Reiniciar" atalho="R" desabilitado={!temRom} aoClicar={acoes.resetar}>
-          <IconeReset />
+          <RotateCcw size={15} />
         </BotaoDoHud>
 
         {capabilities.saveState && (
@@ -95,7 +112,7 @@ export function PlayerHud({
               desabilitado={!temRom}
               aoClicar={acoes.salvarEstado}
             >
-              <IconeSalvar />
+              <Save size={15} />
             </BotaoDoHud>
             <BotaoDoHud
               rotulo="Carregar estado"
@@ -103,23 +120,21 @@ export function PlayerHud({
               desabilitado={!temRom || !temEstadoSalvo}
               aoClicar={acoes.carregarEstado}
             >
-              <IconeCarregar />
+              <Upload size={15} />
             </BotaoDoHud>
           </>
         )}
 
         <Separador />
 
-        <div className="flex items-center gap-0.5 px-1" role="group" aria-label="Proporção de tela">
+        <div className="flex items-center" role="group" aria-label="Proporção de tela">
           {PROPORCOES_DISPONIVEIS.map((valor) => (
             <button
               key={valor}
               type="button"
               onClick={() => aoTrocarProporcao(valor)}
               aria-pressed={proporcao === valor}
-              className={`rounded-md px-2 py-1 font-mono text-xs transition-colors ${
-                proporcao === valor ? 'bg-alert/20 text-label-100' : 'text-ink-500 hover:bg-ink-850'
-              }`}
+              className="pv-hud-botao px-2.5 tabular-nums"
             >
               {valor}
             </button>
@@ -129,9 +144,7 @@ export function PlayerHud({
             onClick={aoAlternarEscalaInteira}
             aria-pressed={escalaInteira}
             title="Escala inteira: cada pixel do console vira o mesmo número de pixels na tela"
-            className={`rounded-md px-2 py-1 font-mono text-xs transition-colors ${
-              escalaInteira ? 'bg-alert/20 text-label-100' : 'text-ink-500 hover:bg-ink-850'
-            }`}
+            className="pv-hud-botao px-2.5 tabular-nums"
           >
             1:N
           </button>
@@ -148,22 +161,22 @@ export function PlayerHud({
           <button
             type="button"
             onClick={aoDestravarAudio}
-            className="rounded px-2 py-1 text-ink-500 hover:text-label-100"
+            className="pv-hud-botao pv-hud-botao--destaque"
             title="O navegador bloqueou o som até você interagir com a página"
           >
-            🔇 Ativar som
+            <Volume2 size={15} /> Ativar som
           </button>
         ) : (
-          <label className="flex items-center gap-2 px-2 text-ink-500">
-            <span className="sr-only">Volume</span>
+          <div className="flex items-center gap-1 pr-2">
             <button
               type="button"
               onClick={() => aoTrocarMudo(!mudo)}
-              className="hover:text-label-100"
+              className="pv-hud-botao px-2.5"
               title={mudo ? 'Reativar som' : 'Silenciar'}
+              aria-label={mudo ? 'Reativar som' : 'Silenciar'}
               aria-pressed={mudo}
             >
-              {mudo ? '🔇' : <IconeVolume />}
+              {mudo ? <VolumeX size={15} /> : <Volume2 size={15} />}
             </button>
             <input
               type="range"
@@ -171,10 +184,11 @@ export function PlayerHud({
               max={100}
               value={Math.round(volume * 100)}
               onChange={(evento) => aoTrocarVolume(Number(evento.target.value) / 100)}
-              className="h-1 w-20 alert-[var(--color-alert)]"
+              aria-label="Volume"
+              className="pv-faixa w-20 disabled:opacity-40"
               disabled={mudo}
             />
-          </label>
+          </div>
         )}
 
         {/*
@@ -185,11 +199,8 @@ export function PlayerHud({
         {controle !== null && (
           <>
             <Separador />
-            <span
-              title={`Controle ativo: ${controle}`}
-              className="flex items-center gap-1.5 px-2 text-xs text-alert"
-            >
-              <IconeControle />
+            <span title={`Controle ativo: ${controle}`} className="pv-chip pv-chip--luz">
+              <Gamepad2 size={13} className="shrink-0" />
               <span className="hidden max-w-32 truncate md:inline">{controle}</span>
             </span>
           </>
@@ -203,7 +214,7 @@ export function PlayerHud({
               atalho="F"
               aoClicar={telaCheia.alternar}
             >
-              <IconeTelaCheia />
+              {telaCheia.ativa ? <Minimize size={15} /> : <Maximize size={15} />}
             </BotaoDoHud>
           </>
         )}
@@ -236,138 +247,15 @@ function BotaoDoHud({
       disabled={desabilitado}
       title={`${rotulo} (${atalho})`}
       aria-label={`${rotulo} — atalho ${atalho}`}
-      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-        destaque
-          ? 'bg-alert text-ink-950 hover:brightness-110'
-          : 'text-ink-500 hover:bg-ink-850 hover:text-label-100'
-      }`}
+      className={`pv-hud-botao ${destaque ? 'pv-hud-botao--destaque' : ''}`}
     >
       {children}
       <span className="hidden sm:inline">{rotulo}</span>
-      <kbd className="hidden font-mono text-[0.6rem] text-ink-700 md:inline">{atalho}</kbd>
+      <kbd className="pv-tecla pv-player-atalho hidden md:inline-grid">{atalho}</kbd>
     </button>
   );
 }
 
 function Separador() {
-  return <span aria-hidden className="mx-0.5 h-5 w-px bg-ink-850" />;
-}
-
-const SVG = 'h-4 w-4 shrink-0';
-
-function IconePlay() {
-  return (
-    <svg className={SVG} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <path d="M4 2.5v11l9-5.5-9-5.5Z" />
-    </svg>
-  );
-}
-
-function IconePausa() {
-  return (
-    <svg className={SVG} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" />
-    </svg>
-  );
-}
-
-function IconeControle() {
-  return (
-    <svg
-      className={SVG}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      aria-hidden
-    >
-      <path
-        d="M5.2 4.5h5.6a3 3 0 0 1 2.9 2.2l1 3.6a1.6 1.6 0 0 1-2.9 1.3l-1-1.4H5.2l-1 1.4a1.6 1.6 0 0 1-2.9-1.3l1-3.6a3 3 0 0 1 2.9-2.2Z"
-        strokeLinejoin="round"
-      />
-      <path d="M4.6 7.2v1.6M3.8 8h1.6M10.6 7.6h.01M12 8.8h.01" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconeReset() {
-  return (
-    <svg
-      className={SVG}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden
-    >
-      <path d="M13.5 8a5.5 5.5 0 1 1-1.9-4.2" strokeLinecap="round" />
-      <path d="M13.5 1.5v3.2h-3.2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconeSalvar() {
-  return (
-    <svg
-      className={SVG}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden
-    >
-      <path d="M8 2v8m0 0 3-3m-3 3L5 7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M2.5 11v2.5h11V11" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconeCarregar() {
-  return (
-    <svg
-      className={SVG}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden
-    >
-      <path d="M8 13V5m0 0L5 8m3-3 3 3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M2.5 3h11" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconeVolume() {
-  return (
-    <svg className={SVG} viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <path d="M7 2.5 4 5.5H2v5h2l3 3v-11Z" />
-      <path
-        d="M9.8 5.5a3.5 3.5 0 0 1 0 5M11.8 3.5a6 6 0 0 1 0 9"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconeTelaCheia() {
-  return (
-    <svg
-      className={SVG}
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden
-    >
-      <path
-        d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <span aria-hidden className="pv-hud-separador" />;
 }

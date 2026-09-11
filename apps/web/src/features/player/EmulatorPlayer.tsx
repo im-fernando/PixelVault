@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Play } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import type { SystemId } from '@pixelvault/contracts';
 import { type EmulatorRegistry, type RomSource } from '@pixelvault/emulator-runtime';
 import { PROPORCOES, RESOLUCAO_NATIVA, type ProporcaoDeTela } from './aspect-ratio.js';
@@ -15,8 +24,11 @@ import { useEmulator } from './use-emulator.js';
 import { useSaves } from './use-saves.js';
 import type { SaveMetadata, SaveStorage } from './storage/index.js';
 import { useFullscreen } from './use-fullscreen.js';
+import { matizDoTitulo } from '../../ui/Arte.js';
+import { BotaoPilula } from '../../ui/Botao.js';
 import { ConsoleGameOverlay, type ModoConsoleDoPlayer } from '../console/ConsoleGameOverlay.js';
 import { useConsoleGameMenu } from '../console/use-console-game-menu.js';
+import './player.css';
 
 export interface PropsDoPlayer {
   readonly modoConsole?: ModoConsoleDoPlayer | undefined;
@@ -257,7 +269,7 @@ export function EmulatorPlayer({
 
   const conflitoDeSave =
     sincronizacaoDeSaveState.conflito !== null && romId !== undefined ? (
-      <div className="space-y-1">
+      <div className="space-y-3">
         <ResolucaoDeConflitoDeSaveState
           romId={romId}
           slot={sincronizacaoDeSaveState.conflito.slot}
@@ -266,169 +278,178 @@ export function EmulatorPlayer({
           storage={saveStateStorage}
           aoResolver={sincronizacaoDeSaveState.aoResolverConflito}
         />
-        <button
-          type="button"
+        <BotaoPilula
+          variante="secundaria"
+          pequena
           onClick={sincronizacaoDeSaveState.fecharConflito}
-          className="leitura text-ink-700 hover:underline"
         >
-          decidir depois
-        </button>
+          Decidir depois
+        </BotaoPilula>
       </div>
     ) : null;
 
   return (
-    <div className={modoConsole ? 'cgp-player' : 'flex flex-col gap-4'}>
-      <div
-        ref={palcoRef}
-        tabIndex={0}
-        role="application"
-        aria-label={`${titulo} — área de jogo`}
-        onFocus={() => setFocado(true)}
-        onBlur={(evento) => {
-          if (evento.currentTarget.contains(evento.relatedTarget)) return;
-          setFocado(false);
-        }}
-        className={
-          modoConsole
-            ? `cgp-stage ${rodando && !hudVisivel && !menuConsole.aberto ? 'cursor-none' : ''}`
-            : `relative overflow-hidden bg-black outline-none transition-colors ${
-                telaCheia.ativa ? 'h-screen w-screen border-0' : 'rounded-xl border'
-              } ${focado ? 'border-alert' : 'border-ink-850'} ${
-                rodando && !hudVisivel ? 'cursor-none' : ''
-              }`
-        }
-      >
+    <div className={modoConsole ? 'cgp-player' : 'flex flex-col gap-5'}>
+      <PalcoComLuz ativo={!modoConsole} titulo={titulo}>
         <div
-          ref={areaRef}
-          inert={Boolean(modoConsole && menuConsole.aberto)}
-          // Em tela cheia a área é a tela inteira. Manter o teto de 70vh aqui
-          // seria pedir tela cheia e receber a mesma imagem com tarja preta.
+          ref={palcoRef}
+          tabIndex={0}
+          role="application"
+          aria-label={`${titulo} — área de jogo`}
+          onFocus={() => setFocado(true)}
+          onBlur={(evento) => {
+            if (evento.currentTarget.contains(evento.relatedTarget)) return;
+            setFocado(false);
+          }}
           className={
             modoConsole
-              ? 'cgp-display'
-              : `flex w-full items-center justify-center ${
-                  telaCheia.ativa ? 'h-full' : 'aspect-video max-h-[70vh]'
-                }`
+              ? `cgp-stage ${rodando && !hudVisivel && !menuConsole.aberto ? 'cursor-none' : ''}`
+              : `pv-palco ${focado ? 'pv-palco--focado' : ''} ${
+                  telaCheia.ativa ? 'pv-palco--cheio h-screen w-screen' : ''
+                } ${rodando && !hudVisivel ? 'cursor-none' : ''}`
           }
         >
-          <canvas
-            ref={emulador.canvasRef}
-            width={RESOLUCAO_NATIVA.largura}
-            height={RESOLUCAO_NATIVA.altura}
-            aria-label={`Tela do ${titulo}`}
-            style={estiloDaTela}
-            // `pixelated`: interpolação bilinear em arte feita pixel a pixel é
-            // o borrão que faz o jogo antigo parecer mal digitalizado.
-            className="block [image-rendering:pixelated]"
-          />
-        </div>
-
-        {!modoConsole && (
-          <SobreposicaoDeEstado
-            status={status}
-            erroCode={emulador.erro?.code ?? null}
-            erroMensagem={emulador.erro?.message ?? null}
-            pausadoPelaAba={emulador.pausadoPelaAba}
-            aoJogar={() => comandos.alternarPausa()}
-            aoTentarDeNovo={emulador.reiniciar}
-          />
-        )}
-
-        {diagnostico.amostra !== null && (
-          <DiagnosticsOverlay amostra={diagnostico.amostra} aoFechar={diagnostico.alternar} />
-        )}
-
-        {aviso !== null && (
-          <p
-            role="status"
+          <div
+            ref={areaRef}
+            inert={Boolean(modoConsole && menuConsole.aberto)}
+            // Em tela cheia a área é a tela inteira. Manter o teto de 70vh aqui
+            // seria pedir tela cheia e receber a mesma imagem com tarja preta.
             className={
               modoConsole
-                ? 'cgp-notice'
-                : 'absolute inset-x-0 top-0 mx-auto mt-3 w-fit rounded-full border border-ink-850 bg-ink-950/90 px-3 py-1 text-xs text-label-100'
+                ? 'cgp-display'
+                : `flex w-full items-center justify-center ${
+                    telaCheia.ativa ? 'h-full' : 'aspect-video max-h-[70vh]'
+                  }`
             }
           >
-            {aviso}
-          </p>
-        )}
+            <canvas
+              ref={emulador.canvasRef}
+              width={RESOLUCAO_NATIVA.largura}
+              height={RESOLUCAO_NATIVA.altura}
+              aria-label={`Tela do ${titulo}`}
+              style={estiloDaTela}
+              // `pixelated`: interpolação bilinear em arte feita pixel a pixel é
+              // o borrão que faz o jogo antigo parecer mal digitalizado.
+              className="block [image-rendering:pixelated]"
+            />
+          </div>
 
-        {modoConsole ? (
-          <ConsoleGameOverlay
-            titulo={titulo}
-            sistema={systemId}
-            modo={modoConsole}
-            status={status}
-            erro={emulador.erro?.message ?? null}
-            visivel={hudVisivel || !rodando}
-            aberto={menuConsole.aberto}
-            abrir={menuConsole.abrir}
-            fechar={menuConsole.fechar}
-            retomar={comandos.retomar}
-            reiniciar={comandos.resetar}
-            tentar={emulador.reiniciar}
-            saves={saves}
-            podeSalvar={capabilities.saveState && romId !== undefined}
-            nuvem={sincronizacaoDeSaveState}
-            conflito={conflitoDeSave}
-            ocupado={consoleOcupado || sincronizacaoDeSaveState.ocupado !== null}
-            aoOcupar={setConsoleOcupado}
-            sair={async () => {
-              if (!(await saves.prepararSaida()))
-                throw new Error('Falha ao concluir a gravação local.');
-              modoConsole.aoSair();
-            }}
-            proporcao={proporcao}
-            aoTrocarProporcao={setProporcao}
-            escalaInteira={escalaInteira}
-            aoAlternarEscala={() => setEscalaInteira((valor) => !valor)}
-            telaCheia={telaCheia}
-            volume={volume}
-            aoTrocarVolume={setVolume}
-            mudo={emulador.audio.muted}
-            aoTrocarMudo={comandos.definirMudo}
-            audioBloqueado={emulador.audio.blocked}
-            ativarAudio={() => {
-              void comandos.destravarAudio();
-            }}
-          />
-        ) : (
-          <PlayerHud
-            status={status}
-            capabilities={capabilities}
-            visivel={hudVisivel || !rodando}
-            acoes={acoes}
-            temEstadoSalvo={saves.slots.some((slot) => slot.metadata !== null)}
-            proporcao={proporcao}
-            aoTrocarProporcao={setProporcao}
-            escalaInteira={escalaInteira}
-            aoAlternarEscalaInteira={() => setEscalaInteira((valor) => !valor)}
-            telaCheia={telaCheia}
-            volume={volume}
-            aoTrocarVolume={setVolume}
-            mudo={emulador.audio.muted}
-            audioBloqueado={emulador.audio.blocked}
-            aoTrocarMudo={(mudo) => emulador.comandos.definirMudo(mudo)}
-            aoDestravarAudio={() => void emulador.comandos.destravarAudio()}
-            controle={controle?.nome ?? null}
-          />
-        )}
-      </div>
+          {!modoConsole && (
+            <SobreposicaoDeEstado
+              status={status}
+              erroCode={emulador.erro?.code ?? null}
+              erroMensagem={emulador.erro?.message ?? null}
+              pausadoPelaAba={emulador.pausadoPelaAba}
+              aoJogar={() => comandos.alternarPausa()}
+              aoTentarDeNovo={emulador.reiniciar}
+            />
+          )}
+
+          {diagnostico.amostra !== null && (
+            <DiagnosticsOverlay amostra={diagnostico.amostra} aoFechar={diagnostico.alternar} />
+          )}
+
+          {aviso !== null && (
+            <p role="status" className={modoConsole ? 'cgp-notice' : 'pv-player-aviso'}>
+              {aviso}
+            </p>
+          )}
+
+          {modoConsole ? (
+            <ConsoleGameOverlay
+              titulo={titulo}
+              sistema={systemId}
+              modo={modoConsole}
+              status={status}
+              erro={emulador.erro?.message ?? null}
+              visivel={hudVisivel || !rodando}
+              aberto={menuConsole.aberto}
+              abrir={menuConsole.abrir}
+              fechar={menuConsole.fechar}
+              retomar={comandos.retomar}
+              reiniciar={comandos.resetar}
+              tentar={emulador.reiniciar}
+              saves={saves}
+              podeSalvar={capabilities.saveState && romId !== undefined}
+              nuvem={sincronizacaoDeSaveState}
+              conflito={conflitoDeSave}
+              ocupado={consoleOcupado || sincronizacaoDeSaveState.ocupado !== null}
+              aoOcupar={setConsoleOcupado}
+              sair={async () => {
+                if (!(await saves.prepararSaida()))
+                  throw new Error('Falha ao concluir a gravação local.');
+                modoConsole.aoSair();
+              }}
+              proporcao={proporcao}
+              aoTrocarProporcao={setProporcao}
+              escalaInteira={escalaInteira}
+              aoAlternarEscala={() => setEscalaInteira((valor) => !valor)}
+              telaCheia={telaCheia}
+              volume={volume}
+              aoTrocarVolume={setVolume}
+              mudo={emulador.audio.muted}
+              aoTrocarMudo={comandos.definirMudo}
+              audioBloqueado={emulador.audio.blocked}
+              ativarAudio={() => {
+                void comandos.destravarAudio();
+              }}
+            />
+          ) : (
+            <PlayerHud
+              status={status}
+              capabilities={capabilities}
+              visivel={hudVisivel || !rodando}
+              acoes={acoes}
+              temEstadoSalvo={saves.slots.some((slot) => slot.metadata !== null)}
+              proporcao={proporcao}
+              aoTrocarProporcao={setProporcao}
+              escalaInteira={escalaInteira}
+              aoAlternarEscalaInteira={() => setEscalaInteira((valor) => !valor)}
+              telaCheia={telaCheia}
+              volume={volume}
+              aoTrocarVolume={setVolume}
+              mudo={emulador.audio.muted}
+              audioBloqueado={emulador.audio.blocked}
+              aoTrocarMudo={(mudo) => emulador.comandos.definirMudo(mudo)}
+              aoDestravarAudio={() => void emulador.comandos.destravarAudio()}
+              controle={controle?.nome ?? null}
+            />
+          )}
+        </div>
+      </PalcoComLuz>
 
       {!modoConsole && (
         <>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
-            <span>
-              Estado: <strong className="text-ink-500">{ROTULO_DO_STATUS[status]}</strong>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="pv-chip">
+              Estado <b>{ROTULO_DO_STATUS[status]}</b>
             </span>
-            {emulador.coreVersion !== null && <span>Core: {emulador.coreVersion}</span>}
-            {emulador.fps !== null && <span>{emulador.fps} fps</span>}
-            {emulador.ultimaGravacaoDeSram !== null && (
-              <span>
-                SRAM gravada às{' '}
-                {new Date(emulador.ultimaGravacaoDeSram).toLocaleTimeString('pt-BR')}
+            {emulador.coreVersion !== null && (
+              <span className="pv-chip">
+                core <b className="leitura">{emulador.coreVersion}</b>
               </span>
             )}
-            {saves.driver !== null && <span>save: {saves.driver}</span>}
-            {!emulador.abaVisivel && <span>aba oculta — emulação pausada</span>}
+            {emulador.fps !== null && (
+              <span className="pv-chip">
+                <b className="leitura">{emulador.fps}</b> fps
+              </span>
+            )}
+            {emulador.ultimaGravacaoDeSram !== null && (
+              <span className="pv-chip">
+                SRAM gravada às{' '}
+                <b className="leitura">
+                  {new Date(emulador.ultimaGravacaoDeSram).toLocaleTimeString('pt-BR')}
+                </b>
+              </span>
+            )}
+            {saves.driver !== null && (
+              <span className="pv-chip">
+                save <b className="leitura">{saves.driver}</b>
+              </span>
+            )}
+            {!emulador.abaVisivel && (
+              <span className="pv-chip pv-chip--alerta">aba oculta — emulação pausada</span>
+            )}
           </div>
 
           {capabilities.saveState && romId !== undefined && (
@@ -445,7 +466,7 @@ export function EmulatorPlayer({
           )}
 
           {sincronizacaoDeSaveState.erro !== null && (
-            <p className="text-xs text-alert">{sincronizacaoDeSaveState.erro}</p>
+            <p className="text-[12.5px] text-alert">{sincronizacaoDeSaveState.erro}</p>
           )}
 
           {conflitoDeSave}
@@ -494,15 +515,9 @@ function SobreposicaoDeEstado({
   if (erroCode !== null) {
     return (
       <Cobertura>
-        <p className="font-mono text-xs tracking-widest text-alert uppercase">{erroCode}</p>
-        <p className="mt-2 max-w-sm text-sm text-label-100">{erroMensagem}</p>
-        <button
-          type="button"
-          onClick={aoTentarDeNovo}
-          className="mt-4 rounded-md bg-alert px-4 py-2 text-sm font-semibold text-ink-950 hover:brightness-110"
-        >
-          Tentar de novo
-        </button>
+        <p className="leitura text-alert">{erroCode}</p>
+        <p className="max-w-sm text-[13.5px] leading-relaxed text-label-100">{erroMensagem}</p>
+        <BotaoPilula onClick={aoTentarDeNovo}>Tentar de novo</BotaoPilula>
       </Cobertura>
     );
   }
@@ -510,11 +525,10 @@ function SobreposicaoDeEstado({
   if (status === 'idle' || status === 'mounted' || status === 'loading') {
     return (
       <Cobertura>
-        <span
-          aria-hidden
-          className="h-6 w-6 animate-spin rounded-full border-2 border-ink-700 border-t-alert"
-        />
-        <p className="mt-3 text-sm text-ink-500">
+        <div className="pv-carregando" aria-hidden="true">
+          <i />
+        </div>
+        <p className="text-[12.5px] text-ink-500">
           {status === 'loading' ? 'Carregando a ROM…' : 'Subindo o core…'}
         </p>
       </Cobertura>
@@ -524,13 +538,9 @@ function SobreposicaoDeEstado({
   if (status === 'ready') {
     return (
       <Cobertura>
-        <button
-          type="button"
-          onClick={aoJogar}
-          className="rounded-full bg-alert px-6 py-3 text-sm font-semibold text-ink-950 hover:brightness-110"
-        >
-          Jogar
-        </button>
+        <BotaoPilula onClick={aoJogar} atalho="Espaço">
+          <Play size={17} fill="currentColor" /> Jogar
+        </BotaoPilula>
       </Cobertura>
     );
   }
@@ -538,8 +548,8 @@ function SobreposicaoDeEstado({
   if (status === 'paused') {
     return (
       <Cobertura>
-        <p className="text-sm font-semibold text-label-100">Pausado</p>
-        <p className="mt-1 text-xs text-ink-500">
+        <h2 className="titulo-cena text-label-100">Pausado</h2>
+        <p className="max-w-sm text-[12.5px] text-ink-500">
           {pausadoPelaAba
             ? 'A aba saiu de vista. O tempo de jogo só conta com a aba visível.'
             : 'Espaço para voltar ao jogo.'}
@@ -552,8 +562,33 @@ function SobreposicaoDeEstado({
 }
 
 function Cobertura({ children }: { readonly children: ReactNode }) {
+  return <div className="pv-cobertura">{children}</div>;
+}
+
+/**
+ * A luz do título por trás da moldura, só no site. No console o palco é a
+ * tela inteira e não existe "atrás"; aqui a moldura flutua sobre a página, e
+ * a cor que a prateleira já dá ao jogo (`matizDoTitulo`) é o que a ancora
+ * ali — inclusive para o jogo sem capa. O `isolate` prende o z-index
+ * negativo da luz dentro deste bloco, para ela não afundar atrás da página.
+ */
+function PalcoComLuz({
+  ativo,
+  titulo,
+  children,
+}: {
+  readonly ativo: boolean;
+  readonly titulo: string;
+  readonly children: ReactNode;
+}) {
+  if (!ativo) return children;
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-ink-950/85 text-center">
+    <div className="relative isolate">
+      <div
+        className="pv-player-luz"
+        style={{ '--matiz': matizDoTitulo(titulo) } as CSSProperties}
+        aria-hidden="true"
+      />
       {children}
     </div>
   );

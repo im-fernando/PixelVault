@@ -3,11 +3,13 @@ import { Link } from '@tanstack/react-router';
 import type { EmulatorRegistry, RomSource } from '@pixelvault/emulator-runtime';
 import { romFromUrl } from '@pixelvault/emulator-runtime';
 import { ApiRequestError } from '../../lib/api.js';
+import { classesDaPilula } from '../../ui/Botao.js';
+import { Aviso } from '../../ui/Painel.js';
 import { useDownloadDeRom } from '../library/download-de-rom.js';
 import { useBiblioteca } from '../library/use-biblioteca.js';
 import { AdocaoDeSram } from './AdocaoDeSram.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
-import { FichaDeAcervo } from './FichaDeAcervo.js';
+import { FichaDeAcervo, TelaDeJogoFantasma } from './FichaDeAcervo.js';
 import { IndicadorDeSincronizacao } from './IndicadorDeSincronizacao.js';
 import { PlayerErrorBoundary } from './PlayerErrorBoundary.js';
 import type { SaveStorage } from './storage/index.js';
@@ -73,12 +75,7 @@ export function BibliotecaPlayPage({ romId, registry, storage, aoSairDoConsole }
           sair={aoSairDoConsole}
         />
       );
-    return (
-      <div className="space-y-4">
-        <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
-        <div className="aspect-video w-full animate-pulse rounded-xl bg-ink-850" />
-      </div>
-    );
+    return <TelaDeJogoFantasma />;
   }
 
   // Erro no download OU ausência na própria lista: as duas coisas viram a
@@ -144,12 +141,7 @@ export function BibliotecaPlayPage({ romId, registry, storage, aoSairDoConsole }
           sair={aoSairDoConsole}
         />
       );
-    return (
-      <div className="space-y-4">
-        <div className="h-6 w-48 animate-pulse rounded bg-ink-850" />
-        <div className="aspect-video w-full animate-pulse rounded-xl bg-ink-850" />
-      </div>
-    );
+    return <TelaDeJogoFantasma />;
   }
 
   const progresso = sincronizacao.vinculado ? (
@@ -159,7 +151,7 @@ export function BibliotecaPlayPage({ romId, registry, storage, aoSairDoConsole }
   );
 
   return (
-    <div className={aoSairDoConsole ? 'cgp-library-player' : 'space-y-5'}>
+    <div className={aoSairDoConsole ? 'cgp-library-player' : 'mx-auto max-w-[1180px] space-y-6'}>
       {!aoSairDoConsole && (
         <FichaDeAcervo
           titulo={item.title}
@@ -223,15 +215,16 @@ export function BibliotecaPlayPage({ romId, registry, storage, aoSairDoConsole }
 
 function Recado({ titulo, detalhe }: { readonly titulo: string; readonly detalhe: string }) {
   return (
-    <div className="rounded-xl border border-ink-850 bg-ink-900 p-8 text-center">
-      <h2 className="font-semibold text-alert">{titulo}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{detalhe}</p>
-      <Link
-        to="/"
-        className="mt-5 inline-block rounded-md border border-ink-700 px-4 py-2 text-sm text-label-100 hover:border-alert"
-      >
-        Voltar para a biblioteca
-      </Link>
-    </div>
+    <Aviso
+      className="mx-auto max-w-[1180px]"
+      titulo={titulo}
+      acao={
+        <Link to="/" className={classesDaPilula({ variante: 'secundaria', pequena: true })}>
+          Voltar para a biblioteca
+        </Link>
+      }
+    >
+      {detalhe}
+    </Aviso>
   );
 }
