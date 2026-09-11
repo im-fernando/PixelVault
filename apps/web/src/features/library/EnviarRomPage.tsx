@@ -1,5 +1,10 @@
-import { useId, useState, type DragEvent } from 'react';
+import { Upload } from 'lucide-react';
+import { Fragment, useId, useState, type DragEvent } from 'react';
 import { TAMANHO_MAXIMO_DE_ROM_EM_BYTES } from '@pixelvault/contracts';
+import { Arte } from '../../ui/Arte.js';
+import { BotaoPilula, classesDaPilula } from '../../ui/Botao.js';
+import { Aviso, Painel } from '../../ui/Painel.js';
+import { Sobrelinha } from '../../ui/Texto.js';
 import { EXTENSOES_ACEITAS } from './arquivo-de-rom.js';
 import { Cartucho } from './Cartucho.js';
 import type { EstadoDoEnvio } from './envio-de-rom.js';
@@ -13,13 +18,14 @@ import { useEnvioDeRom, type RomDaSessao } from './use-envio-de-rom.js';
  * A tela é organizada em torno do que a ADR 0014 obriga a mostrar — que
  * existe um passo de verificação entre "enviei" e "está na minha biblioteca".
  * Por isso o miolo não é uma barra de progresso e sim um **protocolo de
- * entrada**: três linhas, na ordem em que acontecem, cada uma dizendo o que
- * está sendo feito. Terminar não apaga as linhas; elas ficam como o carimbo
+ * entrada**: três passos, na ordem em que acontecem, cada um dizendo o que
+ * está sendo feito. Terminar não apaga os passos; eles ficam como o carimbo
  * do que foi feito, que é o que um arquivo guardaria.
  *
- * O desenho fica quieto de propósito (docs/design.md): a ousadia do produto
- * está gasta na prateleira, e a prateleira aparece aqui no fim, com o que
- * acabou de entrar.
+ * Zona de entrada à esquerda, protocolo à direita: o gesto e a consequência
+ * lado a lado, para a pessoa não precisar rolar a tela para ver o que está
+ * acontecendo com o arquivo que acabou de soltar. No celular as duas colunas
+ * empilham, na mesma ordem.
  */
 export function EnviarRomPage() {
   const envio = useEnvioDeRom();
@@ -28,22 +34,26 @@ export function EnviarRomPage() {
     <>
       {/*
         A tarefa é estreita e a prateleira não: o miolo do envio fica numa
-        coluna de leitura, e a fileira do fim sai dela para sangrar até a borda
-        da tela, como toda prateleira do produto (docs/design.md).
+        coluna, e a fileira do fim sai dela para sangrar até a borda da tela,
+        como toda prateleira do produto.
       */}
-      <div className="mx-auto max-w-3xl px-6">
-        <div className="border-b-2 border-ink-850 pb-1.5">
-          <h1 className="titulo-estampado text-lg text-label-100">Enviar ROM</h1>
+      <div className="mx-auto max-w-[1080px] pt-6">
+        <header>
+          <Sobrelinha>mesa de recepção · sua biblioteca</Sobrelinha>
+          <h1 className="titulo-cena mt-3 text-[clamp(34px,4vw,60px)] text-label-100">
+            Enviar ROM
+          </h1>
+          <p className="mt-4 max-w-prose text-[14px] leading-relaxed text-ink-500">
+            O acervo é seu: a ROM que você enviar fica privada da sua conta, e ninguém mais a baixa.
+            Nós guardamos o arquivo e o catálogo cuida do resto — capa, nome, ano — quando reconhece
+            o jogo.
+          </p>
+        </header>
+
+        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+          <ZonaDeEntrada ocupado={envio.ocupado} aoEscolher={envio.enviar} />
+          <Protocolo estado={envio.estado} aoLimpar={envio.limpar} />
         </div>
-        <p className="mt-3 max-w-prose text-sm leading-relaxed text-ink-500">
-          O acervo é seu: a ROM que você enviar fica privada da sua conta, e ninguém mais a baixa.
-          Nós guardamos o arquivo e o catálogo cuida do resto — capa, nome, ano — quando reconhece o
-          jogo.
-        </p>
-
-        <ZonaDeEntrada ocupado={envio.ocupado} aoEscolher={envio.enviar} />
-
-        <Protocolo estado={envio.estado} aoLimpar={envio.limpar} />
       </div>
 
       {envio.nestaSessao.length > 0 && <NestaSessao itens={envio.nestaSessao} />}
@@ -58,6 +68,10 @@ export function EnviarRomPage() {
  * arquivo é dela, e todo o resto — de que console é, se o conteúdo confere,
  * qual o hash — sai do próprio arquivo, aqui ou no servidor. Pedir à pessoa o
  * que a máquina consegue descobrir é transformar um envio em formulário.
+ *
+ * A pílula "Escolher arquivo" é só desenho dentro do `label`: quem abre o
+ * seletor é o `input[type=file]` escondido, e o `label` inteiro é o alvo do
+ * clique. Um botão de verdade ali seria elemento interativo dentro de outro.
  */
 function ZonaDeEntrada({
   ocupado,
@@ -86,20 +100,24 @@ function ZonaDeEntrada({
         setPorCima(false);
       }}
       onDrop={aoSoltar}
-      className={`mt-8 flex cursor-pointer flex-col items-center border border-dashed px-6 py-12 text-center transition-colors focus-within:border-label-400 ${
-        porCima
-          ? 'border-label-400 bg-ink-900'
-          : 'border-ink-850 bg-ink-900/40 hover:border-ink-700'
-      } ${ocupado ? 'pointer-events-none opacity-45' : ''}`}
+      className={`pv-zona justify-center ${porCima ? 'pv-zona--por-cima' : ''} ${
+        ocupado ? 'pv-zona--ocupada' : ''
+      }`}
     >
-      <span className="titulo-estampado text-sm text-label-100">
+      <span className="pv-zona-icone" aria-hidden="true">
+        <Upload size={26} strokeWidth={1.5} />
+      </span>
+      <span className="titulo-cena mt-2 text-[22px] text-label-100">
         Solte o arquivo aqui ou escolha um
       </span>
-      <span className="mt-2 max-w-sm text-xs leading-relaxed text-ink-500">
+      <span className="max-w-sm text-[13px] leading-relaxed text-ink-500">
         A ROM tem que estar descompactada — o arquivo do cartucho, não o .zip que veio com ele.
       </span>
-      <span className="leitura mt-4 text-ink-700">
+      <span className="leitura text-ink-700">
         {EXTENSOES_ACEITAS.join(' ')} · até {emBytesLegiveis(TAMANHO_MAXIMO_DE_ROM_EM_BYTES)}
+      </span>
+      <span className={classesDaPilula({ pequena: true, className: 'mt-3' })} aria-hidden="true">
+        Escolher arquivo
       </span>
       <input
         id={id}
@@ -118,10 +136,10 @@ function ZonaDeEntrada({
   );
 }
 
-/** As três linhas do protocolo, na ordem em que acontecem. */
+/** Os três passos do protocolo, na ordem em que acontecem. */
 const PASSOS = ['Enviando', 'Verificando', 'Na biblioteca'] as const;
 
-/** Em que linha o fluxo está. `-1` é "nem começou". */
+/** Em que passo o fluxo está. `-1` é "nem começou". */
 function linhaAtual(estado: EstadoDoEnvio): number {
   switch (estado.fase) {
     case 'ocioso':
@@ -145,52 +163,50 @@ function Protocolo({
   readonly estado: EstadoDoEnvio;
   readonly aoLimpar: () => void;
 }) {
-  if (estado.fase === 'ocioso') return null;
+  if (estado.fase === 'ocioso') return <ProtocoloEmBranco />;
 
   if (estado.fase === 'recusado') {
     return (
-      <div role="alert" className="mt-8 border-l-2 border-alert bg-ink-900 px-5 py-4">
-        <p className="titulo-estampado text-sm text-label-100">{estado.recusa.titulo}</p>
-        <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-500">
-          {estado.recusa.detalhe}
-        </p>
-        <p className="leitura mt-3 truncate text-ink-700">
+      <Aviso
+        titulo={estado.recusa.titulo}
+        acao={
+          <BotaoPilula pequena variante="secundaria" onClick={aoLimpar}>
+            Escolher outro arquivo
+          </BotaoPilula>
+        }
+      >
+        <p>{estado.recusa.detalhe}</p>
+        <p className="leitura mt-3 break-all text-ink-700">
           {estado.arquivo.nome} · {emBytesLegiveis(estado.arquivo.sizeBytes)}
         </p>
-        <button
-          type="button"
-          onClick={aoLimpar}
-          className="mt-4 border border-ink-700 px-3 py-1 text-xs text-label-200 outline-none hover:border-label-400 hover:text-label-100 focus-visible:border-label-400"
-        >
-          Escolher outro arquivo
-        </button>
-      </div>
+      </Aviso>
     );
   }
 
   const atual = linhaAtual(estado);
-  // Terminou, as três linhas estão cumpridas — inclusive quando o atalho do
+  // Terminou, os três passos estão cumpridos — inclusive quando o atalho do
   // hash pulou o envio e a verificação de verdade: o destino é o mesmo, e a
-  // nota da última linha diz por que foi tão rápido em vez de fingir um envio.
+  // nota do último passo diz por que foi tão rápido em vez de fingir um envio.
   const cumpridas = estado.fase === 'pronto' ? PASSOS.length : atual;
 
   return (
-    <div className="mt-8 border border-ink-850 bg-ink-900/40 px-5 py-4">
-      <p className="truncate text-sm text-label-100">{estado.arquivo.nome}</p>
-      <p className="leitura mt-1 text-ink-700">
+    <Painel className="p-6">
+      <p className="truncate text-[15px] font-semibold text-label-100">{estado.arquivo.nome}</p>
+      <p className="leitura mt-1 text-ink-500">
         {emBytesLegiveis(estado.arquivo.sizeBytes)}
         {estado.arquivo.systemId !== null && ` · ${estado.arquivo.systemId.toUpperCase()}`}
       </p>
 
-      <ol className="mt-5 space-y-3">
+      <ol className="mt-7">
         {PASSOS.map((nome, indice) => (
-          <Linha
+          <Passo
             key={nome}
+            numero={indice + 1}
             nome={nome}
             situacao={indice < cumpridas ? 'feita' : indice === atual ? 'agora' : 'adiante'}
           >
             {notaDaLinha(estado, indice)}
-          </Linha>
+          </Passo>
         ))}
       </ol>
 
@@ -199,24 +215,48 @@ function Protocolo({
       )}
 
       {estado.fase === 'pronto' && (
-        <div className="mt-4 border-t border-ink-850 pt-3">
+        <div className="mt-2 border-t border-white/10 pt-4">
           <p className="leitura break-all text-ink-700">sha256 {estado.rom.sha256}</p>
-          <p className="leitura mt-1 text-ink-700">rom {estado.rom.romId}</p>
-          <button
-            type="button"
-            onClick={aoLimpar}
-            className="mt-4 border border-ink-700 px-3 py-1 text-xs text-label-200 outline-none hover:border-label-400 hover:text-label-100 focus-visible:border-label-400"
-          >
+          <p className="leitura mt-1 break-all text-ink-700">rom {estado.rom.romId}</p>
+          <BotaoPilula pequena variante="secundaria" className="mt-5" onClick={aoLimpar}>
             Enviar outra
-          </button>
+          </BotaoPilula>
         </div>
       )}
+    </Painel>
+  );
+}
+
+/**
+ * A coluna do protocolo antes de qualquer arquivo: diz os três passos que vão
+ * acontecer, para a pessoa saber o que esperar antes de soltar o arquivo — e
+ * para a coluna não ficar em branco ao lado da zona de entrada.
+ */
+function ProtocoloEmBranco() {
+  return (
+    <div className="pv-vazio">
+      <Sobrelinha>Protocolo de entrada</Sobrelinha>
+      <p className="max-w-prose text-[13.5px] leading-relaxed text-ink-500">
+        Cada arquivo passa por três passos, nesta ordem, e cada um aparece aqui enquanto acontece.
+      </p>
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-label-200">
+        {PASSOS.map((nome, indice) => (
+          <Fragment key={nome}>
+            {indice > 0 && (
+              <span aria-hidden="true" className="text-ink-700">
+                →
+              </span>
+            )}
+            <span>{nome}</span>
+          </Fragment>
+        ))}
+      </p>
     </div>
   );
 }
 
 /**
- * O que cada linha do protocolo tem a dizer no momento em que está.
+ * O que cada passo do protocolo tem a dizer no momento em que está.
  *
  * A frase da verificação é a razão de a tela existir do jeito que existe: ela
  * nomeia o que o servidor está fazendo — lendo os bytes, calculando o hash —
@@ -247,33 +287,38 @@ function notaDaLinha(estado: EstadoDoEnvio, indice: number): string | null {
   return 'Guardada. Ela é sua e só sua.';
 }
 
-function Linha({
+/**
+ * Um passo da linha do tempo. O número é honesto — é uma sequência de
+ * verdade, com ordem fixa — e por isso aparece, em vez de um ponto.
+ */
+function Passo({
+  numero,
   nome,
   situacao,
   children,
 }: {
+  readonly numero: number;
   readonly nome: string;
   readonly situacao: 'feita' | 'agora' | 'adiante';
   readonly children: string | null;
 }) {
   return (
-    <li className="flex gap-3">
-      <span
-        aria-hidden="true"
-        className={`mt-[0.3rem] h-2 w-2 shrink-0 ${
-          situacao === 'adiante' ? 'border border-ink-700' : 'bg-label-400'
-        } ${situacao === 'agora' ? 'animate-pulse' : ''}`}
-      />
-      <div className="min-w-0">
+    <li className="pv-passo" data-situacao={situacao}>
+      <span className="pv-passo-numero" aria-hidden="true">
+        {String(numero).padStart(2, '0')}
+      </span>
+      <div className="min-w-0 pt-2.5">
         <p
-          className={`text-sm ${situacao === 'adiante' ? 'text-ink-700' : 'text-label-100'}`}
+          className={`text-[14px] font-medium ${
+            situacao === 'adiante' ? 'text-ink-500' : 'text-label-100'
+          }`}
           aria-current={situacao === 'agora' ? 'step' : undefined}
         >
           {nome}
           {situacao === 'agora' && <span className="sr-only"> (em andamento)</span>}
         </p>
         {children !== null && (
-          <p className="mt-0.5 text-xs leading-relaxed text-ink-500">{children}</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-ink-500">{children}</p>
         )}
       </div>
     </li>
@@ -292,18 +337,21 @@ function Barra({ total, feito }: { readonly total: number; readonly feito: numbe
   const porcento = total === 0 ? 0 : Math.min(100, Math.round((feito / total) * 100));
 
   return (
-    <div className="mt-4">
+    <div className="mt-2">
       <div
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={porcento}
         aria-label="Envio da ROM"
-        className="h-1 w-full bg-ink-850"
+        className="h-1 w-full rounded bg-white/10"
       >
-        <div className="h-full bg-label-400 transition-[width]" style={{ width: `${porcento}%` }} />
+        <div
+          className="h-full rounded bg-luz transition-[width]"
+          style={{ width: `${porcento}%` }}
+        />
       </div>
-      <p className="leitura mt-1.5 text-ink-700">
+      <p className="leitura mt-2 text-ink-700">
         {emBytesLegiveis(feito)} de {emBytesLegiveis(total)} · {porcento}%
       </p>
     </div>
@@ -322,7 +370,7 @@ function NestaSessao({ itens }: { readonly itens: readonly RomDaSessao[] }) {
   const bytes = itens.reduce((soma, item) => soma + item.rom.sizeBytes, 0);
 
   return (
-    <section className="mt-12">
+    <section className="mt-14">
       <EtiquetaDeGaveta
         nome="Entrou agora"
         itens={itens.length}
@@ -330,19 +378,24 @@ function NestaSessao({ itens }: { readonly itens: readonly RomDaSessao[] }) {
         nota="só suas · já estão na sua biblioteca"
       />
       <Prateleira>
-        {itens.map((item) => (
-          <div key={item.rom.romId} className="group" title={item.arquivo.nome}>
-            {item.arquivo.systemId === null ? (
-              <SemSistema titulo={item.arquivo.titulo} />
-            ) : (
-              <Cartucho
-                titulo={item.arquivo.titulo}
-                systemId={item.arquivo.systemId}
-                selo={`${Math.round(item.rom.sizeBytes / 1024)} KB`}
-              />
-            )}
-          </div>
-        ))}
+        {itens.map((item) =>
+          item.arquivo.systemId === null ? (
+            <SemSistema
+              key={item.rom.romId}
+              titulo={item.arquivo.titulo}
+              nome={item.arquivo.nome}
+              bytes={item.rom.sizeBytes}
+            />
+          ) : (
+            <Cartucho
+              key={item.rom.romId}
+              titulo={item.arquivo.titulo}
+              systemId={item.arquivo.systemId}
+              nota={`${item.arquivo.systemId.toUpperCase()} · ${emBytesLegiveis(item.rom.sizeBytes)}`}
+              rotulo={`${item.arquivo.titulo} — ${item.arquivo.nome}`}
+            />
+          ),
+        )}
       </Prateleira>
     </section>
   );
@@ -353,18 +406,25 @@ function NestaSessao({ itens }: { readonly itens: readonly RomDaSessao[] }) {
  *
  * Não deveria acontecer — a verificação do servidor recusa extensão que ela
  * não reconhece —, mas pode, no dia em que o servidor aceitar um formato antes
- * de a lista daqui saber dele (ver `arquivo-de-rom.ts`). Some da prateleira
- * seria pior: a ROM está lá, e a tela precisa dizer isso.
+ * de a lista daqui saber dele (ver `arquivo-de-rom.ts`). Sumir da prateleira
+ * seria pior: a ROM está lá, e a tela precisa dizer isso — com a arte
+ * substituta sem console e a nota dizendo o que falta, em vez de um número
+ * de acervo que fingiria procedência.
  */
-function SemSistema({ titulo }: { readonly titulo: string }) {
+function SemSistema({
+  titulo,
+  nome,
+  bytes,
+}: {
+  readonly titulo: string;
+  readonly nome: string;
+  readonly bytes: number;
+}) {
   return (
-    <div className="flex h-[17rem] w-14 shrink-0 items-start justify-center overflow-hidden bg-ink-850 pt-3">
-      <p
-        className="titulo-estampado text-[0.6rem] leading-none text-label-200"
-        style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-      >
-        {titulo}
-      </p>
+    <div className="pv-cartucho" role="group" aria-label={`${titulo} — ${nome}`}>
+      <Arte titulo={titulo} sistema={null} capaUrl={null} />
+      <span className="pv-cartucho-titulo">{titulo}</span>
+      <span className="pv-cartucho-nota">Sistema não identificado · {emBytesLegiveis(bytes)}</span>
     </div>
   );
 }

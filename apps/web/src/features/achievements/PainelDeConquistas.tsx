@@ -1,5 +1,9 @@
+import type { ReactNode } from 'react';
 import type { UnlockedAchievement } from '@pixelvault/contracts';
-import { CATALOGO_DE_CONQUISTAS, type ConquistaDoCatalogo } from './catalogo-de-conquistas.js';
+import { Aviso } from '../../ui/Painel.js';
+import { LinhaDeSecao, Numero, Sobrelinha } from '../../ui/Texto.js';
+import { CartaoDeConquista } from './CartaoDeConquista.js';
+import { CATALOGO_DE_CONQUISTAS } from './catalogo-de-conquistas.js';
 import { useConquistas } from './use-conquistas.js';
 
 /**
@@ -12,19 +16,34 @@ import { useConquistas } from './use-conquistas.js';
  * hoje guarda spoiler de conteúdo (todas são limiar ou primeiro gesto), então
  * a mesma `descricao` serve para os dois estados — ver o comentário do
  * catálogo.
+ *
+ * O número no cabeçalho é lido das duas listas, não escrito à mão: o total é
+ * o tamanho do catálogo, e o catálogo já se confere contra o enum do
+ * contrato em tempo de build.
  */
 export function PainelDeConquistas() {
   const conquistas = useConquistas();
 
   if (conquistas.isPending) {
-    return <p className="leitura px-6 text-ink-700">Carregando conquistas…</p>;
+    return (
+      <Pagina>
+        <Cabecalho />
+        <p className="mt-8 text-[13px] text-ink-500">Carregando conquistas…</p>
+        <ul aria-hidden="true" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => (
+            <li key={i} className="h-24 animate-pulse rounded-[20px] bg-white/5" />
+          ))}
+        </ul>
+      </Pagina>
+    );
   }
 
   if (conquistas.isError) {
     return (
-      <p className="leitura px-6 text-alert" role="alert">
-        Não foi possível carregar as conquistas agora.
-      </p>
+      <Pagina>
+        <Cabecalho />
+        <Aviso className="mt-8" titulo="Não foi possível carregar as conquistas agora." />
+      </Pagina>
     );
   }
 
@@ -40,24 +59,24 @@ export function PainelDeConquistas() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl px-6">
-      <h1 className="titulo-estampado text-2xl leading-none text-label-100">Conquistas</h1>
+    <Pagina>
+      <Cabecalho desbloqueadas={desbloqueadas.length} />
 
-      <section aria-labelledby="conquistas-desbloqueadas" className="mt-6">
-        <h2
+      <section aria-labelledby="conquistas-desbloqueadas" className="mt-10">
+        <LinhaDeSecao
           id="conquistas-desbloqueadas"
-          className="leitura border-b border-ink-850 pb-2 text-ink-500"
-        >
-          Desbloqueadas ({desbloqueadas.length})
-        </h2>
+          nome={`Desbloqueadas (${desbloqueadas.length})`}
+        />
         {desbloqueadas.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-700">
-            Nenhuma conquista desbloqueada ainda — o acervo é o primeiro passo.
-          </p>
+          <div className="pv-vazio mt-4">
+            <p className="max-w-prose text-[13.5px] leading-relaxed text-ink-500">
+              Nenhuma conquista desbloqueada ainda — o acervo é o primeiro passo.
+            </p>
+          </div>
         ) : (
-          <ul className="mt-3 flex flex-col gap-3">
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {desbloqueadas.map((conquista) => (
-              <ConquistaDesbloqueada
+              <CartaoDeConquista
                 key={conquista.code}
                 conquista={conquista}
                 unlockedAt={desbloqueadasPorCodigo.get(conquista.code)!.unlockedAt}
@@ -67,58 +86,63 @@ export function PainelDeConquistas() {
         )}
       </section>
 
-      <section aria-labelledby="conquistas-bloqueadas" className="mt-8">
-        <h2
-          id="conquistas-bloqueadas"
-          className="leitura border-b border-ink-850 pb-2 text-ink-700"
-        >
-          A desbloquear ({bloqueadas.length})
-        </h2>
-        <ul className="mt-3 flex flex-col gap-2">
+      <section aria-labelledby="conquistas-bloqueadas" className="mt-12">
+        <LinhaDeSecao id="conquistas-bloqueadas" nome={`A desbloquear (${bloqueadas.length})`} />
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {bloqueadas.map((conquista) => (
-            <ConquistaBloqueada key={conquista.code} conquista={conquista} />
+            <CartaoDeConquista key={conquista.code} conquista={conquista} />
           ))}
         </ul>
       </section>
-    </div>
+    </Pagina>
   );
 }
 
-function ConquistaDesbloqueada({
-  conquista,
-  unlockedAt,
-}: {
-  readonly conquista: ConquistaDoCatalogo;
-  readonly unlockedAt: string;
-}) {
+function Pagina({ children }: { readonly children: ReactNode }) {
+  return <div className="mx-auto max-w-[1080px] pt-6">{children}</div>;
+}
+
+/**
+ * O título e, à direita, quantas já são da conta sobre o total — com a barra
+ * fina que o console usa para progresso. Antes de a lista chegar o bloco de
+ * contagem fica de fora: um "0 de 12" provisório seria a tela afirmando um
+ * número que ainda não sabe.
+ */
+function Cabecalho({ desbloqueadas }: { readonly desbloqueadas?: number | undefined }) {
+  const total = CATALOGO_DE_CONQUISTAS.length;
+
   return (
-    <li className="flex items-baseline justify-between gap-4 rounded border border-ink-800 bg-ink-900 px-4 py-3">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-label-100">{conquista.titulo}</p>
-        <p className="mt-0.5 text-xs text-ink-500">{conquista.descricao}</p>
+    <header className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+      <div>
+        <Sobrelinha>Sua conta · conquistas</Sobrelinha>
+        <h1 className="titulo-cena mt-3 text-[clamp(34px,4vw,60px)] text-label-100">Conquistas</h1>
       </div>
-      <time dateTime={unlockedAt} className="leitura shrink-0 text-ink-700">
-        {formatarData(unlockedAt)}
-      </time>
-    </li>
+      {desbloqueadas !== undefined && (
+        <div className="w-full sm:w-auto sm:min-w-[220px]">
+          <Numero
+            rotulo="desbloqueadas"
+            valor={
+              <>
+                {desbloqueadas}
+                <span className="ml-1.5 text-[0.5em] text-ink-500">/ {total}</span>
+              </>
+            }
+          />
+          <div
+            role="progressbar"
+            aria-label="Conquistas desbloqueadas"
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={desbloqueadas}
+            className="mt-3 h-1 w-full rounded bg-white/10"
+          >
+            <div
+              className="h-full rounded bg-luz transition-[width]"
+              style={{ width: `${(desbloqueadas / total) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </header>
   );
-}
-
-function ConquistaBloqueada({ conquista }: { readonly conquista: ConquistaDoCatalogo }) {
-  return (
-    <li className="flex items-baseline justify-between gap-4 rounded border border-ink-850 px-4 py-2 opacity-60">
-      <div className="min-w-0">
-        <p className="text-sm text-ink-500">{conquista.titulo}</p>
-        <p className="mt-0.5 text-xs text-ink-700">{conquista.descricao}</p>
-      </div>
-    </li>
-  );
-}
-
-function formatarData(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
