@@ -1,14 +1,15 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ArrowLeft, Check, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Check, Moon, Sparkles, Sun, X } from 'lucide-react';
 import { TEMAS, type PreferenciasConsole, type TemaConsole } from './temas.js';
 
 export function moverFocoDoDialogo(direcao: number) {
   const botoes = Array.from(
     document.querySelectorAll<HTMLElement>('.cx-dialog button:not(:disabled), .cx-dialog input'),
   );
-  if (botoes.length === 0) return;
+  if (botoes.length === 0) return false;
   const atual = botoes.indexOf(document.activeElement as HTMLElement);
   botoes[(Math.max(0, atual) + direcao + botoes.length) % botoes.length]?.focus();
+  return document.activeElement !== botoes[atual];
 }
 
 export function ConsoleDialog({
@@ -76,6 +77,7 @@ export function ConsoleDialog({
             type="button"
             className="cx-icon-button"
             onClick={fechar}
+            data-console-sound="voltar"
             aria-label={`Fechar ${titulo.toLowerCase()}`}
           >
             <X size={22} />
@@ -87,9 +89,13 @@ export function ConsoleDialog({
   );
 }
 
-function Miniatura({ tema }: { tema: TemaConsole }) {
+function Miniatura({ tema, solsticeEscuro }: { tema: TemaConsole; solsticeEscuro: boolean }) {
   return (
-    <span className={`cx-theme-mini cx-mini-${tema}`} aria-hidden="true">
+    <span
+      className={`cx-theme-mini cx-mini-${tema}`}
+      data-solstice-mode={solsticeEscuro ? 'dark' : 'light'}
+      aria-hidden="true"
+    >
       <span className="cx-mini-top">
         <b>PV</b>
         <i />
@@ -146,7 +152,7 @@ export function ConfiguracoesConsole({
             aria-label={`Tema ${tema.nome}`}
             data-autofocus={preferencias.tema === tema.id ? '' : undefined}
           >
-            <Miniatura tema={tema.id} />
+            <Miniatura tema={tema.id} solsticeEscuro={preferencias.solsticeEscuro} />
             <span className="cx-theme-description">
               <span>
                 <strong>{tema.nome}</strong>
@@ -160,11 +166,39 @@ export function ConfiguracoesConsole({
           </button>
         ))}
       </div>
+      {preferencias.tema === 'solstice' && (
+        <div className="cx-solstice-appearance">
+          <div>
+            <span className="cx-overline">A LUZ MUDA. SEU CONSOLE TAMBÉM.</span>
+            <h3>Aparência do Solstice</h3>
+            <p>Da biblioteca à partida, no seu ritmo.</p>
+          </div>
+          <div className="cx-color-modes" role="group" aria-label="Modo de cor do Solstice">
+            <button
+              type="button"
+              aria-pressed={!preferencias.solsticeEscuro}
+              onClick={() => alterar({ solsticeEscuro: false })}
+            >
+              <Sun size={18} aria-hidden="true" />
+              Claro
+            </button>
+            <button
+              type="button"
+              aria-pressed={preferencias.solsticeEscuro}
+              onClick={() => alterar({ solsticeEscuro: true })}
+            >
+              <Moon size={18} aria-hidden="true" />
+              Escuro
+            </button>
+          </div>
+        </div>
+      )}
       <div className="cx-preferences">
         {(
           [
             ['movimento', 'Animações', 'Movimento suave e transições entre jogos.'],
             ['ambiente', 'Efeitos de ambiente', 'Luz, órbitas e textura de tela do tema.'],
+            ['sons', 'Sons da interface', 'Feedback suave ao navegar, digitar e confirmar.'],
           ] as const
         ).map(([chave, nome, descricao]) => (
           <button
@@ -174,6 +208,7 @@ export function ConfiguracoesConsole({
             role="switch"
             aria-checked={preferencias[chave]}
             aria-label={nome}
+            data-console-sound={chave === 'sons' ? 'nenhum' : undefined}
             onClick={() => alterar({ [chave]: !preferencias[chave] })}
           >
             <span>
@@ -193,7 +228,12 @@ export function ConfiguracoesConsole({
             ? 'Aplicado ao console · salvo neste navegador'
             : 'Aplicado nesta sessão · armazenamento indisponível'}
         </span>
-        <button type="button" className="cx-dialog-return" onClick={fechar}>
+        <button
+          type="button"
+          className="cx-dialog-return"
+          onClick={fechar}
+          data-console-sound="voltar"
+        >
           <ArrowLeft size={16} />
           Voltar ao console
         </button>

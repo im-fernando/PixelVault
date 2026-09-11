@@ -865,14 +865,14 @@
   border-radius: 0;
 }
 
-/* Solstice leva a pausa a um painel claro com navegação horizontal e dock. */
+/* Solstice compartilha os materiais do modo claro/escuro da biblioteca. */
 [data-console-theme='solstice'] .cgp-pause-atmosphere {
-  background: #f0eee7ed;
+  background: var(--cs-pause, #f0eee7ed);
   backdrop-filter: blur(35px) saturate(0.4);
 }
 [data-console-theme='solstice'] .cgp-pause-atmosphere::before {
-  background: radial-gradient(ellipse, #edc19038, transparent 65%);
-  border: 1px solid #ad8f6719;
+  background: var(--cs-orbit-fill, radial-gradient(ellipse, #edc19038, transparent 65%));
+  border: 1px solid var(--cs-orbit-line, #ad8f6719);
   top: 15%;
   left: 40%;
   height: 70%;
@@ -905,8 +905,8 @@
   width: 45px;
   height: 55px;
   flex-basis: 45px;
-  background: #fff;
-  border: 3px solid #fff;
+  background: var(--cs-case, #fff);
+  border: 3px solid var(--cs-case, #fff);
   border-radius: 5px;
   box-shadow: 0 3px 8px #0001;
 }
@@ -920,9 +920,9 @@
   flex-direction: row;
   gap: 4px;
   padding: 5px;
-  border: 1px solid #fff;
+  border: 1px solid var(--cs-border, #fff);
   border-radius: 40px;
-  background: #ffffff70;
+  background: var(--cs-surface, #ffffff70);
 }
 [data-console-theme='solstice'] .cgp-nav button {
   flex-direction: column;
@@ -933,19 +933,19 @@
   border-radius: 30px;
 }
 [data-console-theme='solstice'] .cgp-nav [aria-current='page'] {
-  border-color: #fff;
-  background: #fff;
-  box-shadow: 0 3px 10px #3d4d4410;
+  border-color: var(--cs-border, #fff);
+  background: var(--cs-raised, #fff);
+  box-shadow: 0 3px 10px var(--cs-shadow, #3d4d4410);
 }
 [data-console-theme='solstice'] .cgp-nav button > svg:last-child {
   display: none;
 }
 [data-console-theme='solstice'] .cgp-content {
   padding: 35px;
-  border: 1px solid #fff;
+  border: 1px solid var(--cs-border, #fff);
   border-radius: 24px;
-  background: #ffffff50;
-  box-shadow: 0 15px 40px #35433208;
+  background: var(--cs-surface, #ffffff50);
+  box-shadow: 0 15px 40px var(--cs-shadow, #35433208);
 }
 [data-console-theme='solstice'] .cgp-session {
   max-width: 760px;
@@ -959,35 +959,35 @@
   margin: 0 auto;
 }
 [data-console-theme='solstice'] .cgp-resume {
-  background: #344d46;
-  color: #f5f7ec !important;
-  border-color: #344d46;
+  background: var(--cs-primary, #344d46);
+  color: var(--cs-on-primary, #f5f7ec) !important;
+  border-color: var(--cs-primary, #344d46);
   border-radius: 45px;
 }
 [data-console-theme='solstice'] .cgp-session-actions button {
-  background: #fff9;
-  border-color: #fff;
+  background: var(--cs-surface, #fff9);
+  border-color: var(--cs-border, #fff);
 }
 [data-console-theme='solstice'] .cgp-slot-preview {
-  background: #dbddd170;
+  background: var(--cs-preview, #dbddd170);
 }
 [data-console-theme='solstice'] .cgp-save-slot {
-  border-color: #fff;
-  background: #ffffffb0;
+  border-color: var(--cs-border, #fff);
+  background: var(--cs-surface, #ffffffb0);
 }
 [data-console-theme='solstice'] .cgp-slot-actions button:first-child {
-  background: #344d46;
-  color: #fff;
+  background: var(--cs-primary, #344d46);
+  color: var(--cs-on-primary, #fff);
 }
 [data-console-theme='solstice'] .cgp-warning {
-  color: #92532d;
+  color: var(--cs-warm, #92532d);
 }
 [data-console-theme='solstice'] .cgp-menu-footer {
   justify-content: center;
   gap: 40px;
-  background: #fff9;
+  background: var(--cs-surface, #fff9);
   padding: 16px 25px;
-  border: 1px solid #fff;
+  border: 1px solid var(--cs-border, #fff);
   border-radius: 40px;
   width: fit-content;
   margin: 0 auto;

@@ -47,7 +47,12 @@ export function Capa({ jogo, className = '' }: { jogo: ItemDoConsole; className?
 function Acoes(props: PropsDoTema) {
   return (
     <div className="cx-game-actions">
-      <button type="button" className="cx-play" onClick={props.iniciar}>
+      <button
+        type="button"
+        className="cx-play"
+        onClick={props.iniciar}
+        data-console-sound="iniciar"
+      >
         <Play size={18} fill="currentColor" /> <span>Iniciar jogo</span>
         <kbd>↵</kbd>
       </button>
@@ -93,6 +98,7 @@ function Paginacao({ indice, total, mover }: PropsDoTema) {
       <button
         type="button"
         aria-label="Jogo anterior"
+        data-console-sound="navegar"
         onClick={() => mover(-1)}
         disabled={total < 2}
       >
@@ -101,7 +107,13 @@ function Paginacao({ indice, total, mover }: PropsDoTema) {
       <span>
         <b>{String(indice + 1).padStart(2, '0')}</b> / {String(total).padStart(2, '0')}
       </span>
-      <button type="button" aria-label="Próximo jogo" onClick={() => mover(1)} disabled={total < 2}>
+      <button
+        type="button"
+        aria-label="Próximo jogo"
+        data-console-sound="navegar"
+        onClick={() => mover(1)}
+        disabled={total < 2}
+      >
         <ChevronRight size={19} />
       </button>
     </div>
@@ -117,6 +129,7 @@ function Trilho(props: PropsDoTema) {
           type="button"
           className={`cx-game-tile ${props.selecionado.id === jogo.id ? 'is-selected' : ''}`}
           aria-label={`Selecionar ${jogo.titulo}`}
+          data-console-sound="navegar"
           aria-pressed={props.selecionado.id === jogo.id}
           onClick={() => props.selecionar(jogo.id)}
           onDoubleClick={jogo.id === props.selecionado.id ? props.iniciar : undefined}
@@ -177,6 +190,7 @@ function Obsidian(props: PropsDoTema) {
               className={jogo.id === props.selecionado.id ? 'is-selected' : ''}
               aria-pressed={jogo.id === props.selecionado.id}
               aria-label={`Selecionar ${jogo.titulo}`}
+              data-console-sound="navegar"
             >
               <span className="cx-list-index">
                 {String(
@@ -242,6 +256,7 @@ function Solstice(props: PropsDoTema) {
               style={{ '--offset': distancia, '--distance': Math.abs(distancia) } as CSSProperties}
               onClick={() => props.selecionar(jogo.id)}
               aria-label={`Selecionar ${jogo.titulo}`}
+              data-console-sound="navegar"
               aria-pressed={distancia === 0}
             >
               <Capa jogo={jogo} />

@@ -94,6 +94,7 @@ export function ConsoleGameOverlay(props: Props) {
         <button
           type="button"
           className="cgp-menu-trigger"
+          data-console-sound="abrir"
           onClick={props.abrir}
           aria-label="Abrir menu do console"
         >
@@ -246,6 +247,7 @@ function MenuDaPartida(props: Props) {
             onClick={fechar}
             disabled={props.ocupado || Boolean(props.conflito)}
             aria-label="Voltar ao jogo"
+            data-console-sound="voltar"
           >
             <X size={23} />
           </button>
@@ -312,6 +314,7 @@ function MenuDaPartida(props: Props) {
                       type="button"
                       data-first-control=""
                       className="cgp-resume"
+                      data-console-sound="voltar"
                       onClick={props.fechar}
                       disabled={props.ocupado}
                     >
@@ -558,6 +561,7 @@ function MenuDaPartida(props: Props) {
                 <button
                   type="button"
                   data-console-cancel=""
+                  data-console-sound="voltar"
                   onClick={() => setConfirmacao(null)}
                   disabled={props.ocupado}
                 >

@@ -16,9 +16,9 @@ export const TEMAS = [
   {
     id: 'solstice',
     nome: 'Solstice',
-    estilo: 'Claro · escultural',
+    estilo: 'Escultural · dia e noite',
     descricao:
-      'Espaço para respirar. Capas flutuantes, superfícies claras e calor de fim de tarde.',
+      'Capas flutuantes e espaço para respirar. A luz do dia ou a calma de uma noite âmbar.',
   },
   {
     id: 'crt',
@@ -39,12 +39,20 @@ export type ItemDoConsole = {
 };
 export type PreferenciasConsole = {
   tema: TemaConsole;
+  solsticeEscuro: boolean;
   movimento: boolean;
   ambiente: boolean;
+  sons: boolean;
 };
 
 export const CHAVE_PREFERENCIAS = 'pixelvault.console.preferences.v1';
-const PADRAO: PreferenciasConsole = { tema: 'aurora', movimento: true, ambiente: true };
+const PADRAO: PreferenciasConsole = {
+  tema: 'aurora',
+  solsticeEscuro: false,
+  movimento: true,
+  ambiente: true,
+  sons: true,
+};
 
 export function lerPreferencias(): PreferenciasConsole {
   try {
@@ -53,8 +61,11 @@ export function lerPreferencias(): PreferenciasConsole {
     const dados = valor as Record<string, unknown>;
     return {
       tema: TEMAS.find((tema) => tema.id === dados.tema)?.id ?? PADRAO.tema,
+      solsticeEscuro:
+        typeof dados.solsticeEscuro === 'boolean' ? dados.solsticeEscuro : PADRAO.solsticeEscuro,
       movimento: typeof dados.movimento === 'boolean' ? dados.movimento : PADRAO.movimento,
       ambiente: typeof dados.ambiente === 'boolean' ? dados.ambiente : PADRAO.ambiente,
+      sons: typeof dados.sons === 'boolean' ? dados.sons : PADRAO.sons,
     };
   } catch {
     // Armazenamento bloqueado não deve impedir o console de abrir.

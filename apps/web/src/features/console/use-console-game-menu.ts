@@ -5,6 +5,7 @@ import {
   type PerfilDoControle,
 } from '../player/input/gamepad-map.js';
 import { gamepadSolto, type EstadoDoGamepad } from '../player/input/snes-keymap.js';
+import { useSomDoConsole } from './use-sons-do-console.js';
 
 function elementosDoMenu(): HTMLElement[] {
   const raiz =
@@ -73,6 +74,7 @@ export function useConsoleGameMenu({
   retomar: () => void;
   palco: RefObject<HTMLElement | null>;
 }) {
+  const tocar = useSomDoConsole();
   const [aberto, setAberto] = useState(false);
   const abertoRef = useRef(false);
   const retomarPendente = useRef(false);
@@ -82,9 +84,10 @@ export function useConsoleGameMenu({
   const abrir = useCallback(() => {
     if (!atual.current.disponivel || abertoRef.current) return;
     atual.current.pausar();
+    tocar('abrir');
     abertoRef.current = true;
     setAberto(true);
-  }, []);
+  }, [tocar]);
   const concluirRetomada = useCallback(() => {
     if (
       !abertoRef.current ||
@@ -96,9 +99,10 @@ export function useConsoleGameMenu({
     retomarPendente.current = false;
     abertoRef.current = false;
     setAberto(false);
+    tocar('voltar');
     atual.current.retomar();
     palco.current?.focus({ preventScroll: true });
-  }, [palco]);
+  }, [palco, tocar]);
   const fechar = useCallback(() => {
     if (atual.current.bloqueado || atual.current.impedirRetomada) return;
     const cancelar = document.querySelector<HTMLButtonElement>('[data-console-cancel]');
@@ -133,7 +137,9 @@ export function useConsoleGameMenu({
       evento.stopPropagation();
       if (evento.key.startsWith('Arrow')) {
         evento.preventDefault();
+        const antes = document.activeElement;
         mover(evento.key.slice(5).toLowerCase() as 'left' | 'right' | 'up' | 'down');
+        if (antes !== document.activeElement || antes instanceof HTMLInputElement) tocar('navegar');
       } else if (evento.key === 'Tab') {
         evento.preventDefault();
         const elementos = elementosDoMenu();
@@ -141,6 +147,7 @@ export function useConsoleGameMenu({
         elementos[
           (indice + (evento.shiftKey ? -1 : 1) + elementos.length) % elementos.length
         ]?.focus();
+        if (elementos.length > 1) tocar('navegar');
       } else if (evento.key === 'Enter' || evento.key === ' ') {
         evento.preventDefault();
         if (!evento.repeat && document.activeElement instanceof HTMLElement)
@@ -178,7 +185,10 @@ export function useConsoleGameMenu({
             else
               for (const dir of ['left', 'right', 'up', 'down'] as const) {
                 if (estado[dir] && !anterior[dir]) {
+                  const antes = document.activeElement;
                   mover(dir);
+                  if (antes !== document.activeElement || antes instanceof HTMLInputElement)
+                    tocar('navegar');
                   break;
                 }
               }
@@ -197,6 +207,6 @@ export function useConsoleGameMenu({
       window.cancelAnimationFrame(quadro);
       window.removeEventListener('keydown', teclado, true);
     };
-  }, [ativo, abrir, fechar, concluirRetomada]);
+  }, [ativo, abrir, fechar, concluirRetomada, tocar]);
   return { aberto, abrir, fechar };
 }

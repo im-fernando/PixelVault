@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { type ReactNode } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
@@ -28,6 +28,7 @@ const USUARIO = {
   email: 'dono@example.com',
   handle: 'dono',
   displayName: 'Dono da estante',
+  publicProfile: true,
 };
 
 function romDaBiblioteca(sobrescritas: Record<string, unknown> = {}): unknown {
@@ -127,6 +128,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -155,8 +157,10 @@ describe('ConsolePage', () => {
     await screen.findByRole('heading', { name: 'Alien vs. Predator' });
     fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
     fireEvent.click(screen.getByRole('button', { name: 'Tema Solstice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Escuro' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Animações' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Efeitos de ambiente' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Sons da interface' }));
     primeira.unmount();
     montar();
     await screen.findByRole('heading', { name: 'Alien vs. Predator' });
@@ -164,12 +168,59 @@ describe('ConsolePage', () => {
     expect(screen.getByRole('button', { name: 'Tema Solstice' }).getAttribute('aria-pressed')).toBe(
       'true',
     );
+    expect(screen.getByRole('button', { name: 'Escuro' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(document.querySelector('.console-experience')?.getAttribute('data-solstice-mode')).toBe(
+      'dark',
+    );
     expect(screen.getByRole('switch', { name: 'Animações' }).getAttribute('aria-checked')).toBe(
       'false',
     );
     expect(
       screen.getByRole('switch', { name: 'Efeitos de ambiente' }).getAttribute('aria-checked'),
     ).toBe('false');
+    expect(
+      screen.getByRole('switch', { name: 'Sons da interface' }).getAttribute('aria-checked'),
+    ).toBe('false');
+  });
+
+  it('alterna a luz do Solstice pelas setas e lembra a escolha ao trocar de tema', async () => {
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    expect(screen.queryByRole('group', { name: 'Modo de cor do Solstice' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tema Solstice' }));
+    expect(screen.getByRole('button', { name: 'Claro' }).getAttribute('aria-pressed')).toBe('true');
+    screen.getByRole('button', { name: 'Claro' }).focus();
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Escuro' }));
+    // Fora da busca, Enter aciona o click nativo do botão (ausente no jsdom).
+    fireEvent.click(document.activeElement!);
+    expect(screen.getByRole('button', { name: 'Escuro' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tema Aurora' }));
+    expect(screen.queryByRole('group', { name: 'Modo de cor do Solstice' })).toBeNull();
+    expect(document.querySelector('.console-experience')?.getAttribute('data-console-theme')).toBe(
+      'aurora',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Tema Solstice' }));
+    expect(screen.getByRole('button', { name: 'Escuro' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(document.querySelector('.cx-mini-solstice')?.getAttribute('data-solstice-mode')).toBe(
+      'dark',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Claro' }));
+    expect(document.querySelector('.console-experience')?.getAttribute('data-solstice-mode')).toBe(
+      'light',
+    );
+    expect(JSON.parse(localStorage.getItem(CHAVE_PREFERENCIAS)!).solsticeEscuro).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao console' }));
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
   });
 
   it('consome teclado e gamepad no painel sem navegar ou iniciar o jogo ao fundo', async () => {
@@ -230,11 +281,12 @@ describe('ConsolePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     await screen.findByRole('dialog', { name: 'Pesquisar jogos' });
 
-    // O cursor do teclado virtual começa na tecla "1" (índice 0). Duas setas
-    // para a direita chegam em "3"; Enter digita a tecla focada.
-    fireEvent.keyDown(window, { key: 'ArrowRight' });
-    fireEvent.keyDown(window, { key: 'ArrowRight' });
-    fireEvent.keyDown(window, { key: 'Enter' });
+    // O campo preserva a edição nativa; ↓ entra nas teclas e o foco visível
+    // é exatamente o botão que Enter (ou o controle) vai pressionar.
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'ArrowDown' });
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
 
     const campo = screen.getByPlaceholderText<HTMLInputElement>('Digite o nome do jogo...');
     expect(campo.value).toBe('3');
@@ -263,6 +315,89 @@ describe('ConsolePage', () => {
         '/library/roms/11111111-1111-4111-8111-111111111111/favorite',
       );
     });
+  });
+
+  it('controle percorre linhas, usa ações da busca e não repete a tecla de confirmar', async () => {
+    vi.useFakeTimers();
+    const buttons = Array.from({ length: 17 }, () => ({ pressed: false }));
+    const pad = { connected: true, buttons, axes: [0, 0] };
+    vi.stubGlobal('navigator', { getGamepads: () => [pad] });
+    const quadro = (pressionados: number[] = [], axes = [0, 0]) =>
+      act(() => {
+        buttons.forEach((botao, i) => {
+          botao.pressed = pressionados.includes(i);
+        });
+        pad.axes = axes;
+        vi.advanceTimersByTime(40);
+      });
+    const apertar = (botao: number) => {
+      quadro([botao]);
+      quadro();
+    };
+    const foco = () => (document.activeElement as HTMLElement).dataset.consoleKey;
+    const { router } = montar();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    expect(screen.getByRole('heading', { name: 'Alien vs. Predator' })).toBeTruthy();
+    apertar(3); // Y abre a busca diretamente nas teclas.
+    expect(foco()).toBe('1');
+    apertar(12);
+    expect(foco()).toBe('1'); // Não dá a volta no limite superior.
+    apertar(13);
+    expect(foco()).toBe('Q');
+    apertar(13);
+    expect(foco()).toBe('A');
+    apertar(15);
+    expect(foco()).toBe('S');
+    apertar(12);
+    expect(foco()).toBe('W');
+    quadro([0]);
+    quadro([0]);
+    quadro();
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('W');
+    apertar(2); // X apaga.
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('');
+    apertar(3); // Y insere espaço dentro do teclado.
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe(' ');
+    act(() => screen.getByRole('button', { name: 'Z' }).focus());
+    apertar(13);
+    expect(foco()).toBe('espaco');
+    apertar(15);
+    expect(foco()).toBe('apagar');
+    apertar(15);
+    expect(foco()).toBe('limpar');
+    apertar(0);
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('');
+    quadro([], [0, -0.3]);
+    expect(foco()).toBe('limpar');
+    quadro([], [0, -1]);
+    expect(foco()).toBe('N');
+    quadro();
+    quadro([], [0, -1]);
+    expect(foco()).toBe('H');
+    quadro();
+    apertar(9); // Start conclui sem iniciar o jogo ao fundo.
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(router.state.location.pathname).toBe('/console');
+  });
+
+  it('mantém edição física e instala o padrão de som nas preferências antigas', async () => {
+    localStorage.setItem(
+      CHAVE_PREFERENCIAS,
+      JSON.stringify({ tema: 'crt', movimento: false, ambiente: true }),
+    );
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+    const campo = screen.getByRole<HTMLInputElement>('textbox');
+    fireEvent.change(campo, { target: { value: 'Mario' } });
+    fireEvent.keyDown(campo, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(campo);
+    expect(campo.value).toBe('Mario');
+    fireEvent.keyDown(campo, { key: 'Enter' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(JSON.parse(localStorage.getItem(CHAVE_PREFERENCIAS)!).sons).toBe(true);
   });
 
   it('filtra por sistema abrindo o menu com ArrowUp e clicando na coleção', async () => {

@@ -10,6 +10,7 @@ import {
   Minimize,
   Search,
   Settings2,
+  Volume2,
 } from 'lucide-react';
 import type { LibraryRom, SystemId } from '@pixelvault/contracts';
 import { useBiblioteca, useFavoritarRom } from '../library/use-biblioteca.js';
@@ -23,12 +24,24 @@ import {
 } from './temas.js';
 import './console.css';
 import { entrarEmTelaCheiaDoConsole } from './tela-cheia.js';
+import { ConsoleSearchKeyboard } from './ConsoleSearchKeyboard.js';
+import {
+  criarRepeticaoDoDirecional,
+  focarPrimeiraTecla,
+  moverFocoDaBusca,
+  type DirecaoDoTeclado,
+} from './teclado-do-console.js';
+import { useSonsDoConsole } from './use-sons-do-console.js';
 
 const TODOS = 'TODOS OS JOGOS';
 const FAVORITOS = 'FAVORITOS';
-const TECLADO = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM-_'];
-const TECLAS = TECLADO.join('').split('');
 type Painel = 'settings' | 'search' | 'collections' | null;
+const DIRECOES: Readonly<Record<string, DirecaoDoTeclado | undefined>> = {
+  arrowleft: 'left',
+  arrowright: 'right',
+  arrowup: 'up',
+  arrowdown: 'down',
+};
 
 function paraItem(rom: LibraryRom): ItemDoConsole {
   const bytes = rom.sizeBytes;
@@ -58,8 +71,11 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
   const [selectedId, setSelectedId] = useState<string | null>(jogoInicial ?? null);
   const [colecao, setColecao] = useState(TODOS);
   const [query, setQuery] = useState('');
-  const [painel, setPainel] = useState<Painel>(null);
-  const [keyboardCursor, setKeyboardCursor] = useState(0);
+  const [painel, definirPainel] = useState<Painel>(null);
+  const [buscaPeloControle, setBuscaPeloControle] = useState(false);
+  const repeticao = useRef(criarRepeticaoDoDirecional());
+  const consultarControle = useRef<() => void>(() => undefined);
+  const sons = useSonsDoConsole(preferencias);
   const [aviso, setAviso] = useState<string | null>(null);
   const [hora, setHora] = useState(() => new Date());
   const [controleConectado, setControleConectado] = useState(false);
@@ -120,18 +136,34 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
 
   const alterarPreferencias = (patch: Partial<PreferenciasConsole>) =>
     setPreferencias((atual) => ({ ...atual, ...patch }));
+  const setPainel = (proximo: Painel, peloControle = false) => {
+    if (proximo !== painel) sons.tocar(proximo === null ? 'voltar' : 'abrir');
+    if (proximo === 'search') setBuscaPeloControle(peloControle);
+    definirPainel(proximo);
+  };
+  const navegarNoPainel = (direcao: DirecaoDoTeclado) => {
+    const mudou =
+      painel === 'search'
+        ? moverFocoDaBusca(direcao)
+        : moverFocoDoDialogo(direcao === 'left' || direcao === 'up' ? -1 : 1);
+    if (mudou) sons.tocar('navegar');
+  };
   const selecionarProximo = (direcao: number) => {
-    if (filtrados.length)
+    if (filtrados.length > 1) {
+      sons.tocar('navegar');
       setSelectedId(filtrados[(indiceAtual + direcao + filtrados.length) % filtrados.length]!.id);
+    }
   };
   const iniciarJogo = () => {
     if (!selecionado) return;
+    sons.tocar('iniciar');
     void entrarEmTelaCheiaDoConsole().then(() =>
       navigate({ to: '/console/$romId', params: { romId: selecionado.id } }),
     );
   };
   const alternarFavorito = () => {
     if (!selecionado || favoritar.isPending) return;
+    sons.tocar('confirmar');
     favoritar.mutate(
       { romId: selecionado.id, favorito: !selecionado.favorito },
       {
@@ -150,7 +182,10 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       setAviso('Não foi possível ativar a tela cheia.');
     }
   };
-  const digitar = (tecla: string) => setQuery((valor) => `${valor}${tecla}`.slice(0, 28));
+  const digitar = (tecla: string) => {
+    sons.tocar('digitar');
+    setQuery((valor) => `${valor}${tecla}`.slice(0, 28));
+  };
 
   // O painel ativo recebe o input com exclusividade, inclusive o botão A do
   // controle. Uma troca de tema nunca pode iniciar o jogo atrás do diálogo.
@@ -159,10 +194,41 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       if (evento.altKey || evento.ctrlKey || evento.metaKey) return;
       const tecla = evento.key.toLowerCase();
       if (tecla === 'escape') {
+        evento.preventDefault();
         setPainel(null);
         return;
       }
       if (painel !== null) {
+        if (painel === 'search') {
+          const direcao = DIRECOES[tecla];
+          if (evento.target instanceof HTMLInputElement) {
+            if (tecla === 'enter') {
+              evento.preventDefault();
+              sons.tocar('confirmar');
+              setPainel(null);
+            } else if (tecla === 'arrowdown') {
+              evento.preventDefault();
+              navegarNoPainel('down');
+            }
+            return;
+          }
+          if (direcao) {
+            evento.preventDefault();
+            navegarNoPainel(direcao);
+          } else if (
+            (tecla === 'enter' || tecla === ' ') &&
+            document.activeElement instanceof HTMLElement &&
+            document.activeElement.matches('[data-console-key]')
+          ) {
+            evento.preventDefault();
+            if (!evento.repeat) document.activeElement.click();
+          } else if (tecla === 'backspace') {
+            evento.preventDefault();
+            sons.tocar('apagar');
+            setQuery((atual) => atual.slice(0, -1));
+          }
+          return;
+        }
         if (evento.target instanceof HTMLInputElement) {
           if (tecla === 'enter') {
             evento.preventDefault();
@@ -170,21 +236,9 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
           }
           return;
         }
-        if (painel === 'search' && !(evento.target instanceof HTMLElement)) {
-          const delta = { arrowleft: -1, arrowright: 1, arrowup: -10, arrowdown: 10 }[tecla];
-          if (delta !== undefined) {
-            evento.preventDefault();
-            setKeyboardCursor((cursor) => (cursor + delta + TECLAS.length) % TECLAS.length);
-          }
-          if (tecla === 'enter') {
-            evento.preventDefault();
-            digitar(TECLAS[keyboardCursor]!);
-          }
-          return;
-        }
         if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(tecla)) {
           evento.preventDefault();
-          moverFocoDoDialogo(tecla === 'arrowleft' || tecla === 'arrowup' ? -1 : 1);
+          navegarNoPainel(tecla.slice(5) as DirecaoDoTeclado);
         }
         return;
       }
@@ -219,59 +273,103 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
     return () => window.removeEventListener('keydown', aoTeclar);
   });
 
-  useEffect(() => {
-    const intervalo = window.setInterval(() => {
-      const controle = Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad?.connected);
-      setControleConectado(Boolean(controle));
-      if (!controle) {
-        anteriores.current = [];
-        return;
-      }
-      const botoes = controle.buttons.map((botao) => botao.pressed);
-      // Eixos têm suas próprias bordas; mover o analógico não depende de A.
-      botoes[12] = Boolean(botoes[12]) || (controle.axes[1] ?? 0) < -0.55;
-      botoes[13] = Boolean(botoes[13]) || (controle.axes[1] ?? 0) > 0.55;
-      botoes[14] = Boolean(botoes[14]) || (controle.axes[0] ?? 0) < -0.55;
-      botoes[15] = Boolean(botoes[15]) || (controle.axes[0] ?? 0) > 0.55;
-      const novo = (i: number) => botoes[i] === true && anteriores.current[i] !== true;
-      const esquerda = novo(14);
-      const direita = novo(15);
-      const cima = novo(12);
-      const baixo = novo(13);
-      if (painel) {
-        if (novo(1) || novo(9)) setPainel(null);
-        else if (esquerda || cima) moverFocoDoDialogo(-1);
-        else if (direita || baixo) moverFocoDoDialogo(1);
-        else if (
-          novo(0) &&
+  consultarControle.current = () => {
+    if (document.visibilityState === 'hidden') {
+      anteriores.current = [];
+      repeticao.current(null, 0);
+      return;
+    }
+    const controle = Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad?.connected);
+    setControleConectado(Boolean(controle));
+    if (!controle) {
+      anteriores.current = [];
+      repeticao.current(null, 0);
+      return;
+    }
+    const botoes = controle.buttons.map((botao) => botao.pressed);
+    // Eixos têm suas próprias bordas; mover o analógico não depende de A.
+    botoes[12] = Boolean(botoes[12]) || (controle.axes[1] ?? 0) < -0.55;
+    botoes[13] = Boolean(botoes[13]) || (controle.axes[1] ?? 0) > 0.55;
+    botoes[14] = Boolean(botoes[14]) || (controle.axes[0] ?? 0) < -0.55;
+    botoes[15] = Boolean(botoes[15]) || (controle.axes[0] ?? 0) > 0.55;
+    const novo = (i: number) => botoes[i] === true && anteriores.current[i] !== true;
+    const esquerda = novo(14);
+    const direita = novo(15);
+    const cima = novo(12);
+    const baixo = novo(13);
+    const direcaoSegurada = botoes[12]
+      ? 'up'
+      : botoes[13]
+        ? 'down'
+        : botoes[14]
+          ? 'left'
+          : botoes[15]
+            ? 'right'
+            : null;
+    const repetir = repeticao.current(
+      painel === 'search' ? direcaoSegurada : null,
+      performance.now(),
+    );
+    if (painel === 'search') {
+      if (novo(1)) setPainel(null);
+      else if (novo(9)) {
+        sons.tocar('confirmar');
+        setPainel(null);
+      } else if (novo(2)) {
+        sons.tocar('apagar');
+        setQuery((atual) => atual.slice(0, -1));
+      } else if (novo(3)) digitar(' ');
+      else if (repetir) navegarNoPainel(repetir);
+      else if (novo(0)) {
+        if (
           document.activeElement instanceof HTMLElement &&
-          document.activeElement.closest('.cx-dialog')
-        ) {
-          if (document.activeElement instanceof HTMLInputElement) setPainel(null);
-          else document.activeElement.click();
-        }
-      } else {
-        if (novo(9)) setPainel('settings');
-        else if (novo(3)) setPainel('search');
-        else if (novo(4) || novo(5)) setPainel('collections');
-        else if (esquerda || (cima && preferencias.tema === 'obsidian')) selecionarProximo(-1);
-        else if (direita || (baixo && preferencias.tema === 'obsidian')) selecionarProximo(1);
-        else if (cima || baixo) setPainel('collections');
-        else if (novo(2)) alternarFavorito();
-        else if (novo(0)) iniciarJogo();
+          document.activeElement.closest('.cx-dialog') &&
+          !(document.activeElement instanceof HTMLInputElement)
+        )
+          document.activeElement.click();
+        else if (focarPrimeiraTecla()) sons.tocar('navegar');
       }
-      anteriores.current = botoes;
-    }, 80);
+    } else if (painel) {
+      if (novo(1) || novo(9)) setPainel(null);
+      else if (esquerda || cima) navegarNoPainel(esquerda ? 'left' : 'up');
+      else if (direita || baixo) navegarNoPainel(direita ? 'right' : 'down');
+      else if (
+        novo(0) &&
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement.closest('.cx-dialog')
+      ) {
+        if (document.activeElement instanceof HTMLInputElement) setPainel(null);
+        else document.activeElement.click();
+      }
+    } else {
+      if (novo(9)) setPainel('settings');
+      else if (novo(3)) setPainel('search', true);
+      else if (novo(4) || novo(5)) setPainel('collections');
+      else if (esquerda || (cima && preferencias.tema === 'obsidian')) selecionarProximo(-1);
+      else if (direita || (baixo && preferencias.tema === 'obsidian')) selecionarProximo(1);
+      else if (cima || baixo) setPainel('collections');
+      else if (novo(2)) alternarFavorito();
+      else if (novo(0)) iniciarJogo();
+    }
+    anteriores.current = botoes;
+  };
+  useEffect(() => {
+    const intervalo = window.setInterval(() => consultarControle.current(), 40);
     return () => window.clearInterval(intervalo);
-  });
+  }, []);
 
   return (
     <div
       ref={raiz}
       className="console-experience"
       data-console-theme={preferencias.tema}
+      data-solstice-mode={preferencias.solsticeEscuro ? 'dark' : 'light'}
       data-motion={preferencias.movimento}
       data-ambient={preferencias.ambiente}
+      onClickCapture={sons.aoClicar}
+      onKeyDownCapture={(evento) => {
+        if (evento.key === 'Tab') sons.tocar('navegar');
+      }}
     >
       <div className="cx-atmosphere" aria-hidden="true">
         <div />
@@ -299,7 +397,12 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
             >
               Jogos
             </button>
-            <button type="button" onClick={() => setPainel('collections')} aria-label="Menu">
+            <button
+              type="button"
+              onClick={() => setPainel('collections')}
+              aria-label="Menu"
+              data-console-sound="abrir"
+            >
               <Grid2X2 size={16} />
               <span>Coleções</span>
             </button>
@@ -310,6 +413,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
               className="cx-icon-button"
               onClick={() => setPainel('search')}
               aria-label="Buscar"
+              data-console-sound="abrir"
             >
               <Search size={21} />
             </button>
@@ -318,6 +422,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
               className="cx-icon-button"
               onClick={() => setPainel('settings')}
               aria-label="Configurações"
+              data-console-sound="abrir"
             >
               <Settings2 size={21} />
             </button>
@@ -455,56 +560,27 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       )}
       {painel === 'search' && (
         <ConsoleDialog titulo="Pesquisar jogos" fechar={() => setPainel(null)}>
-          <div className="cx-search-input">
-            <Search size={20} />
-            <input
-              data-autofocus=""
-              aria-label="Nome do jogo"
-              value={query}
-              maxLength={28}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Digite o nome do jogo..."
-            />
-            <span>{query.length}/28</span>
-          </div>
-          <p className="cx-search-results" role="status">
-            {filtrados.length} resultado{filtrados.length === 1 ? '' : 's'} em{' '}
-            {colecao.toLocaleLowerCase()}
-          </p>
-          <div className="cx-keyboard">
-            {TECLADO.map((linha) => (
-              <div key={linha}>
-                {linha.split('').map((tecla) => (
-                  <button
-                    key={tecla}
-                    type="button"
-                    className={TECLAS[keyboardCursor] === tecla ? 'is-selected' : ''}
-                    onClick={() => {
-                      setKeyboardCursor(TECLAS.indexOf(tecla));
-                      digitar(tecla);
-                    }}
-                  >
-                    {tecla}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="cx-keyboard-actions">
-            <button type="button" onClick={() => digitar(' ')}>
-              Espaço
-            </button>
-            <button type="button" onClick={() => setQuery((atual) => atual.slice(0, -1))}>
-              ⌫ Apagar
-            </button>
-            <button type="button" onClick={() => setQuery('')}>
-              Limpar
-            </button>
-            <button type="button" onClick={() => setPainel(null)}>
-              Ver jogos <ChevronRight size={16} />
-            </button>
-          </div>
+          <ConsoleSearchKeyboard
+            query={query}
+            alterar={setQuery}
+            digitar={digitar}
+            concluir={() => setPainel(null)}
+            resultados={filtrados.length}
+            colecao={colecao}
+            controle={buscaPeloControle}
+          />
         </ConsoleDialog>
+      )}
+      {sons.bloqueado && (
+        <button
+          type="button"
+          className="cx-audio-unlock"
+          data-console-sound="nenhum"
+          onClick={() => sons.tocar('confirmar')}
+        >
+          <Volume2 size={16} />
+          Ativar sons da interface
+        </button>
       )}
       {aviso && (
         <div className="cx-toast" role="status">
