@@ -32,6 +32,8 @@ import {
   type DirecaoDoTeclado,
 } from './teclado-do-console.js';
 import { useSonsDoConsole } from './use-sons-do-console.js';
+import { perfilDoControle, traduzirControle, type PerfilDoControle } from '../player/input/gamepad-map.js';
+import { gamepadSolto, type BotaoDoSnes, type EstadoDoGamepad } from '../player/input/snes-keymap.js';
 
 const TODOS = 'TODOS OS JOGOS';
 const FAVORITOS = 'FAVORITOS';
@@ -65,7 +67,8 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
   const favoritar = useFavoritarRom();
   const navigate = useNavigate();
   const raiz = useRef<HTMLDivElement>(null);
-  const anteriores = useRef<boolean[]>([]);
+  const anteriores = useRef<EstadoDoGamepad>(gamepadSolto());
+  const perfilControle = useRef<PerfilDoControle | null>(null);
   const [preferencias, setPreferencias] = useState(lerPreferencias);
   const [persistido, setPersistido] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(jogoInicial ?? null);
@@ -275,35 +278,44 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
 
   consultarControle.current = () => {
     if (document.visibilityState === 'hidden') {
-      anteriores.current = [];
+      anteriores.current = gamepadSolto();
+      perfilControle.current = null;
       repeticao.current(null, 0);
       return;
     }
     const controle = Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad?.connected);
     setControleConectado(Boolean(controle));
     if (!controle) {
-      anteriores.current = [];
+      anteriores.current = gamepadSolto();
+      perfilControle.current = null;
       repeticao.current(null, 0);
       return;
     }
-    const botoes = controle.buttons.map((botao) => botao.pressed);
-    // Eixos têm suas próprias bordas; mover o analógico não depende de A.
-    botoes[12] = Boolean(botoes[12]) || (controle.axes[1] ?? 0) < -0.55;
-    botoes[13] = Boolean(botoes[13]) || (controle.axes[1] ?? 0) > 0.55;
-    botoes[14] = Boolean(botoes[14]) || (controle.axes[0] ?? 0) < -0.55;
-    botoes[15] = Boolean(botoes[15]) || (controle.axes[0] ?? 0) > 0.55;
-    const novo = (i: number) => botoes[i] === true && anteriores.current[i] !== true;
-    const esquerda = novo(14);
-    const direita = novo(15);
-    const cima = novo(12);
-    const baixo = novo(13);
-    const direcaoSegurada = botoes[12]
+    // O perfil traduz o controle real (padrão, PlayStation legado, clone
+    // retrô de 8 botões...) para os doze botões do SNES. Ler índice bruto do
+    // controle direto aqui deixaria o d-pad mudo em qualquer controle que o
+    // navegador não reconheça como "standard" — comum nos clones retrô que
+    // este projeto atrai.
+    if (
+      !perfilControle.current ||
+      perfilControle.current.id !== controle.id ||
+      perfilControle.current.index !== controle.index
+    )
+      perfilControle.current = perfilDoControle(controle);
+    const estado = traduzirControle(controle, perfilControle.current);
+    const anterior = anteriores.current;
+    const novo = (botao: BotaoDoSnes) => estado[botao] && !anterior[botao];
+    const esquerda = novo('left');
+    const direita = novo('right');
+    const cima = novo('up');
+    const baixo = novo('down');
+    const direcaoSegurada = estado.up
       ? 'up'
-      : botoes[13]
+      : estado.down
         ? 'down'
-        : botoes[14]
+        : estado.left
           ? 'left'
-          : botoes[15]
+          : estado.right
             ? 'right'
             : null;
     const repetir = repeticao.current(
@@ -311,16 +323,16 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       performance.now(),
     );
     if (painel === 'search') {
-      if (novo(1)) setPainel(null);
-      else if (novo(9)) {
+      if (novo('a')) setPainel(null);
+      else if (novo('start')) {
         sons.tocar('confirmar');
         setPainel(null);
-      } else if (novo(2)) {
+      } else if (novo('y')) {
         sons.tocar('apagar');
         setQuery((atual) => atual.slice(0, -1));
-      } else if (novo(3)) digitar(' ');
+      } else if (novo('x')) digitar(' ');
       else if (repetir) navegarNoPainel(repetir);
-      else if (novo(0)) {
+      else if (novo('b')) {
         if (
           document.activeElement instanceof HTMLElement &&
           document.activeElement.closest('.cx-dialog') &&
@@ -330,11 +342,11 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
         else if (focarPrimeiraTecla()) sons.tocar('navegar');
       }
     } else if (painel) {
-      if (novo(1) || novo(9)) setPainel(null);
+      if (novo('a') || novo('start')) setPainel(null);
       else if (esquerda || cima) navegarNoPainel(esquerda ? 'left' : 'up');
       else if (direita || baixo) navegarNoPainel(direita ? 'right' : 'down');
       else if (
-        novo(0) &&
+        novo('b') &&
         document.activeElement instanceof HTMLElement &&
         document.activeElement.closest('.cx-dialog')
       ) {
@@ -342,16 +354,16 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
         else document.activeElement.click();
       }
     } else {
-      if (novo(9)) setPainel('settings');
-      else if (novo(3)) setPainel('search', true);
-      else if (novo(4) || novo(5)) setPainel('collections');
+      if (novo('start')) setPainel('settings');
+      else if (novo('x')) setPainel('search', true);
+      else if (novo('l') || novo('r')) setPainel('collections');
       else if (esquerda || (cima && preferencias.tema === 'obsidian')) selecionarProximo(-1);
       else if (direita || (baixo && preferencias.tema === 'obsidian')) selecionarProximo(1);
       else if (cima || baixo) setPainel('collections');
-      else if (novo(2)) alternarFavorito();
-      else if (novo(0)) iniciarJogo();
+      else if (novo('y')) alternarFavorito();
+      else if (novo('b')) iniciarJogo();
     }
-    anteriores.current = botoes;
+    anteriores.current = estado;
   };
   useEffect(() => {
     const intervalo = window.setInterval(() => consultarControle.current(), 40);
