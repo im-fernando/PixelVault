@@ -231,7 +231,11 @@ describe('ConsolePage', () => {
     fireEvent.keyDown(window, { key: 'Enter' });
     const buttons = Array.from({ length: 16 }, () => ({ pressed: false }));
     buttons[15]!.pressed = true;
-    vi.stubGlobal('navigator', { getGamepads: () => [{ connected: true, buttons, axes: [0, 0] }] });
+    vi.stubGlobal('navigator', {
+      getGamepads: () => [
+        { connected: true, buttons, axes: [0, 0], id: 'Controle de teste', index: 0, mapping: 'standard' },
+      ],
+    });
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Tema Solstice' })).toBe(document.activeElement),
     );
@@ -320,7 +324,14 @@ describe('ConsolePage', () => {
   it('controle percorre linhas, usa ações da busca e não repete a tecla de confirmar', async () => {
     vi.useFakeTimers();
     const buttons = Array.from({ length: 17 }, () => ({ pressed: false }));
-    const pad = { connected: true, buttons, axes: [0, 0] };
+    const pad = {
+      connected: true,
+      buttons,
+      axes: [0, 0],
+      id: 'Controle de teste',
+      index: 0,
+      mapping: 'standard',
+    };
     vi.stubGlobal('navigator', { getGamepads: () => [pad] });
     const quadro = (pressionados: number[] = [], axes = [0, 0]) =>
       act(() => {

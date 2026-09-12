@@ -7,6 +7,11 @@ import {
 import { gamepadSolto, type EstadoDoGamepad } from '../player/input/snes-keymap.js';
 import { useSomDoConsole } from './use-sons-do-console.js';
 
+// Trava máxima de "botão que fechou o menu ainda segurado": passado esse tempo,
+// retoma de qualquer jeito — nunca depender só do botão soltar (controle
+// fantasma ou outro gamepad plugado pode nunca reportar solto).
+const LIMITE_RETOMADA_PENDENTE_MS = 1500;
+
 function elementosDoMenu(): HTMLElement[] {
   const raiz =
     document.querySelector('[data-console-game-dialog] [role="alertdialog"]') ??
@@ -78,6 +83,8 @@ export function useConsoleGameMenu({
   const [aberto, setAberto] = useState(false);
   const abertoRef = useRef(false);
   const retomarPendente = useRef(false);
+  const retomarPendenteDesde = useRef(0);
+  const padAtualRef = useRef<Gamepad | null>(null);
   const atual = useRef({ disponivel, bloqueado, impedirRetomada, pausar, retomar });
   atual.current = { disponivel, bloqueado, impedirRetomada, pausar, retomar };
 
@@ -110,12 +117,14 @@ export function useConsoleGameMenu({
       cancelar.click();
       return;
     }
-    const segurando = Array.from(navigator.getGamepads?.() ?? []).some(
-      (pad) => pad?.connected && pad.buttons.some((b) => b.pressed),
-    );
+    // Só olha o gamepad realmente em uso no menu — nunca todos os conectados,
+    // senão um segundo controle ou dispositivo fantasma trava isso pra sempre.
+    const segurando = padAtualRef.current?.buttons.some((b) => b.pressed) ?? false;
     // O botão que fecha o menu não vira um pulo/disparo no primeiro quadro.
-    if (segurando) retomarPendente.current = true;
-    else concluirRetomada();
+    if (segurando) {
+      retomarPendente.current = true;
+      retomarPendenteDesde.current = Date.now();
+    } else concluirRetomada();
   }, [concluirRetomada]);
 
   useEffect(() => {
@@ -162,10 +171,12 @@ export function useConsoleGameMenu({
     const consultar = () => {
       const controles = Array.from(navigator.getGamepads?.() ?? []);
       const pad = controles.find((p) => p?.connected);
+      padAtualRef.current = pad ?? null;
       if (document.visibilityState !== 'hidden') {
         if (
           retomarPendente.current &&
-          !controles.some((p) => p?.connected && p.buttons.some((b) => b.pressed))
+          (!pad?.buttons.some((b) => b.pressed) ||
+            Date.now() - retomarPendenteDesde.current > LIMITE_RETOMADA_PENDENTE_MS)
         )
           concluirRetomada();
         if (pad) {
