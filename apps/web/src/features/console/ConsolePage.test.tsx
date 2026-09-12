@@ -233,7 +233,14 @@ describe('ConsolePage', () => {
     buttons[15]!.pressed = true;
     vi.stubGlobal('navigator', {
       getGamepads: () => [
-        { connected: true, buttons, axes: [0, 0], id: 'Controle de teste', index: 0, mapping: 'standard' },
+        {
+          connected: true,
+          buttons,
+          axes: [0, 0],
+          id: 'Controle de teste',
+          index: 0,
+          mapping: 'standard',
+        },
       ],
     });
     await waitFor(() =>

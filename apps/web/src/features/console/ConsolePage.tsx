@@ -32,8 +32,16 @@ import {
   type DirecaoDoTeclado,
 } from './teclado-do-console.js';
 import { useSonsDoConsole } from './use-sons-do-console.js';
-import { perfilDoControle, traduzirControle, type PerfilDoControle } from '../player/input/gamepad-map.js';
-import { gamepadSolto, type BotaoDoSnes, type EstadoDoGamepad } from '../player/input/snes-keymap.js';
+import {
+  perfilDoControle,
+  traduzirControle,
+  type PerfilDoControle,
+} from '../player/input/gamepad-map.js';
+import {
+  gamepadSolto,
+  type BotaoDoSnes,
+  type EstadoDoGamepad,
+} from '../player/input/snes-keymap.js';
 
 const TODOS = 'TODOS OS JOGOS';
 const FAVORITOS = 'FAVORITOS';
