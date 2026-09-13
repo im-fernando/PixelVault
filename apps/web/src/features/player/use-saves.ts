@@ -3,6 +3,8 @@ import type { EmulatorAdapter, EmulatorStatus } from '@pixelvault/emulator-runti
 import {
   SAVE_SLOTS,
   createSaveManager,
+  createSaveStorage,
+  type SaveStorage,
   isSaveStorageError,
   type SaveManager,
   type SaveMetadata,
@@ -24,6 +26,7 @@ const COM_ROM: readonly EmulatorStatus[] = ['ready', 'running', 'paused'];
 
 export interface Saves {
   readonly pronto: boolean;
+  readonly storage: SaveStorage | null;
   readonly driver: SaveStorageDriver | null;
   /** Nada aqui sobrevive a fechar a aba. Aba anônima sem OPFS nem IndexedDB. */
   readonly volatil: boolean;
@@ -55,6 +58,7 @@ export function useSaves(
   adapter: EmulatorAdapter | null,
   romId: string | null,
   onSramWritten?: (metadata: SaveMetadata) => void,
+  storageInjetado?: SaveStorage,
 ): Saves {
   const gerenteRef = useRef<SaveManager | null>(null);
   // Ref, não dependência do efeito: um `onSramWritten` recriado a cada
@@ -63,6 +67,7 @@ export function useSaves(
   // debounce de SRAM em voo.
   const onSramWrittenRef = useRef(onSramWritten);
   onSramWrittenRef.current = onSramWritten;
+  const [storage, setStorage] = useState<SaveStorage | null>(null);
   const [pronto, setPronto] = useState(false);
   const [driver, setDriver] = useState<SaveStorageDriver | null>(null);
   const [volatil, setVolatil] = useState(false);
@@ -82,7 +87,9 @@ export function useSaves(
     let pararSram: (() => void) | undefined;
 
     const abrir = async (): Promise<void> => {
+      const armazenamento = storageInjetado ?? (await createSaveStorage());
       const gerente = await createSaveManager({
+        storage: armazenamento,
         emulator: adapter,
         romId,
         onError: () => setUltimaSram(null),
@@ -94,6 +101,7 @@ export function useSaves(
       }
 
       gerenteRef.current = gerente;
+      setStorage(armazenamento);
       setDriver(gerente.driver);
       setVolatil(gerente.isVolatile);
 
@@ -117,7 +125,7 @@ export function useSaves(
       setSlots(SLOTS_VAZIOS);
       void gerente?.dispose();
     };
-  }, [adapter, romId]);
+  }, [adapter, romId, storageInjetado]);
 
   const comGerente = useCallback(
     async (acao: (gerente: SaveManager) => Promise<string>): Promise<string> => {
@@ -173,6 +181,7 @@ export function useSaves(
 
   return {
     pronto,
+    storage,
     driver,
     volatil,
     slots,

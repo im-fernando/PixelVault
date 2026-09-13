@@ -32,6 +32,8 @@ export const authenticatedUserSchema = z.object({
   email: emailSchema,
   handle: handleSchema,
   displayName: z.string().min(1).max(TAMANHO_MAXIMO_DISPLAY_NAME),
+  /** Se `/u/:handle` desta conta responde para qualquer visitante, ou dá 404. */
+  publicProfile: z.boolean(),
 });
 export type AuthenticatedUser = z.infer<typeof authenticatedUserSchema>;
 

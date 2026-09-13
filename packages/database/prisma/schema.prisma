@@ -8,6 +8,8 @@
 generator client {
   provider = "prisma-client"
   output   = "../generated/client"
+  moduleFormat = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
@@ -37,6 +39,10 @@ model User {
   passwordHash    String   @map("password_hash")
   displayName     String   @map("display_name")
   handle          String   @unique
+  /// Se `/u/:handle` responde para qualquer visitante ou dá 404 como se a
+  /// conta não existisse. Nasce `true` — perfil público é o padrão desde a
+  /// #123 — e quem desliga é a própria pessoa, pela tela de conta.
+  publicProfile   Boolean  @default(true) @map("public_profile")
   /// Padrão seguro: toda conta nasce `user`. Virar `admin` é operação
   /// manual, deliberada — não existe caminho de aplicação que promova
   /// alguém.

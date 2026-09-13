@@ -13,6 +13,7 @@ const USUARIO = {
   email: 'dono@example.com',
   handle: 'dono',
   displayName: 'Dono da estante',
+  publicProfile: true,
 };
 
 function respostaJson(body: unknown, status = 200): Response {

@@ -2,6 +2,7 @@ import { Heart } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { SystemId } from '@pixelvault/contracts';
 import { Arte } from '../../ui/Arte.js';
+import { useCapaAutomatica } from './use-capa-automatica.js';
 
 /**
  * Um cartucho no trilho.
@@ -50,13 +51,16 @@ export function MioloDoCartucho({
   favorito = false,
   acoes,
 }: PropsDoMiolo) {
+  const capaAutomatica = useCapaAutomatica(titulo, systemId);
+  const capa = capaUrl ?? capaAutomatica;
+
   return (
     <>
       {selo !== undefined && <span className="pv-cartucho-selo">{selo}</span>}
       {favorito && (
         <Heart className="pv-cartucho-favorito" size={14} fill="currentColor" aria-hidden="true" />
       )}
-      <Arte titulo={titulo} sistema={systemId} capaUrl={capaUrl} />
+      <Arte titulo={titulo} sistema={systemId} capaUrl={capa} />
       {acoes !== undefined && <div className="pv-cartucho-acoes">{acoes}</div>}
       <span className="pv-cartucho-titulo">{titulo}</span>
       <span className="pv-cartucho-nota">{nota ?? numeroDeAcervo(titulo, systemId)}</span>

@@ -2,7 +2,11 @@ import type { RomUploadCompletedResponse } from '@pixelvault/contracts';
 import { DomainError, NotFoundError } from '../../../infrastructure/errors.js';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
 import { caminhoDaRom } from '../domain/caminho-da-rom.js';
-import type { HashesParaCasar, IdentificarRomNoCatalogo } from '../domain/catalogo-de-roms.js';
+import type {
+  DescreverJogosDoCatalogo,
+  HashesParaCasar,
+  IdentificarRomNoCatalogo,
+} from '../domain/catalogo-de-roms.js';
 import { RomRecusada } from '../domain/erros.js';
 import type { AvisarPrimeiraRomEnviada } from '../domain/eventos-de-gamificacao.js';
 import { caminhoNaQuarentena } from '../domain/quarentena.js';
@@ -14,6 +18,12 @@ export interface DependenciasDaConfirmacao {
   roms: UserRomRepository;
   /** O match de hash contra o catálogo, que quem monta o caso de uso liga. */
   catalogo: IdentificarRomNoCatalogo;
+  /**
+   * A ficha (título, capa) do jogo casado, para a tela de envio já mostrar a
+   * capa sem uma segunda ida à listagem inteira da biblioteca — mesma porta
+   * que `listarBiblioteca` usa.
+   */
+  descreverJogo: DescreverJogosDoCatalogo;
   /**
    * Avisa `achievements` de que esta conta enviou uma ROM — chamado sempre
    * que a promoção termina, mesmo quando a linha já existia (`registrar` é
@@ -83,6 +93,7 @@ export async function confirmarEnvioDeRom(
 
   const identificada = await deps.catalogo(hashesParaCasar(verificada));
   const gameId = identificada?.gameId ?? null;
+  const ficha = gameId === null ? null : ((await deps.descreverJogo([gameId]))[0] ?? null);
 
   const rom = await deps.roms.registrar({
     userId,
@@ -105,6 +116,8 @@ export async function confirmarEnvioDeRom(
     romId: rom.id,
     sha256: verificada.sha256,
     gameId,
+    title: ficha?.title ?? null,
+    coverUrl: ficha?.coverUrl ?? null,
     sizeBytes: verificada.sizeBytes,
     deduplicado,
   };

@@ -1,18 +1,21 @@
 import { Link } from '@tanstack/react-router';
 import type { Game } from '@pixelvault/contracts';
-import { ApiRequestError } from '../../lib/api.js';
+import { BotaoPilula } from '../../ui/Botao.js';
 import { Aviso, Vazio } from '../../ui/Painel.js';
 import { Cartucho, MioloDoCartucho } from './Cartucho.js';
 import { CartuchoEsqueleto, EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
 import { useGames } from './use-games.js';
 
 export function GameLibrary() {
-  const { data: games, isPending, error } = useGames();
+  const { data: games, isPending, error, refetch, isFetching } = useGames();
 
   if (isPending) {
     return (
       <section className="mt-10">
         <EtiquetaDeGaveta nome="Catálogo público" itens={0} nota="homebrew · jogável sem conta" />
+        <p role="status" className="pv-ajuda">
+          Carregando catálogo…
+        </p>
         <Prateleira>
           {Array.from({ length: 8 }, (_, i) => (
             <CartuchoEsqueleto key={i} />
@@ -23,16 +26,19 @@ export function GameLibrary() {
   }
 
   if (error) {
-    const detalhe =
-      error instanceof ApiRequestError
-        ? `${error.payload.code}: ${error.payload.message}`
-        : 'Não foi possível falar com a API.';
     return (
       <section className="mt-10">
         <EtiquetaDeGaveta nome="Catálogo público" itens={0} nota="homebrew · jogável sem conta" />
-        <Aviso titulo="O acervo não respondeu" className="mt-5">
-          {detalhe}
-          <p className="leitura mt-3 text-ink-700">verifique a API — pnpm dev</p>
+        <Aviso
+          titulo="Não foi possível carregar o catálogo"
+          className="mt-5"
+          acao={
+            <BotaoPilula pequena disabled={isFetching} onClick={() => void refetch()}>
+              {isFetching ? 'Tentando…' : 'Tentar novamente'}
+            </BotaoPilula>
+          }
+        >
+          Confira sua conexão e tente novamente em alguns instantes.
         </Aviso>
       </section>
     );
@@ -43,8 +49,7 @@ export function GameLibrary() {
       <section className="mt-10">
         <EtiquetaDeGaveta nome="Catálogo público" itens={0} nota="homebrew · jogável sem conta" />
         <Vazio className="mt-5" titulo="A prateleira está vazia.">
-          Rode <code className="leitura text-label-200">pnpm db:seed</code> para trazer os
-          homebrews.
+          Ainda não há jogos no catálogo público. Volte mais tarde para conferir as novidades.
         </Vazio>
       </section>
     );

@@ -143,7 +143,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 
   // Cada módulo é um plugin encapsulado — o Fastify já nos dá o isolamento de
   // escopo que a referência em .NET obtém com um container de IoC por módulo.
-  await app.register(catalogRoutes, { prefix: '/api' });
+  await app.register(catalogRoutes, { prefix: '/api', sessoes });
   await app.register(identityRoutes, {
     prefix: '/api',
     sessoes,

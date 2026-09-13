@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import { buildApp } from '../src/app.js';
@@ -111,6 +111,7 @@ describe('POST /api/auth/login', () => {
         email: conta.email,
         handle: conta.handle,
         displayName: expect.any(String),
+        publicProfile: true,
       },
     });
 
@@ -268,6 +269,7 @@ describe('GET /api/auth/me', () => {
         email: conta.email,
         handle: conta.handle,
         displayName: expect.any(String),
+        publicProfile: true,
       },
     });
     expect(resposta.body).not.toContain('argon2');
@@ -343,4 +345,73 @@ describe('GET /api/auth/me', () => {
     expect(cookieRenovado?.value).toBe(cookie);
     expect(cookieRenovado?.expires?.getTime()).toBeGreaterThan(quaseVencendo.getTime());
   }, 30_000);
+});
+
+describe('PATCH /api/auth/public-profile', () => {
+  async function alternarPerfilPublico(
+    cookie: string | undefined,
+    enabled: boolean,
+  ): Promise<RespostaInjetada> {
+    return app.inject({
+      method: 'PATCH',
+      url: '/api/auth/public-profile',
+      remoteAddress: IP_DO_ARQUIVO,
+      payload: { enabled },
+      ...(cookie === undefined ? {} : { cookies: { [NOME_DO_COOKIE_DE_SESSAO]: cookie } }),
+    });
+  }
+
+  afterEach(async () => {
+    // Toda conta deste arquivo nasce com o perfil público ligado (o padrão
+    // do schema); devolver o padrão depois de cada cenário evita que um
+    // teste que desligou vaze para o próximo.
+    await prisma.user.update({ where: { id: contaId }, data: { publicProfile: true } });
+  });
+
+  it('desliga o perfil público, e o `/me` reflete na hora', async () => {
+    const cookie = cookieDeSessao(await logar({ email: conta.email, password: SENHA }))?.value;
+
+    const resposta = await alternarPerfilPublico(cookie, false);
+
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual({
+      user: {
+        id: contaId,
+        email: conta.email,
+        handle: conta.handle,
+        displayName: expect.any(String),
+        publicProfile: false,
+      },
+    });
+
+    const me = await pedirMe(cookie);
+    expect(me.json<{ user: { publicProfile: boolean } }>().user.publicProfile).toBe(false);
+  }, 30_000);
+
+  it('liga de volta, e o handle passa a responder de novo em `/u/:handle`', async () => {
+    const cookie = cookieDeSessao(await logar({ email: conta.email, password: SENHA }))?.value;
+    await alternarPerfilPublico(cookie, false);
+
+    const desligado = await app.inject({
+      method: 'GET',
+      url: `/api/profiles/${conta.handle}`,
+      remoteAddress: IP_DO_ARQUIVO,
+    });
+    expect(desligado.statusCode).toBe(404);
+
+    const resposta = await alternarPerfilPublico(cookie, true);
+    expect(resposta.statusCode).toBe(200);
+
+    const ligado = await app.inject({
+      method: 'GET',
+      url: `/api/profiles/${conta.handle}`,
+      remoteAddress: IP_DO_ARQUIVO,
+    });
+    expect(ligado.statusCode).toBe(200);
+  }, 30_000);
+
+  it('recusa quem não tem sessão', async () => {
+    const resposta = await alternarPerfilPublico(undefined, false);
+    expect(resposta.statusCode).toBe(401);
+  });
 });

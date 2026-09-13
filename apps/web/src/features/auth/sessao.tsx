@@ -215,6 +215,28 @@ export function useRedefinirSenha() {
   });
 }
 
+/**
+ * Liga ou desliga `/u/:handle` da própria conta.
+ *
+ * `setQueryData` com o usuário que veio na resposta, pelo mesmo motivo do
+ * login: o servidor já devolve a conta inteira, e refazer `/me` só para
+ * confirmar deixaria a interface piscando "carregando" depois de um clique.
+ */
+export function useDefinirPerfilPublico() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (enabled: boolean): Promise<AuthenticatedUser> =>
+      apiFetch('/api/auth/public-profile', authenticatedUserResponseSchema, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      }).then(({ user }) => user),
+    onSuccess: (usuario) => {
+      queryClient.setQueryData(opcoesDaConsultaDeSessao.queryKey, usuario);
+    },
+  });
+}
+
 function autenticar(credenciais: LoginRequest): Promise<AuthenticatedUser> {
   return apiFetch('/api/auth/login', authenticatedUserResponseSchema, {
     method: 'POST',

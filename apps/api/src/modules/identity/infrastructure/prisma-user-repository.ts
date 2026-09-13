@@ -72,7 +72,14 @@ export const prismaUserRepository: UserRepository = {
     // único, não uma comparação case-insensitive.
     const linha = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, handle: true, displayName: true, passwordHash: true },
+      select: {
+        id: true,
+        email: true,
+        handle: true,
+        displayName: true,
+        publicProfile: true,
+        passwordHash: true,
+      },
     });
     if (linha === null) return null;
 
@@ -83,7 +90,14 @@ export const prismaUserRepository: UserRepository = {
   async buscarCredenciaisPorId(id: string): Promise<CredenciaisDoUsuario | null> {
     const linha = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, handle: true, displayName: true, passwordHash: true },
+      select: {
+        id: true,
+        email: true,
+        handle: true,
+        displayName: true,
+        publicProfile: true,
+        passwordHash: true,
+      },
     });
     if (linha === null) return null;
 
@@ -96,7 +110,7 @@ export const prismaUserRepository: UserRepository = {
     // sair do banco.
     return prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, handle: true, displayName: true },
+      select: { id: true, email: true, handle: true, displayName: true, publicProfile: true },
     });
   },
 
@@ -137,13 +151,25 @@ export const prismaUserRepository: UserRepository = {
   async perfilPublicoPorHandle(handle: string): Promise<PerfilPublico | null> {
     // Mesmo select restrito de `perfisPublicosPorIds`, de propósito: sem
     // `email` no `select`, para que dado de outra conta não escape numa
-    // serialização distraída.
-    const linha = await prisma.user.findUnique({
-      where: { handle },
+    // serialização distraída. `publicProfile: false` entra no `where`, e não
+    // num `if` depois do `findUnique` — as duas formas de "não achou" (handle
+    // inexistente, perfil desligado) precisam produzir exatamente a mesma
+    // consulta e o mesmo `null`, sem diferença observável de tempo ou de forma
+    // que denunciasse qual dos dois casos era.
+    const linha = await prisma.user.findFirst({
+      where: { handle, publicProfile: true },
       select: { id: true, handle: true, displayName: true },
     });
     if (linha === null) return null;
 
     return { userId: linha.id, handle: linha.handle, displayName: linha.displayName };
+  },
+
+  async definirPerfilPublico(id: string, ativo: boolean): Promise<void> {
+    await prisma.user.update({
+      where: { id },
+      data: { publicProfile: ativo },
+      select: { id: true },
+    });
   },
 };

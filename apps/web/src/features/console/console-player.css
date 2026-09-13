@@ -3,6 +3,15 @@
 .cx-console-player {
   min-height: 100dvh;
 }
+[data-console-theme='aurora'][data-aurora-mode='white'] .cgp-pause-atmosphere {
+  background: linear-gradient(115deg, #fafbfff7, #e7edfceb 60%, #eee8faed);
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cgp-slot-preview {
+  background: #dfe7f5;
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cgp-warning {
+  color: #91501e;
+}
 .cgp-player,
 .cgp-stage,
 .cgp-display {

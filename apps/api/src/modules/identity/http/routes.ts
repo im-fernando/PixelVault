@@ -13,10 +13,12 @@ import {
   registerResponseSchema,
   resetPasswordRequestSchema,
   resetPasswordResponseSchema,
+  updatePublicProfileRequestSchema,
 } from '@pixelvault/contracts';
 import type { Sessoes } from '../../sessions/index.js';
 import { autenticarUsuario } from '../application/autenticar-usuario.js';
 import { buscarUsuarioAutenticado } from '../application/buscar-usuario-autenticado.js';
+import { definirVisibilidadeDoPerfil } from '../application/definir-visibilidade-do-perfil.js';
 import { redefinirSenha } from '../application/redefinir-senha.js';
 import { registrarUsuario } from '../application/registrar-usuario.js';
 import { solicitarRecuperacaoDeSenha } from '../application/solicitar-recuperacao-de-senha.js';
@@ -234,6 +236,31 @@ export const identityRoutes: FastifyPluginAsyncZod<OpcoesDeIdentity> = async (ap
       const revokedSessions = await sessoes.revogarOutras(request);
 
       return reply.status(200).send({ status: 'senha-alterada' as const, revokedSessions });
+    },
+  );
+
+  app.patch(
+    '/auth/public-profile',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        tags: ['identity'],
+        summary: 'Liga ou desliga o perfil público da própria conta',
+        description:
+          'Quando desligado, `GET /api/profiles/:handle` responde 404 para esta conta — ' +
+          'o mesmo 404 de um handle que nunca existiu, para a rota não virar oráculo de ' +
+          '"este handle existe, só está escondido".',
+        body: updatePublicProfileRequestSchema,
+        response: { 200: authenticatedUserResponseSchema, 401: apiErrorSchema },
+      },
+    },
+    async (request, reply) => {
+      const usuario = await definirVisibilidadeDoPerfil(
+        { usuarios: prismaUserRepository },
+        sessoes.usuarioAutenticado(request),
+        request.body.enabled,
+      );
+      return reply.status(200).send({ user: usuario });
     },
   );
 

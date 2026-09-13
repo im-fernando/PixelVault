@@ -13,6 +13,7 @@ describe('preferências do console', () => {
     );
     expect(lerPreferencias()).toEqual({
       tema: 'solstice',
+      auroraWhite: false,
       solsticeEscuro: false,
       movimento: false,
       ambiente: false,

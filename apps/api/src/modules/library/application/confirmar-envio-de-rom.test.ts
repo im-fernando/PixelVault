@@ -2,7 +2,10 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { DomainError } from '../../../infrastructure/errors.js';
 import type { ArmazenamentoDeObjetos } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
-import type { IdentificarRomNoCatalogo } from '../domain/catalogo-de-roms.js';
+import type {
+  DescreverJogosDoCatalogo,
+  IdentificarRomNoCatalogo,
+} from '../domain/catalogo-de-roms.js';
 import type { NovaRomDoUsuario, UserRomRepository } from '../domain/user-rom-repository.js';
 import { confirmarEnvioDeRom } from './confirmar-envio-de-rom.js';
 
@@ -128,6 +131,7 @@ function repositorioFalso(): RepositorioFalso {
 }
 
 const semCatalogo: IdentificarRomNoCatalogo = async () => null;
+const semFicha: DescreverJogosDoCatalogo = async () => [];
 
 /** Registra quem foi avisado, sem fingir que sabe o que `achievements` faz com isso. */
 function avisoDeEnvioFalso(): {
@@ -146,7 +150,13 @@ describe('confirmarEnvioDeRom', () => {
     const aviso = avisoDeEnvioFalso();
 
     const resposta = await confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
+      {
+        armazenamento,
+        roms,
+        catalogo: semCatalogo,
+        descreverJogo: semFicha,
+        avisarEnvioDeRom: aviso.avisarEnvioDeRom,
+      },
       USUARIO,
       ENVIO,
       'zelda.sfc',
@@ -159,6 +169,8 @@ describe('confirmarEnvioDeRom', () => {
       romId: '33333333-3333-4333-8333-333333333333',
       sha256: sha256De(rom),
       gameId: null,
+      title: null,
+      coverUrl: null,
       sizeBytes: rom.byteLength,
       deduplicado: false,
     });
@@ -199,7 +211,13 @@ describe('confirmarEnvioDeRom', () => {
     const aviso = avisoDeEnvioFalso();
 
     const resposta = await confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
+      {
+        armazenamento,
+        roms,
+        catalogo: semCatalogo,
+        descreverJogo: semFicha,
+        avisarEnvioDeRom: aviso.avisarEnvioDeRom,
+      },
       USUARIO,
       ENVIO,
       'zelda.sfc',
@@ -220,6 +238,18 @@ describe('confirmarEnvioDeRom', () => {
     const armazenamento = armazenamentoFalso(new Map([[QUARENTENA, comHeader]]));
     const roms = repositorioFalso();
 
+    const fichaFalsa: DescreverJogosDoCatalogo = async (gameIds) =>
+      gameIds.includes('o-jogo')
+        ? [
+            {
+              gameId: 'o-jogo',
+              title: 'O Jogo',
+              systemId: 'snes',
+              coverUrl: 'https://capa/o-jogo.png',
+            },
+          ]
+        : [];
+
     const perguntados: { sha256: string[]; md5: string[] }[] = [];
     const catalogo: IdentificarRomNoCatalogo = async (hashes) => {
       perguntados.push({ sha256: [...hashes.sha256], md5: [...hashes.md5] });
@@ -227,7 +257,13 @@ describe('confirmarEnvioDeRom', () => {
     };
 
     const resposta = await confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo, avisarEnvioDeRom: avisoDeEnvioFalso().avisarEnvioDeRom },
+      {
+        armazenamento,
+        roms,
+        catalogo,
+        descreverJogo: fichaFalsa,
+        avisarEnvioDeRom: avisoDeEnvioFalso().avisarEnvioDeRom,
+      },
       USUARIO,
       ENVIO,
       'zelda.smc',
@@ -240,6 +276,8 @@ describe('confirmarEnvioDeRom', () => {
       },
     ]);
     expect(resposta.gameId).toBe('o-jogo');
+    expect(resposta.title).toBe('O Jogo');
+    expect(resposta.coverUrl).toBe('https://capa/o-jogo.png');
     // O objeto é o arquivo como a pessoa enviou, cabeçalho e tudo (ADR 0013):
     // o hash sem header serve para reconhecer o jogo, nunca para endereçar.
     expect(resposta.sha256).toBe(sha256De(comHeader));
@@ -254,7 +292,13 @@ describe('confirmarEnvioDeRom', () => {
     const aviso = avisoDeEnvioFalso();
 
     const recusa = confirmarEnvioDeRom(
-      { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
+      {
+        armazenamento,
+        roms,
+        catalogo: semCatalogo,
+        descreverJogo: semFicha,
+        avisarEnvioDeRom: aviso.avisarEnvioDeRom,
+      },
       USUARIO,
       ENVIO,
       'lixo.sfc',
@@ -279,7 +323,13 @@ describe('confirmarEnvioDeRom', () => {
 
     await expect(
       confirmarEnvioDeRom(
-        { armazenamento, roms, catalogo: semCatalogo, avisarEnvioDeRom: aviso.avisarEnvioDeRom },
+        {
+          armazenamento,
+          roms,
+          catalogo: semCatalogo,
+          descreverJogo: semFicha,
+          avisarEnvioDeRom: aviso.avisarEnvioDeRom,
+        },
         USUARIO,
         ENVIO,
         'a.sfc',

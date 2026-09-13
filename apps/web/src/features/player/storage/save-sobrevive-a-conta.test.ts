@@ -34,6 +34,7 @@ const USUARIO = {
   email: 'anonimo@exemplo.com',
   handle: 'anonimo',
   displayName: 'Anônimo',
+  publicProfile: true,
 };
 
 const CADASTRO = {

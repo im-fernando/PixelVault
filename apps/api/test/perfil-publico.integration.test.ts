@@ -134,4 +134,17 @@ describe('GET /api/profiles/:handle', () => {
     expect(resposta.statusCode).toBe(404);
     expect(resposta.json<{ code: string }>().code).toBe('NOT_FOUND');
   });
+
+  it('conta com perfil público desligado dá o mesmo 404 de handle inexistente', async () => {
+    // O mesmo código, mesmo status — a rota não pode virar oráculo de "este
+    // handle existe, só está escondido".
+    await prisma.user.update({ where: { id: donaId }, data: { publicProfile: false } });
+
+    const resposta = await buscarPerfil(dona.handle);
+
+    expect(resposta.statusCode).toBe(404);
+    expect(resposta.json<{ code: string }>().code).toBe('NOT_FOUND');
+
+    await prisma.user.update({ where: { id: donaId }, data: { publicProfile: true } });
+  });
 });

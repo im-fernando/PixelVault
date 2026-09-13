@@ -152,6 +152,35 @@ describe('ConsolePage', () => {
     );
   });
 
+  it('aplica Aurora White e restaura a aparência ao entrar novamente', async () => {
+    const primeira = montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    fireEvent.click(screen.getByRole('button', { name: 'White' }));
+    expect(document.querySelector('.console-experience')?.getAttribute('data-aurora-mode')).toBe(
+      'white',
+    );
+    expect(document.querySelector('.cx-mini-aurora')?.getAttribute('data-aurora-mode')).toBe(
+      'white',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Tema Solstice' }));
+    expect(screen.getByRole('button', { name: 'Claro' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Tema Aurora' }));
+    expect(screen.getByRole('button', { name: 'White' }).getAttribute('aria-pressed')).toBe('true');
+    primeira.unmount();
+    montar();
+    await screen.findByRole('heading', { name: 'Alien vs. Predator' });
+    expect(document.querySelector('.console-experience')?.getAttribute('data-aurora-mode')).toBe(
+      'white',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Configurações' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Escuro' }));
+    expect(document.querySelector('.console-experience')?.getAttribute('data-aurora-mode')).toBe(
+      'dark',
+    );
+    expect(JSON.parse(localStorage.getItem(CHAVE_PREFERENCIAS)!).auroraWhite).toBe(false);
+  });
+
   it('restaura tema e preferências ao entrar novamente no console', async () => {
     const primeira = montar();
     await screen.findByRole('heading', { name: 'Alien vs. Predator' });

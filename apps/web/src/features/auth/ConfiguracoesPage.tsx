@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowLeft, Trophy, Upload, User } from 'lucide-react';
-import { classesDaPilula } from '../../ui/Botao.js';
+import { usePreferenciaDeHome } from '../library/use-preferencia-de-home.js';
+import { BotaoPilula, classesDaPilula } from '../../ui/Botao.js';
 import { Painel } from '../../ui/Painel.js';
 import { Sobrelinha, Verbete } from '../../ui/Texto.js';
-import { useSessao } from './sessao.js';
+import { useDefinirPerfilPublico, useSessao } from './sessao.js';
 
 /**
  * A ficha da própria conta.
@@ -20,6 +21,8 @@ import { useSessao } from './sessao.js';
  */
 export function ConfiguracoesPage() {
   const sessao = useSessao();
+  const definirPerfilPublico = useDefinirPerfilPublico();
+  const { preferencia, definirCatalogoPublico } = usePreferenciaDeHome();
 
   if (sessao.estado !== 'autenticado') return null;
   const { usuario } = sessao;
@@ -61,6 +64,50 @@ export function ConfiguracoesPage() {
           <Upload size={14} /> Enviar ROM
         </Link>
       </nav>
+
+      <Painel className="mt-6 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[14px] font-medium text-label-100">Perfil público</p>
+            <p className="mt-1 max-w-md text-[12.5px] leading-relaxed text-ink-500">
+              {usuario.publicProfile
+                ? `Qualquer pessoa que visitar /u/${usuario.handle} vê seu nome, conquistas e tempo de jogo — sem precisar de conta.`
+                : `/u/${usuario.handle} responde 404 para quem visitar, do mesmo jeito que um handle que não existe.`}
+            </p>
+          </div>
+          <BotaoPilula
+            pequena
+            variante="secundaria"
+            disabled={definirPerfilPublico.isPending}
+            onClick={() => definirPerfilPublico.mutate(!usuario.publicProfile)}
+          >
+            {usuario.publicProfile ? 'Desligar' : 'Ligar'}
+          </BotaoPilula>
+        </div>
+      </Painel>
+
+      <Painel className="mt-6 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[14px] font-medium text-label-100">Catálogo público na home</p>
+            <p className="mt-1 max-w-md text-[12.5px] leading-relaxed text-ink-500">
+              {preferencia.catalogoPublico
+                ? 'A home mostra o homebrew que qualquer visitante vê, embaixo da sua biblioteca.'
+                : 'A home mostra só o que é seu — sem a seção de catálogo público embaixo.'}
+            </p>
+            <p className="mt-2 text-[11.5px] text-ink-700">
+              Fica só neste navegador — não é preferência da conta.
+            </p>
+          </div>
+          <BotaoPilula
+            pequena
+            variante="secundaria"
+            onClick={() => definirCatalogoPublico(!preferencia.catalogoPublico)}
+          >
+            {preferencia.catalogoPublico ? 'Desligar' : 'Ligar'}
+          </BotaoPilula>
+        </div>
+      </Painel>
 
       <p className="mt-10 max-w-md text-[12.5px] leading-relaxed text-ink-500">
         Sua sessão vive num cookie que o JavaScript desta página não lê. Trocar de senha e ver onde

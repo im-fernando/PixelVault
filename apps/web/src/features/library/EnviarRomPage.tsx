@@ -1,16 +1,17 @@
-import { Upload } from 'lucide-react';
-import { Fragment, useId, useState, type DragEvent } from 'react';
+import { FolderUp, Upload } from 'lucide-react';
+import { Fragment, useId, useRef, useState, type DragEvent } from 'react';
 import { TAMANHO_MAXIMO_DE_ROM_EM_BYTES } from '@pixelvault/contracts';
 import { Arte } from '../../ui/Arte.js';
 import { BotaoPilula, classesDaPilula } from '../../ui/Botao.js';
 import { Aviso, Painel } from '../../ui/Painel.js';
 import { Sobrelinha } from '../../ui/Texto.js';
 import { EXTENSOES_ACEITAS } from './arquivo-de-rom.js';
+import { arquivosDoDrop } from './arquivos-do-drop.js';
 import { Cartucho } from './Cartucho.js';
 import type { EstadoDoEnvio } from './envio-de-rom.js';
 import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
 import { emBytesLegiveis } from './tamanho.js';
-import { useEnvioDeRom, type RomDaSessao } from './use-envio-de-rom.js';
+import { useEnvioDeRom, type ItemRecusadoDoLote, type RomDaSessao } from './use-envio-de-rom.js';
 
 /**
  * A mesa de recepção do acervo: é aqui que a ROM da pessoa entra.
@@ -46,47 +47,62 @@ export function EnviarRomPage() {
           <p className="mt-4 max-w-prose text-[14px] leading-relaxed text-ink-500">
             O acervo é seu: a ROM que você enviar fica privada da sua conta, e ninguém mais a baixa.
             Nós guardamos o arquivo e o catálogo cuida do resto — capa, nome, ano — quando reconhece
-            o jogo.
+            o jogo. Dá para soltar várias de uma vez, ou uma pasta inteira: o que não for ROM fica
+            de fora sozinho, sem precisar escolher um arquivo por vez.
           </p>
         </header>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-          <ZonaDeEntrada ocupado={envio.ocupado} aoEscolher={envio.enviar} />
-          <Protocolo estado={envio.estado} aoLimpar={envio.limpar} />
+          <ZonaDeEntrada aoEscolher={envio.enviar} />
+          <Protocolo
+            estado={envio.estado}
+            restantesNaFila={envio.restantesNaFila}
+            aoLimpar={envio.limpar}
+          />
         </div>
       </div>
 
       {envio.nestaSessao.length > 0 && <NestaSessao itens={envio.nestaSessao} />}
+      {envio.falhas.length > 0 && <Falhas itens={envio.falhas} />}
     </>
   );
 }
 
 /**
- * Arrastar ou escolher, e nada além disso.
+ * Arrastar ou escolher — um arquivo, vários, ou uma pasta inteira — e nada
+ * além disso.
  *
  * Não há campo de sistema, de título nem de hash: o que a pessoa sabe é qual
  * arquivo é dela, e todo o resto — de que console é, se o conteúdo confere,
  * qual o hash — sai do próprio arquivo, aqui ou no servidor. Pedir à pessoa o
  * que a máquina consegue descobrir é transformar um envio em formulário.
  *
- * A pílula "Escolher arquivo" é só desenho dentro do `label`: quem abre o
+ * Sempre aceita mais — nunca desabilita por causa de um envio em andamento.
+ * Soltar um segundo lote enquanto o primeiro ainda sobe entra na fila do
+ * `use-envio-de-rom.ts`; esperar de propósito só para poder arrastar de novo
+ * seria a interface inventando uma regra que a fila não tem.
+ *
+ * A pílula "Escolher arquivos" é só desenho dentro do `label`: quem abre o
  * seletor é o `input[type=file]` escondido, e o `label` inteiro é o alvo do
  * clique. Um botão de verdade ali seria elemento interativo dentro de outro.
+ * O atalho de pasta é um segundo `input`, à parte, porque `webkitdirectory`
+ * e escolha múltipla de arquivos soltos são exclusivos entre si no diálogo
+ * do sistema — não dá para os dois caberem no mesmo seletor.
  */
 function ZonaDeEntrada({
-  ocupado,
   aoEscolher,
 }: {
-  readonly ocupado: boolean;
   readonly aoEscolher: (arquivos: readonly File[]) => void;
 }) {
   const id = useId();
+  const idDaPasta = useId();
   const [porCima, setPorCima] = useState(false);
+  const inputDaPasta = useRef<HTMLInputElement>(null);
 
-  function aoSoltar(evento: DragEvent<HTMLLabelElement>): void {
+  async function aoSoltar(evento: DragEvent<HTMLLabelElement>): Promise<void> {
     evento.preventDefault();
     setPorCima(false);
-    if (!ocupado) aoEscolher(Array.from(evento.dataTransfer.files));
+    aoEscolher(await arquivosDoDrop(evento.dataTransfer));
   }
 
   return (
@@ -99,16 +115,14 @@ function ZonaDeEntrada({
       onDragLeave={() => {
         setPorCima(false);
       }}
-      onDrop={aoSoltar}
-      className={`pv-zona justify-center ${porCima ? 'pv-zona--por-cima' : ''} ${
-        ocupado ? 'pv-zona--ocupada' : ''
-      }`}
+      onDrop={(evento) => void aoSoltar(evento)}
+      className={`pv-zona justify-center ${porCima ? 'pv-zona--por-cima' : ''}`}
     >
       <span className="pv-zona-icone" aria-hidden="true">
         <Upload size={26} strokeWidth={1.5} />
       </span>
       <span className="titulo-cena mt-2 text-[22px] text-label-100">
-        Solte o arquivo aqui ou escolha um
+        Solte arquivos ou uma pasta aqui
       </span>
       <span className="max-w-sm text-[13px] leading-relaxed text-ink-500">
         A ROM tem que estar descompactada — o arquivo do cartucho, não o .zip que veio com ele.
@@ -116,19 +130,52 @@ function ZonaDeEntrada({
       <span className="leitura text-ink-700">
         {EXTENSOES_ACEITAS.join(' ')} · até {emBytesLegiveis(TAMANHO_MAXIMO_DE_ROM_EM_BYTES)}
       </span>
-      <span className={classesDaPilula({ pequena: true, className: 'mt-3' })} aria-hidden="true">
-        Escolher arquivo
+      <span className="mt-3 flex items-center gap-2">
+        <span className={classesDaPilula({ pequena: true })} aria-hidden="true">
+          Escolher arquivos
+        </span>
+        <button
+          type="button"
+          className={classesDaPilula({ pequena: true, variante: 'secundaria' })}
+          onClick={(evento) => {
+            // Impede que o clique chegue ao `label` — ele abriria o seletor
+            // de arquivo solto por cima do de pasta que este botão pede.
+            evento.preventDefault();
+            inputDaPasta.current?.click();
+          }}
+        >
+          <FolderUp size={14} /> Ou uma pasta
+        </button>
       </span>
       <input
         id={id}
         type="file"
+        multiple
         className="sr-only"
         accept={EXTENSOES_ACEITAS.join(',')}
-        disabled={ocupado}
         onChange={(evento) => {
           aoEscolher(Array.from(evento.target.files ?? []));
           // Sem isto, escolher o MESMO arquivo depois de uma recusa não dispara
           // `change` nenhum, e a tela fica parada sem que ninguém entenda por quê.
+          evento.target.value = '';
+        }}
+      />
+      <input
+        id={idDaPasta}
+        ref={(elemento) => {
+          // `webkitdirectory` não é atributo JSX — é propriedade do elemento
+          // DOM, e só existe assim: setá-la aqui é o próprio React chamando
+          // isto a cada montagem, sem precisar de `useEffect` para uma
+          // propriedade que nunca muda depois de montado.
+          if (elemento !== null) elemento.webkitdirectory = true;
+        }}
+        type="file"
+        multiple
+        tabIndex={-1}
+        aria-hidden="true"
+        className="sr-only"
+        onChange={(evento) => {
+          aoEscolher(Array.from(evento.target.files ?? []));
           evento.target.value = '';
         }}
       />
@@ -158,9 +205,12 @@ function linhaAtual(estado: EstadoDoEnvio): number {
 
 function Protocolo({
   estado,
+  restantesNaFila,
   aoLimpar,
 }: {
   readonly estado: EstadoDoEnvio;
+  /** Quantos outros arquivos esperam atrás do que este painel mostra agora. */
+  readonly restantesNaFila: number;
   readonly aoLimpar: () => void;
 }) {
   if (estado.fase === 'ocioso') return <ProtocoloEmBranco />;
@@ -179,6 +229,7 @@ function Protocolo({
         <p className="leitura mt-3 break-all text-ink-700">
           {estado.arquivo.nome} · {emBytesLegiveis(estado.arquivo.sizeBytes)}
         </p>
+        {restantesNaFila > 0 && <NotaDaFila restantes={restantesNaFila} />}
       </Aviso>
     );
   }
@@ -191,6 +242,7 @@ function Protocolo({
 
   return (
     <Painel className="p-6">
+      {restantesNaFila > 0 && <NotaDaFila restantes={restantesNaFila} className="mb-4" />}
       <p className="truncate text-[15px] font-semibold text-label-100">{estado.arquivo.nome}</p>
       <p className="leitura mt-1 text-ink-500">
         {emBytesLegiveis(estado.arquivo.sizeBytes)}
@@ -326,6 +378,24 @@ function Passo({
 }
 
 /**
+ * "Mais 3 na fila" — o que faz um lote de várias ROMs não parecer que a tela
+ * esqueceu do resto enquanto mostra só a que está passando agora.
+ */
+function NotaDaFila({
+  restantes,
+  className = '',
+}: {
+  readonly restantes: number;
+  readonly className?: string;
+}) {
+  return (
+    <p className={`leitura text-ink-700 ${className}`}>
+      {restantes === 1 ? 'Mais 1 arquivo na fila' : `Mais ${restantes} arquivos na fila`}
+    </p>
+  );
+}
+
+/**
  * O progresso do PUT, em bytes de verdade.
  *
  * Só existe durante o envio, que é o único passo cuja duração depende do
@@ -389,14 +459,46 @@ function NestaSessao({ itens }: { readonly itens: readonly RomDaSessao[] }) {
           ) : (
             <Cartucho
               key={item.rom.romId}
-              titulo={item.arquivo.titulo}
+              titulo={item.rom.titulo ?? item.arquivo.titulo}
               systemId={item.arquivo.systemId}
+              capaUrl={item.rom.capaUrl}
               nota={`${item.arquivo.systemId.toUpperCase()} · ${emBytesLegiveis(item.rom.sizeBytes)}`}
-              rotulo={`${item.arquivo.titulo} — ${item.arquivo.nome}`}
+              rotulo={`${item.rom.titulo ?? item.arquivo.titulo} — ${item.arquivo.nome}`}
             />
           ),
         )}
       </Prateleira>
+    </section>
+  );
+}
+
+/**
+ * O que a verificação recusou num lote de mais de um arquivo.
+ *
+ * Um arquivo sozinho que é recusado ocupa o `Protocolo` inteiro — a pessoa
+ * escolheu aquele, e a recusa é a resposta para exatamente aquela escolha.
+ * Num lote, a recusa de um não pode ocupar o mesmo lugar que os outros
+ * continuam usando: esta lista é onde ela mora, ao lado do que entrou, para
+ * a pessoa saber o que faltou sem precisar adivinhar pela contagem.
+ */
+function Falhas({ itens }: { readonly itens: readonly ItemRecusadoDoLote[] }) {
+  return (
+    <section className="mx-auto mt-14 max-w-[1080px]">
+      <Sobrelinha>não entraram · {itens.length}</Sobrelinha>
+      <ul className="mt-3 grid gap-2">
+        {itens.map((item, indice) => (
+          // `key` por índice: um arquivo recusado nunca ganha o id que
+          // daria uma chave estável, e o nome se repete quando a mesma ROM é
+          // arrastada duas vezes por engano — a lista só cresce, nunca
+          // reordena, então o índice não confunde nada aqui.
+          <li key={indice} className="pv-painel flex flex-wrap items-baseline gap-2 px-4 py-3">
+            <span className="truncate text-[13px] font-medium text-label-100">
+              {item.arquivo.nome}
+            </span>
+            <span className="leitura text-ink-700">{item.recusa.titulo}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

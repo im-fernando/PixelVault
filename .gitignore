@@ -28,3 +28,5 @@ test-results/
 # Biblioteca pessoal de ROMs para desenvolvimento. NUNCA versionar:
 # o repositório é público e o PixelVault não distribui ROM comercial.
 apps/web/public/roms-local/
+.vercel
+.env*

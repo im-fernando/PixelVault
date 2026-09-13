@@ -94,6 +94,8 @@ describe('enviarRom', () => {
             romId: ROM_ID,
             sha256: HASH,
             gameId: null,
+            title: null,
+            coverUrl: null,
             sizeBytes: 1024,
             deduplicado: false,
           },

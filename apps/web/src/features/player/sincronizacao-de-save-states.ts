@@ -1,13 +1,17 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ApiRequestError } from '../../lib/api.js';
+import { CHAVE_DAS_CONQUISTAS } from '../achievements/use-conquistas.js';
 import type { StateSlotResumo, SystemId } from '@pixelvault/contracts';
 import type { LadoLocalDoConflito, LadoNuvemDoConflito } from './ResolucaoDeConflitoDeSaveState.js';
 import {
   base64ParaBlob,
   baixarBytesDoSaveState,
-  blobParaBase64,
   bytesParaBase64,
   enviarSaveState,
   useSaveStatesNaNuvem,
+  chaveDosSaveStatesNaNuvem,
+  miniaturaParaEnvio,
 } from './state-nuvem.js';
 import {
   createSaveStorage,
@@ -44,53 +48,11 @@ export interface SincronizacaoDeSaveStates {
 }
 
 /**
- * Liga a galeria de slots (local) à nuvem — issue #108, a peça final da M5.
- *
- * ## Clique explícito, não sincronização automática (decisão desta issue)
- *
- * A #105 decidiu que o upload de save state é sempre uma chamada explícita à
- * rota, e adiou para aqui a pergunta de front: subir depois de salvar
- * localmente é automático (como a SRAM, #91) ou um clique à parte? Esta
- * issue escolhe **clique explícito**, por slot: save state nasce de uma
- * decisão deliberada ("salvar aqui, agora, antes do chefe"), e automatizar o
- * envio mudaria a natureza da ação sem a pessoa pedir. SRAM regrava sozinha
- * o tempo todo e uma cópia velha na nuvem não dói — save state é exatamente
- * o tipo de dado em que "subiu escondido algo que eu não queria substituir"
- * dói mais do que a espera de um clique.
- *
- * ## Vínculo por slot, não por ROM inteira
- *
- * A SRAM tem um vínculo só por `romId` (#92: "existe algo na nuvem" já basta,
- * porque só há uma SRAM). Save state tem 4 slots independentes — sincronizar
- * o A não pode fazer o B parecer sincronizado. O ponteiro de
- * `storage/state-sync-pointer.ts` é por `romId` **e** `slot`, e guarda dois
- * números: a `revision` da nuvem que este aparelho já viu, e o `updatedAt`
- * do save LOCAL no momento daquela sincronização. Os dois lados têm
- * conteúdo e:
- *
- * - pointer inexistente, ou `revision` não bate com a da nuvem agora → a
- *   nuvem mudou (ou nunca sincronizou) → `divergente`, abre a tela da #107;
- * - `revision` bate mas `updatedAt` local não bate com o que o pointer
- *   guardou → só o LOCAL mudou desde então (a pessoa salvou de novo no
- *   mesmo slot) → `apenas-local`, não é conflito nenhum, só falta reenviar;
- * - os dois batem → `sincronizado`.
- *
- * Sem o segundo número, salvar de novo num slot já sincronizado continuaria
- * classificado como `sincronizado` (a nuvem não mudou) e a galeria escondia
- * o botão de enviar — o save novo ficava preso no aparelho sem nenhum
- * caminho de UI para subir. Nunca resolve uma divergência de verdade por
- * conta própria.
- *
- * ## Por que não lê o storage local sozinho
- *
- * Quem já sabe o estado local de cada slot é `useSaves` (`EmulatorPlayer`),
- * que já mantém isso em memória com miniatura incluída. Duplicar a leitura
- * aqui seria uma segunda fonte da mesma verdade; em vez disso, este hook
- * recebe `slotsLocais` de fora e só abre um `SaveStorage` próprio (ver
- * `abrirStorage`) quando precisa GRAVAR (baixar da nuvem) ou LER OS BYTES
- * CRUS de um slot (enviar, ou montar o lado local de um conflito) — coisas
- * que `SaveSlotView` não carrega, de propósito (é metadado + miniatura, não
- * o estado inteiro).
+ * Cada gravação local dispara o envio, sem debounce ou clique adicional.
+ * O storage local conserva pendências entre partidas; reconexão e novas
+ * tentativas retomam os envios. Revisões divergentes exigem escolha explícita.
+ * O SHA-256 identifica o save local; o UUID da biblioteca identifica a API
+ * e o ponteiro da conta. Nunca enviar o hash numa rota que exige UUID.
  */
 export function useSincronizacaoDeSaveStates(
   romId: string | null,
@@ -99,8 +61,26 @@ export function useSincronizacaoDeSaveStates(
   coreVersion: string | null,
   recarregarLocal: () => Promise<void>,
   storageInjetado?: SaveStorage,
+  romIdNaNuvem: string | null = romId,
 ): SincronizacaoDeSaveStates {
-  const nuvem = useSaveStatesNaNuvem(romId);
+  const nuvem = useSaveStatesNaNuvem(romIdNaNuvem);
+  const queryClient = useQueryClient();
+  const emOperacao = useRef(false);
+  const tentativas = useRef(new Map<SaveSlot, number>());
+  const [, setRodada] = useState(0);
+  const retentarRef = useRef(() => {});
+  useEffect(() => {
+    if (romIdNaNuvem === null) return;
+    const retentar = () => retentarRef.current();
+    const timer = window.setInterval(retentar, 15_000);
+    window.addEventListener('online', retentar);
+    window.addEventListener('focus', retentar);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('online', retentar);
+      window.removeEventListener('focus', retentar);
+    };
+  }, [romIdNaNuvem]);
   const [ocupado, setOcupado] = useState<SaveSlot | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [conflito, setConflito] = useState<SincronizacaoDeSaveStates['conflito']>(null);
@@ -117,7 +97,12 @@ export function useSincronizacaoDeSaveStates(
 
   const estadoPorSlot = useMemo<ReadonlyMap<SaveSlot, EstadoDoSlotNaNuvem>>(() => {
     const mapa = new Map<SaveSlot, EstadoDoSlotNaNuvem>();
-    if (romId === null || nuvem.data === undefined) return mapa;
+    if (romId === null || romIdNaNuvem === null) return mapa;
+    if (nuvem.data === undefined) {
+      for (const vista of slotsLocais)
+        if (vista.metadata !== null) mapa.set(vista.slot, 'apenas-local');
+      return mapa;
+    }
 
     for (const vista of slotsLocais) {
       const metadataLocal = vista.metadata;
@@ -136,7 +121,7 @@ export function useSincronizacaoDeSaveStates(
       // pelas duas checagens acima) — o ponteiro deste aparelho decide entre
       // rotina, "só o local mudou" e colisão de verdade. Ver o cabeçalho da
       // função para as três leituras.
-      const pointer = lerPointerDeSaveState(romId, vista.slot);
+      const pointer = lerPointerDeSaveState(romIdNaNuvem, vista.slot);
       if (pointer === null || pointer.revision !== remoto!.revision) {
         mapa.set(vista.slot, 'divergente');
       } else if (pointer.updatedAtLocal !== metadataLocal!.updatedAt) {
@@ -146,43 +131,99 @@ export function useSincronizacaoDeSaveStates(
       }
     }
     return mapa;
-  }, [romId, slotsLocais, nuvem.data]);
+  }, [romId, romIdNaNuvem, slotsLocais, nuvem.data]);
+
+  retentarRef.current = () => {
+    if (emOperacao.current) return;
+    if (!nuvem.error && erro === null && ![...estadoPorSlot.values()].includes('apenas-local'))
+      return;
+    tentativas.current.clear();
+    setRodada((valor) => valor + 1);
+    void nuvem.refetch();
+  };
 
   const enviar = async (slot: SaveSlot): Promise<void> => {
+    if (emOperacao.current || romId === null || romIdNaNuvem === null) return;
+    emOperacao.current = true;
     setErro(null);
     setOcupado(slot);
     try {
+      await queryClient.cancelQueries({ queryKey: chaveDosSaveStatesNaNuvem(romIdNaNuvem!) });
       const storage = await abrirStorage();
       const guardado = await storage.read(stateKey(romId!, slot));
       if (guardado === null) return; // mudou de estado entre o clique e a leitura — não é erro
-      const miniatura = await storage.readThumbnail(stateKey(romId!, slot));
-      if (miniatura === null) {
-        setErro('Este slot não tem miniatura — não é possível enviar para a nuvem.');
-        return;
-      }
+      const thumbnailBase64 = await miniaturaParaEnvio(guardado.thumbnail);
       // A revisão de base é a que a nuvem tinha quando este hook classificou
       // o slot como "apenas-local" — `0` se nunca existiu save neste slot,
       // ou a revisão que o pointer conhecia se a nuvem não mudou desde
       // então (é exatamente o caso que torna isto "apenas-local" e não
       // "divergente": só o local andou).
-      const pointerAtual = lerPointerDeSaveState(romId!, slot);
-      await enviarSaveState(
-        romId!,
+      const pointerAtual = lerPointerDeSaveState(romIdNaNuvem!, slot);
+      const resposta = await enviarSaveState(
+        romIdNaNuvem,
         slot,
         {
           dataBase64: bytesParaBase64(guardado.data),
-          thumbnailBase64: await blobParaBase64(miniatura),
-          revision: pointerAtual?.revision ?? 0,
+          thumbnailBase64,
+          revision: resumoDaNuvem(slot) === undefined ? 0 : (pointerAtual?.revision ?? 0),
         },
         guardado.metadata.updatedAt,
       );
-      void nuvem.refetch();
-    } catch {
-      setErro('Falha ao enviar o save state. Tente de novo.');
+      // Atualiza a revisão confirmada antes de liberar o próximo envio.
+      // Uma listagem antiga não pode transformar nossa própria gravação em conflito.
+      await queryClient.cancelQueries({ queryKey: chaveDosSaveStatesNaNuvem(romIdNaNuvem) });
+      queryClient.setQueryData(chaveDosSaveStatesNaNuvem(romIdNaNuvem), {
+        slots: [
+          ...(nuvem.data?.slots.filter((resumo) => resumo.slot !== slot) ?? []),
+          {
+            slot,
+            revision: resposta.revision,
+            sizeBytes: resposta.sizeBytes,
+            updatedAt: resposta.updatedAt,
+            thumbnailBase64,
+          },
+        ],
+      });
+      void queryClient.invalidateQueries({ queryKey: CHAVE_DAS_CONQUISTAS });
+    } catch (falha) {
+      if (falha instanceof ApiRequestError && falha.status === 409) {
+        setErro(
+          falha.payload.details?.['cota']
+            ? falha.payload.message
+            : 'Este slot mudou na nuvem. Compare as versões para concluir a sincronização.',
+        );
+        void nuvem.refetch();
+      } else {
+        setErro(
+          'Save preservado neste aparelho. Não foi possível enviar à nuvem; tentaremos novamente automaticamente.',
+        );
+      }
     } finally {
+      emOperacao.current = false;
       setOcupado(null);
     }
   };
+
+  // Uma operação por vez; slots alterados durante um upload entram na próxima
+  // renderização. Falhas não geram um loop: repetimos ao reconectar ou em 15s.
+  useEffect(() => {
+    if (
+      emOperacao.current ||
+      conflito !== null ||
+      romIdNaNuvem === null ||
+      nuvem.data === undefined ||
+      nuvem.isFetching
+    )
+      return;
+    for (const vista of slotsLocais) {
+      if (vista.metadata === null || estadoPorSlot.get(vista.slot) !== 'apenas-local') continue;
+      if (tentativas.current.get(vista.slot) === vista.metadata.updatedAt) continue;
+      tentativas.current.set(vista.slot, vista.metadata.updatedAt);
+      void enviar(vista.slot);
+      break;
+    }
+  });
+  // A rodada força a inspeção mesmo quando a listagem não mudou (offline).
 
   const baixar = async (slot: SaveSlot): Promise<void> => {
     setErro(null);
@@ -194,11 +235,12 @@ export function useSincronizacaoDeSaveStates(
       setErro('O núcleo ainda não carregou — espere e tente de novo.');
       return;
     }
+    emOperacao.current = true;
     setOcupado(slot);
     try {
       const resumo = resumoDaNuvem(slot);
       if (resumo === undefined) return; // mudou de estado entretanto
-      const bytes = await baixarBytesDoSaveState(romId!, slot);
+      const bytes = await baixarBytesDoSaveState(romIdNaNuvem!, slot);
       if (bytes === null) return;
       const storage = await abrirStorage();
       await storage.write({
@@ -209,16 +251,19 @@ export function useSincronizacaoDeSaveStates(
         updatedAt: Date.parse(resumo.updatedAt),
         thumbnail: base64ParaBlob(resumo.thumbnailBase64),
       });
-      gravarPointerDeSaveState(romId!, slot, resumo.revision, Date.parse(resumo.updatedAt));
+      gravarPointerDeSaveState(romIdNaNuvem!, slot, resumo.revision, Date.parse(resumo.updatedAt));
       await recarregarLocal();
     } catch {
       setErro('Falha ao baixar o save state. Tente de novo.');
     } finally {
+      emOperacao.current = false;
       setOcupado(null);
     }
   };
 
   const abrirConflito = async (slot: SaveSlot): Promise<void> => {
+    emOperacao.current = true;
+    setOcupado(slot);
     setErro(null);
     try {
       const resumo = resumoDaNuvem(slot);
@@ -239,6 +284,9 @@ export function useSincronizacaoDeSaveStates(
       });
     } catch {
       setErro('Falha ao preparar a comparação. Tente de novo.');
+    } finally {
+      emOperacao.current = false;
+      setOcupado(null);
     }
   };
 
@@ -246,8 +294,17 @@ export function useSincronizacaoDeSaveStates(
     estadoPorSlot,
     ocupado,
     conflito,
-    erro,
+    erro:
+      erro ??
+      (nuvem.error
+        ? 'Não foi possível consultar os saves na nuvem. O progresso continua neste aparelho; tentaremos novamente automaticamente.'
+        : null),
     aoClicarSincronizar(slot) {
+      if (emOperacao.current || ocupado !== null || conflito !== null) return;
+      if (nuvem.data === undefined) {
+        retentarRef.current();
+        return;
+      }
       const estado = estadoPorSlot.get(slot);
       if (estado === 'apenas-local') void enviar(slot);
       else if (estado === 'apenas-nuvem') void baixar(slot);
@@ -267,7 +324,7 @@ export function useSincronizacaoDeSaveStates(
         // reler a galeria local, que não sabe da gravação por fora do
         // `SaveManager`.
         gravarPointerDeSaveState(
-          romId!,
+          romIdNaNuvem!,
           conflito.slot,
           conflito.nuvem.revision,
           Date.parse(conflito.nuvem.updatedAt),

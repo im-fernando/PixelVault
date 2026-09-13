@@ -57,6 +57,8 @@ export interface PropsDoPlayer {
    * 401. Só `BibliotecaPlayPage` liga isto, e o comportamento sem ele é
    * idêntico ao de antes desta issue.
    */
+  /** UUID da linha da biblioteca; o hash em romId é exclusivo do storage local. */
+  readonly romIdNaBiblioteca?: string | undefined;
   readonly sincronizarSaveStateNaNuvem?: boolean | undefined;
   /** Injetável para teste — a mesma porta que `useSincronizacaoDeSaveStates` aceita. */
   readonly saveStateStorage?: SaveStorage | undefined;
@@ -92,12 +94,13 @@ export function EmulatorPlayer({
   registry,
   onSramWritten,
   sincronizarSaveStateNaNuvem,
+  romIdNaBiblioteca,
   saveStateStorage,
   romIdParaHeartbeat,
   modoConsole,
 }: PropsDoPlayer) {
   const emulador = useEmulator({ systemId, rom, registry });
-  const saves = useSaves(emulador.adapter, romId ?? null, onSramWritten);
+  const saves = useSaves(emulador.adapter, romId ?? null, onSramWritten, saveStateStorage);
   const { status, capabilities, comandos } = emulador;
 
   // Mesmo sinal que já pausa a emulação desde a M1 — "rodando" e "aba
@@ -116,7 +119,8 @@ export function EmulatorPlayer({
     systemId,
     emulador.coreVersion,
     saves.recarregar,
-    saveStateStorage,
+    saves.storage ?? saveStateStorage,
+    sincronizarSaveStateNaNuvem === true ? (romIdNaBiblioteca ?? null) : null,
   );
 
   const palcoRef = useRef<HTMLDivElement | null>(null);
@@ -271,11 +275,12 @@ export function EmulatorPlayer({
     sincronizacaoDeSaveState.conflito !== null && romId !== undefined ? (
       <div className="space-y-3">
         <ResolucaoDeConflitoDeSaveState
-          romId={romId}
+          romId={romIdNaBiblioteca!}
+          romIdLocal={romId}
           slot={sincronizacaoDeSaveState.conflito.slot}
           local={sincronizacaoDeSaveState.conflito.local}
           nuvem={sincronizacaoDeSaveState.conflito.nuvem}
-          storage={saveStateStorage}
+          storage={saves.storage ?? saveStateStorage}
           aoResolver={sincronizacaoDeSaveState.aoResolverConflito}
         />
         <BotaoPilula
@@ -466,7 +471,9 @@ export function EmulatorPlayer({
           )}
 
           {sincronizacaoDeSaveState.erro !== null && (
-            <p className="text-[12.5px] text-alert">{sincronizacaoDeSaveState.erro}</p>
+            <p role="alert" className="text-[12.5px] text-alert">
+              {sincronizacaoDeSaveState.erro}
+            </p>
           )}
 
           {conflitoDeSave}

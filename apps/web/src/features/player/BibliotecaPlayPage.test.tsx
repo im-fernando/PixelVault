@@ -38,6 +38,7 @@ const USUARIO = {
   email: 'dono@example.com',
   handle: 'dono',
   displayName: 'Dono da ROM',
+  publicProfile: true,
 };
 
 /**

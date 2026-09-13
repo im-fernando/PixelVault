@@ -44,8 +44,14 @@ import type { JogoSemCapa } from '../domain/busca-de-capa.js';
  * segue sem capa. Cobertura não é 100%, e nunca foi a promessa.
  */
 
-/** A playlist do RetroArch de cada console que o PixelVault suporta. */
-const PLAYLIST_POR_SISTEMA: Record<SystemId, string> = {
+/**
+ * A playlist do RetroArch de cada console que o PixelVault suporta.
+ *
+ * Exportada porque `capa-libretro-thumbnails-por-nome.ts` também precisa
+ * dela — o repositório do GitHub de cada sistema é o mesmo nome, com espaço
+ * trocado por `_` (`Nintendo_-_Super_Nintendo_Entertainment_System`).
+ */
+export const PLAYLIST_POR_SISTEMA: Record<SystemId, string> = {
   snes: 'Nintendo - Super Nintendo Entertainment System',
   nes: 'Nintendo - Nintendo Entertainment System',
   gb: 'Nintendo - Game Boy',

@@ -205,18 +205,22 @@ export class SaveManager {
    * o placeholder.
    */
   async saveState(slot: SaveSlot): Promise<SaveMetadata> {
-    this.#exigirCapacidade('saveState');
-    const data = await this.#emulador.exportState();
-    const thumbnail =
-      this.#thumbnail === false ? null : await captureThumbnail(this.#emulador, this.#thumbnail);
-
-    return this.#storage.write({
-      key: stateKey(this.romId, slot),
-      data,
-      systemId: this.#emulador.systemId,
-      coreVersion: this.#emulador.coreVersion,
-      updatedAt: this.#agora(),
-      thumbnail,
+    return this.#enfileirar(async () => {
+      this.#exigirCapacidade('saveState');
+      const data = await this.#emulador.exportState();
+      const thumbnail =
+        this.#thumbnail === false ? null : await captureThumbnail(this.#emulador, this.#thumbnail);
+      const key = stateKey(this.romId, slot);
+      const anterior = await this.#storage.read(key);
+      return this.#storage.write({
+        key,
+        data,
+        thumbnail,
+        systemId: this.#emulador.systemId,
+        coreVersion: this.#emulador.coreVersion,
+        // Duas gravações no mesmo milissegundo ainda precisam ser versões distintas.
+        updatedAt: Math.max(this.#agora(), (anterior?.metadata.updatedAt ?? -1) + 1),
+      });
     });
   }
 

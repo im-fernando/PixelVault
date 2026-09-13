@@ -3,6 +3,10 @@
 Data: 2026-09-07
 Status: aceita
 
+> Atualização: a [ADR 0025](0025-sincronizar-slots-automaticamente.md) substitui
+> o clique separado para envio de slots na biblioteca autenticada. As regras
+> de preservação local e resolução explícita de conflitos continuam válidas.
+
 ## Contexto
 
 A M1 entregou SRAM e save state **no navegador**: OPFS quando existe,
