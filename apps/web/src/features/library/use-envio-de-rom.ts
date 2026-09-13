@@ -1,3 +1,4 @@
+import { CHAVE_DA_BIBLIOTECA } from './use-biblioteca.js';
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { CHAVE_DAS_CONQUISTAS } from '../achievements/use-conquistas.js';
@@ -105,6 +106,7 @@ export function useEnvioDeRom(): EnvioDeRom {
         // Enviar a primeira ROM é gesto que pode desbloquear
         // `primeira_rom_enviada` (ADR 0010) — invalida a consulta de
         // conquistas para o front comparar contra o que já tinha visto.
+        void queryClient.invalidateQueries({ queryKey: CHAVE_DA_BIBLIOTECA });
         void queryClient.invalidateQueries({ queryKey: CHAVE_DAS_CONQUISTAS });
       } else if (final.fase === 'recusado') {
         setFalhas((anteriores) => [

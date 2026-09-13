@@ -59,6 +59,18 @@ describe('useEnvioDeRom — fila de mais de um arquivo', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('invalida a estante já carregada quando o envio termina', async () => {
+    vi.stubGlobal('fetch', fetchQueSempreJaTem());
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(['biblioteca'], []);
+    const { result } = renderHook(() => useEnvioDeRom(), { wrapper: envolvido(queryClient) });
+    result.current.enviar([arquivoDeRom('novo.sfc')]);
+    await waitFor(() => expect(result.current.nestaSessao).toHaveLength(1));
+    expect(queryClient.getQueryState(['biblioteca'])?.isInvalidated).toBe(true);
+  });
+
   it('soltar mais arquivos enquanto o lote roda entra na mesma fila', async () => {
     vi.stubGlobal('fetch', fetchQueSempreJaTem() as unknown as typeof fetch);
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
