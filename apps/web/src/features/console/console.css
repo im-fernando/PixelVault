@@ -37,8 +37,8 @@
   cursor: default;
   opacity: 0.45;
 }
-.console-experience button:focus-visible,
-.console-experience input:focus-visible {
+.console-experience button:focus,
+.console-experience input:focus {
   outline: 2px solid var(--cx-accent);
   outline-offset: 5px;
 }

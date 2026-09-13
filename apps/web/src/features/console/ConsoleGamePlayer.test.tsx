@@ -207,6 +207,25 @@ describe('partida no modo console', () => {
     expect(adapter.audio.muted).toBe(true);
   });
 
+  it('ajusta volume repetidamente pelo direcional sem sair da pausa', async () => {
+    const { adapter } = await montar();
+    await controle(4, 5);
+    await controle();
+    fireEvent.click(screen.getByRole('button', { name: 'Imagem e som' }));
+    screen.getByRole('slider', { name: 'Volume do jogo' }).focus();
+    let agora = performance.now();
+    vi.spyOn(performance, 'now').mockImplementation(() => agora);
+    await controle(14);
+    expect(adapter.audio.volume).toBe(0.75);
+    agora += 200;
+    await controle(14);
+    expect(adapter.audio.volume).toBe(0.75);
+    agora += 200;
+    await controle(14);
+    expect(adapter.audio.volume).toBe(0.7);
+    expect(adapter.status).toBe('paused');
+  });
+
   it('reinicia somente depois de confirmar e continua pausado', async () => {
     const { adapter } = await montar();
     act(() => adapter.advanceFrames(35));

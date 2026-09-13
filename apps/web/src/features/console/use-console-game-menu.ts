@@ -1,3 +1,5 @@
+import { moverFoco } from './foco-do-console.js';
+import { criarRepeticaoDoDirecional } from './teclado-do-console.js';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import {
   perfilDoControle,
@@ -22,44 +24,7 @@ function elementosDoMenu(): HTMLElement[] {
 }
 
 function mover(direcao: 'left' | 'right' | 'up' | 'down') {
-  const elementos = elementosDoMenu();
-  if (!elementos.length) return;
-  const ativo = document.activeElement as HTMLElement;
-  const indice = elementos.indexOf(ativo);
-  const origem = ativo?.getBoundingClientRect();
-  const horizontal = direcao === 'left' || direcao === 'right';
-  const sinal = direcao === 'left' || direcao === 'up' ? -1 : 1;
-  if (horizontal && ativo instanceof HTMLInputElement && ativo.type === 'range') {
-    // O setter nativo mantém o onChange do React no mesmo caminho do mouse.
-    const valor = Math.min(
-      Number(ativo.max),
-      Math.max(Number(ativo.min), Number(ativo.value) + sinal * Number(ativo.step || 5)),
-    );
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
-      ativo,
-      String(valor),
-    );
-    ativo.dispatchEvent(new Event('input', { bubbles: true }));
-    return;
-  }
-  const candidatos = elementos
-    .filter((el) => el !== ativo)
-    .map((el) => {
-      const caixa = el.getBoundingClientRect();
-      const dx = caixa.x + caixa.width / 2 - (origem.x + origem.width / 2);
-      const dy = caixa.y + caixa.height / 2 - (origem.y + origem.height / 2);
-      return {
-        el,
-        principal: (horizontal ? dx : dy) * sinal,
-        distancia: Math.abs(horizontal ? dy : dx) * 3 + Math.hypot(dx, dy),
-      };
-    })
-    .filter((c) => c.principal > 3)
-    .sort((a, b) => a.distancia - b.distancia);
-  (
-    candidatos[0]?.el ??
-    elementos[(Math.max(indice, 0) + sinal + elementos.length) % elementos.length]
-  )?.focus();
+  moverFoco(elementosDoMenu(), direcao);
 }
 
 export function useConsoleGameMenu({
@@ -166,6 +131,7 @@ export function useConsoleGameMenu({
     window.addEventListener('keydown', teclado, true);
     let quadro = 0;
     let armado = true;
+    const repetir = criarRepeticaoDoDirecional();
     let perfil: PerfilDoControle | null = null;
     let anterior: EstadoDoGamepad = gamepadSolto();
     const consultar = () => {
@@ -182,8 +148,14 @@ export function useConsoleGameMenu({
         if (pad) {
           if (perfil?.id !== pad.id || perfil.index !== pad.index) perfil = perfilDoControle(pad);
           const estado = traduzirControle(pad, perfil);
-          const l1 = pad.buttons[4]?.pressed === true;
-          const r1 = pad.buttons[5]?.pressed === true;
+          const l1 = estado.l;
+          const r1 = estado.r;
+          const direcao = repetir(
+            abertoRef.current && !retomarPendente.current && !atual.current.bloqueado
+              ? ((['left', 'right', 'up', 'down'] as const).find((dir) => estado[dir]) ?? null)
+              : null,
+            performance.now(),
+          );
           if (!l1 && !r1) armado = true;
           if (l1 && r1 && armado) {
             armado = false;
@@ -191,21 +163,23 @@ export function useConsoleGameMenu({
             else abrir();
           } else if (abertoRef.current && !retomarPendente.current && !atual.current.bloqueado) {
             if (estado.a && !anterior.a) fechar();
-            else if (estado.b && !anterior.b && document.activeElement instanceof HTMLElement)
+            else if (
+              estado.b &&
+              !anterior.b &&
+              document.activeElement instanceof HTMLElement &&
+              elementosDoMenu().includes(document.activeElement)
+            )
               document.activeElement.click();
-            else
-              for (const dir of ['left', 'right', 'up', 'down'] as const) {
-                if (estado[dir] && !anterior[dir]) {
-                  const antes = document.activeElement;
-                  mover(dir);
-                  if (antes !== document.activeElement || antes instanceof HTMLInputElement)
-                    tocar('navegar');
-                  break;
-                }
-              }
+            else if (direcao) {
+              const antes = document.activeElement;
+              mover(direcao);
+              if (antes !== document.activeElement || antes instanceof HTMLInputElement)
+                tocar('navegar');
+            }
           }
           anterior = estado;
         } else {
+          repetir(null, 0);
           anterior = gamepadSolto();
           perfil = null;
           armado = true;

@@ -1,15 +1,19 @@
+import { moverFoco } from './foco-do-console.js';
+import type { DirecaoDoTeclado } from './teclado-do-console.js';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeft, Check, Moon, Sparkles, Sun, X } from 'lucide-react';
 import { TEMAS, type PreferenciasConsole } from './temas.js';
 
-export function moverFocoDoDialogo(direcao: number) {
+export function moverFocoDoDialogo(direcao: DirecaoDoTeclado) {
   const botoes = Array.from(
-    document.querySelectorAll<HTMLElement>('.cx-dialog button:not(:disabled), .cx-dialog input'),
+    document.querySelectorAll<HTMLElement>(
+      '.cx-dialog button:not(:disabled), .cx-dialog input:not(:disabled)',
+    ),
   );
   if (botoes.length === 0) return false;
-  const atual = botoes.indexOf(document.activeElement as HTMLElement);
-  botoes[(Math.max(0, atual) + direcao + botoes.length) % botoes.length]?.focus();
-  return document.activeElement !== botoes[atual];
+  const anterior = document.activeElement;
+  moverFoco(botoes, direcao);
+  return document.activeElement !== anterior;
 }
 
 export function ConsoleDialog({
@@ -135,11 +139,17 @@ export function ConfiguracoesConsole({
   alterar,
   fechar,
   persistido,
+  telaCheia,
+  alternarTelaCheia,
+  sair,
 }: {
   preferencias: PreferenciasConsole;
   alterar: (patch: Partial<PreferenciasConsole>) => void;
   fechar: () => void;
   persistido: boolean;
+  telaCheia: boolean;
+  alternarTelaCheia: () => void;
+  sair: () => void;
 }) {
   const aurora = preferencias.tema === 'aurora';
   const nomeDaAparencia = aurora ? 'Aurora' : 'Solstice';
@@ -230,6 +240,14 @@ export function ConfiguracoesConsole({
             </span>
           </button>
         ))}
+      </div>
+      <div className="cx-color-modes">
+        <button type="button" onClick={alternarTelaCheia}>
+          {telaCheia ? 'Sair da tela cheia' : 'Tela cheia'}
+        </button>
+        <button type="button" onClick={sair}>
+          Sair do console
+        </button>
       </div>
       <footer className="cx-dialog-footer">
         <span role="status">

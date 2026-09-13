@@ -35,6 +35,7 @@ import { useSonsDoConsole } from './use-sons-do-console.js';
 import {
   perfilDoControle,
   traduzirControle,
+  rotulosDoControle,
   type PerfilDoControle,
 } from '../player/input/gamepad-map.js';
 import {
@@ -90,6 +91,8 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
   const [aviso, setAviso] = useState<string | null>(null);
   const [hora, setHora] = useState(() => new Date());
   const [controleConectado, setControleConectado] = useState(false);
+  const [familia, setFamilia] = useState<PerfilDoControle['familia']>('generico');
+  const rotulos = rotulosDoControle(familia);
   const [telaCheia, setTelaCheia] = useState(false);
   const jogos = useMemo(() => (biblioteca.data ?? []).map(paraItem), [biblioteca.data]);
   const colecoes = useMemo(
@@ -153,10 +156,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
     definirPainel(proximo);
   };
   const navegarNoPainel = (direcao: DirecaoDoTeclado) => {
-    const mudou =
-      painel === 'search'
-        ? moverFocoDaBusca(direcao)
-        : moverFocoDoDialogo(direcao === 'left' || direcao === 'up' ? -1 : 1);
+    const mudou = painel === 'search' ? moverFocoDaBusca(direcao) : moverFocoDoDialogo(direcao);
     if (mudou) sons.tocar('navegar');
   };
   const selecionarProximo = (direcao: number) => {
@@ -310,13 +310,10 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       perfilControle.current.index !== controle.index
     )
       perfilControle.current = perfilDoControle(controle);
+    setFamilia(perfilControle.current.familia);
     const estado = traduzirControle(controle, perfilControle.current);
     const anterior = anteriores.current;
     const novo = (botao: BotaoDoSnes) => estado[botao] && !anterior[botao];
-    const esquerda = novo('left');
-    const direita = novo('right');
-    const cima = novo('up');
-    const baixo = novo('down');
     const direcaoSegurada = estado.up
       ? 'up'
       : estado.down
@@ -326,10 +323,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
           : estado.right
             ? 'right'
             : null;
-    const repetir = repeticao.current(
-      painel === 'search' ? direcaoSegurada : null,
-      performance.now(),
-    );
+    const repetir = repeticao.current(direcaoSegurada, performance.now());
     if (painel === 'search') {
       if (novo('a')) setPainel(null);
       else if (novo('start')) {
@@ -351,8 +345,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       }
     } else if (painel) {
       if (novo('a') || novo('start')) setPainel(null);
-      else if (esquerda || cima) navegarNoPainel(esquerda ? 'left' : 'up');
-      else if (direita || baixo) navegarNoPainel(direita ? 'right' : 'down');
+      else if (repetir) navegarNoPainel(repetir);
       else if (
         novo('b') &&
         document.activeElement instanceof HTMLElement &&
@@ -365,11 +358,18 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       if (novo('start')) setPainel('settings');
       else if (novo('x')) setPainel('search', true);
       else if (novo('l') || novo('r')) setPainel('collections');
-      else if (esquerda || (cima && preferencias.tema === 'obsidian')) selecionarProximo(-1);
-      else if (direita || (baixo && preferencias.tema === 'obsidian')) selecionarProximo(1);
-      else if (cima || baixo) setPainel('collections');
+      else if (repetir === 'left' || (repetir === 'up' && preferencias.tema === 'obsidian'))
+        selecionarProximo(-1);
+      else if (repetir === 'right' || (repetir === 'down' && preferencias.tema === 'obsidian'))
+        selecionarProximo(1);
+      else if (repetir === 'up' || repetir === 'down') setPainel('collections');
       else if (novo('y')) alternarFavorito();
-      else if (novo('b')) iniciarJogo();
+      else if (novo('select')) void alternarTelaCheia();
+      else if (novo('b')) {
+        if (biblioteca.isError || !selecionado)
+          raiz.current?.querySelector<HTMLButtonElement>('.cx-empty button')?.click();
+        else iniciarJogo();
+      }
     }
     anteriores.current = estado;
   };
@@ -531,13 +531,13 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
               <kbd>{controleConectado ? '✚' : '← →'}</kbd>Navegar
             </span>
             <span>
-              <kbd>{controleConectado ? 'A' : '↵'}</kbd>Jogar
+              <kbd>{controleConectado ? rotulos.b : '↵'}</kbd>Jogar
             </span>
             <span>
-              <kbd>{controleConectado ? 'X' : 'F'}</kbd>Favorito
+              <kbd>{controleConectado ? rotulos.y : 'F'}</kbd>Favorito
             </span>
             <button type="button" onClick={() => setPainel('settings')}>
-              <kbd>{controleConectado ? '☰' : 'F2'}</kbd>Temas
+              <kbd>{controleConectado ? rotulos.start : 'F2'}</kbd>Temas
             </button>
           </div>
           <button type="button" className="cx-exit" onClick={() => void navigate({ to: '/' })}>
@@ -552,6 +552,9 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
           alterar={alterarPreferencias}
           fechar={() => setPainel(null)}
           persistido={persistido}
+          telaCheia={telaCheia}
+          alternarTelaCheia={() => void alternarTelaCheia()}
+          sair={() => void navigate({ to: '/' })}
         />
       )}
       {painel === 'collections' && (
