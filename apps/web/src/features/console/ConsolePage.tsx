@@ -364,7 +364,6 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
         selecionarProximo(1);
       else if (repetir === 'up' || repetir === 'down') setPainel('collections');
       else if (novo('y')) alternarFavorito();
-      else if (novo('a')) void navigate({ to: '/' });
       else if (novo('select')) void alternarTelaCheia();
       else if (novo('b')) {
         if (biblioteca.isError || !selecionado)
@@ -543,7 +542,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
           </div>
           <button type="button" className="cx-exit" onClick={() => void navigate({ to: '/' })}>
             <ArrowLeft size={15} />
-            <span>{controleConectado && <kbd>{rotulos.a} </kbd>}Sair do console</span>
+            <span>Sair do console</span>
           </button>
         </footer>
       </div>
