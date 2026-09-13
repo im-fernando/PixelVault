@@ -31,6 +31,8 @@ export interface DadosDoUsuario {
   email: string;
   handle: string;
   displayName: string;
+  /** Se `/u/:handle` responde para qualquer visitante, ou dá 404. */
+  publicProfile: boolean;
 }
 
 /** O mesmo usuário, mais o hash da senha — só o login precisa disso. */
@@ -108,10 +110,17 @@ export interface UserRepository {
   /**
    * O perfil público de uma conta, achado pelo `handle` — é o que
    * `GET /api/profiles/:handle` (#123) precisa: a URL chega com o handle,
-   * não com o `userId`. `null` quando não existe conta com esse handle, e
-   * quem chama trata isso como "perfil não encontrado" — não há distinção
-   * entre "não existe" e "existe mas é privado", porque perfil não tem
-   * modo privado (a issue #123 confirma isso).
+   * não com o `userId`. `null` quando não existe conta com esse handle OU
+   * quando existe mas `publicProfile` está desligado — de propósito as duas
+   * coisas dão o mesmo resultado, para a rota não virar oráculo de "este
+   * handle existe, só está escondido".
    */
   perfilPublicoPorHandle(handle: string): Promise<PerfilPublico | null>;
+
+  /**
+   * Liga ou desliga `/u/:handle` para a própria conta. Sem verificação de
+   * posse aqui — quem chama já provou quem é pela sessão, e não existe
+   * `userId` de terceiro que este método aceitaria.
+   */
+  definirPerfilPublico(id: string, ativo: boolean): Promise<void>;
 }

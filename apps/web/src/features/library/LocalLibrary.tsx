@@ -1,10 +1,8 @@
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
-import type { SystemId } from '@pixelvault/contracts';
 import { MioloDoCartucho } from './Cartucho.js';
 import { EtiquetaDeGaveta, Prateleira } from './Prateleira.js';
 import { useRomsLocais, type RomLocal } from './local-roms.js';
-import { urlsCandidatasDeLombada } from './nomes-no-libretro.js';
+import { useCapaAutomatica } from './use-capa-automatica.js';
 
 /**
  * Tenta, em ordem, cada URL candidata de capa no `libretro-thumbnails`, e
@@ -17,39 +15,6 @@ import { urlsCandidatasDeLombada } from './nomes-no-libretro.js';
  * Enquanto nenhuma responde, a arte substituta (matiz por título) segura a
  * moldura.
  */
-function useCapaAutomatica(titulo: string, systemId: SystemId): string | null {
-  const [urlResolvida, setUrlResolvida] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUrlResolvida(null);
-
-    let cancelado = false;
-
-    async function tentarCandidatas() {
-      for (const url of urlsCandidatasDeLombada(titulo, systemId)) {
-        const carregou = await new Promise<boolean>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(false);
-          img.src = url;
-        });
-        if (cancelado) return;
-        if (carregou) {
-          setUrlResolvida(url);
-          return;
-        }
-      }
-    }
-
-    void tentarCandidatas();
-    return () => {
-      cancelado = true;
-    };
-  }, [titulo, systemId]);
-
-  return urlResolvida;
-}
-
 function ItemDaEstante({ rom }: { readonly rom: RomLocal }) {
   const capaUrl = useCapaAutomatica(rom.title, rom.systemId);
 

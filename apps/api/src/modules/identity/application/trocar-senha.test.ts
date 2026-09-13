@@ -16,6 +16,7 @@ const USUARIO: CredenciaisDoUsuario = {
   email: 'pessoa@exemplo.test',
   handle: 'pessoa',
   displayName: 'Pessoa',
+  publicProfile: true,
   senhaHash: 'hash-da-senha-atual',
 };
 
@@ -58,6 +59,7 @@ function montar(
     async perfilPublicoPorHandle(): Promise<PerfilPublico | null> {
       return null;
     },
+    async definirPerfilPublico(): Promise<void> {},
   };
 
   return {

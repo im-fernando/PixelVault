@@ -34,6 +34,8 @@ referencia a antiga.
 | [0023](0023-input-do-teclado-por-configuracao-do-retroarch.md)    | Configurar o teclado do RetroArch no boot, em vez de simular estado por quadro | aceita                         |
 | [0024](0024-direcao-visual-vitrine.md)                            | Levar o site inteiro à direção visual "Vitrine", a do modo console             | aceita                         |
 
+| [0025](0025-sincronizar-slots-automaticamente.md) | Sincronizar os slots automaticamente após salvar | aceita |
+
 O código de investigação que sustenta os números da 0008 e da 0011 está em
 [docs/spikes](../spikes/README.md). Os da 0015 são reproduzíveis por
 `pnpm --filter @pixelvault/emulator-runtime verify:audio`.

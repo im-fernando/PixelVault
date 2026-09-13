@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import {
+  TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES,
   stateDownloadResponseSchema,
   stateListResponseSchema,
   stateUploadResponseSchema,
@@ -16,13 +17,10 @@ import { gravarPointerDeSaveState } from './storage/state-sync-pointer.js';
  * Client HTTP do save state na nuvem (`progress`, M5) — mesma convenção de
  * `sram-nuvem.ts`, aplicada aos endpoints da #105/#106.
  *
- * Não existe aqui um "vínculo" para guardar: diferente da SRAM, save state
- * nasce de clique deliberado (issue #105), então não há sincronização
- * automática cujo gatilho dependa de saber se "este aparelho já viu aquele
- * save" — cada operação (listar, baixar, enviar) já carrega a revisão de que
- * precisa na própria resposta.
+ * O envio automático e a comparação por revisão são coordenados pelo hook
+ * de sincronização; esta camada só confirma o ponteiro após sucesso da API.
  */
-function chaveDosSaveStatesNaNuvem(romId: string): QueryKey {
+export function chaveDosSaveStatesNaNuvem(romId: string): QueryKey {
   return ['save-states-na-nuvem', romId];
 }
 
@@ -97,7 +95,7 @@ export async function enviarSaveState(
   const resposta = await apiFetch(
     `/api/progress/state/${encodeURIComponent(romId)}/${slot}`,
     stateUploadResponseSchema,
-    { method: 'POST', body: JSON.stringify(entrada) },
+    { method: 'POST', body: JSON.stringify(entrada), signal: AbortSignal.timeout(30_000) },
   );
   // Toda gravação bem-sucedida marca ESTE aparelho como reconciliado com
   // essa revisão E com o `updatedAt` local que gerou o envio — issue #108.
@@ -162,4 +160,13 @@ export function base64ParaBlob(base64: string): Blob {
   // `Blob` não aceita `Uint8Array` apoiado em `SharedArrayBuffer` — mesmo
   // raciocínio de `toArrayBuffer` em `storage/bytes.ts`, reaproveitado aqui.
   return new Blob([toArrayBuffer(base64ParaBytes(base64))], { type: 'image/webp' });
+}
+
+/** Uma prévia ausente ou grande demais nunca deve impedir o backup do progresso. */
+export async function miniaturaParaEnvio(thumbnail: Blob | null): Promise<string> {
+  if (thumbnail !== null && thumbnail.size <= TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES) {
+    return blobParaBase64(thumbnail);
+  }
+  // WebP transparente de 1×1; não reutiliza uma imagem de outro momento do jogo.
+  return 'UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==';
 }

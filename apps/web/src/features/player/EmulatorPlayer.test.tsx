@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { StrictMode, type ReactElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmulatorRegistry, romFromUrl } from '@pixelvault/emulator-runtime';
 import { FakeAdapter } from '@pixelvault/emulator-runtime/testing';
+import { MemorySaveStorage, stateKey } from './storage/index.js';
 import { EmulatorPlayer } from './EmulatorPlayer.js';
 
 const ROM = romFromUrl('/roms/sure-instinct/sure-instinct.sfc', {
@@ -145,5 +146,57 @@ describe('EmulatorPlayer', () => {
 
     expect(await screen.findByText('CORE_LOAD_FAILED')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy();
+  });
+});
+
+describe('EmulatorPlayer — nuvem após gravar', () => {
+  it('liga a galeria e o atalho F2 ao upload automático com o identificador da biblioteca', async () => {
+    const storage = new MemorySaveStorage();
+    const hash = 'd'.repeat(64);
+    const id = '11111111-1111-4111-8111-111111111111';
+    const envios: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          envios.push(url);
+          return new Response(
+            JSON.stringify({
+              status: 'gravado',
+              revision: envios.length,
+              sizeBytes: 4,
+              updatedAt: new Date().toISOString(),
+            }),
+          );
+        }
+        return new Response(JSON.stringify({ slots: [] }));
+      }),
+    );
+    const { registry } = bancada();
+    render(
+      comQueryClient(
+        <EmulatorPlayer
+          systemId="snes"
+          rom={ROM}
+          titulo="Teste"
+          romId={hash}
+          romIdNaBiblioteca={id}
+          registry={registry}
+          sincronizarSaveStateNaNuvem
+          saveStateStorage={storage}
+        />,
+      ),
+    );
+    await screen.findByText('rodando');
+    await waitFor(() => expect(screen.getByText('memory')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Gravar no slot B' }));
+    await waitFor(() => expect(envios).toHaveLength(1));
+    expect(envios[0]).toContain(`/api/progress/state/${id}/1`);
+    expect(await storage.read(stateKey(hash, 1))).not.toBeNull();
+    const palco = screen.getByRole('application');
+    fireEvent.focus(palco);
+    fireEvent.keyDown(palco, { code: 'F2' });
+    await waitFor(() => expect(envios).toHaveLength(2));
+    expect(envios[1]).toContain(`/api/progress/state/${id}/0`);
   });
 });

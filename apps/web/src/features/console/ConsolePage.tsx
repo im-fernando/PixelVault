@@ -383,6 +383,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       ref={raiz}
       className="console-experience"
       data-console-theme={preferencias.tema}
+      data-aurora-mode={preferencias.auroraWhite ? 'white' : 'dark'}
       data-solstice-mode={preferencias.solsticeEscuro ? 'dark' : 'light'}
       data-motion={preferencias.movimento}
       data-ambient={preferencias.ambiente}

@@ -614,6 +614,66 @@
   color: #98a6c6;
 }
 
+/* Aurora White mantém as órbitas em uma superfície branca com luz azul e lilás. */
+[data-console-theme='aurora'][data-aurora-mode='white'] {
+  --cx-bg: #fafbff;
+  --cx-panel: #ffffff;
+  --cx-text: #202c46;
+  --cx-muted: #596780;
+  --cx-accent: #425bb2;
+  --cx-line: #30477529;
+  color-scheme: light;
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-atmosphere {
+  background:
+    radial-gradient(ellipse at 70% 52%, #bdcefa65, transparent 58%),
+    radial-gradient(ellipse at 10% 0%, #e2dafa70, transparent 65%), var(--cx-bg);
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-atmosphere > div,
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-atmosphere > i {
+  border-top-color: #647fb940;
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-orbit {
+  border-color: #6685bf66;
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-orbit-two {
+  border-color: #9c7cbc55;
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-aurora-case {
+  box-shadow:
+    12px 17px 0 -10px #8294b659,
+    0 30px 70px #425b8033,
+    0 0 70px #7da0ff18;
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-orbit-caption {
+  color: var(--cx-muted);
+}
+[data-console-theme='aurora'][data-aurora-mode='white'] .cx-play {
+  background: #dfe7ff;
+  border-color: #425bb240;
+}
+.cx-mini-aurora[data-aurora-mode='white'] {
+  background: linear-gradient(135deg, #fafbff, #e2e9fc);
+  color: #202c46;
+}
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-top i,
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-bottom i,
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-title > i {
+  background: #596780;
+}
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-title > em {
+  background: #425bb2;
+}
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-library > i:first-child {
+  outline-color: #425bb2;
+}
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-sculpture > b {
+  color: #fff;
+}
+.cx-mini-aurora[data-aurora-mode='white'] .cx-mini-sculpture > i {
+  border-color: #6685bf88;
+}
+
 /* OBSIDIAN: biblioteca vertical à esquerda, pôster cinematográfico à direita. */
 [data-console-theme='obsidian'] {
   --cx-bg: #131414;

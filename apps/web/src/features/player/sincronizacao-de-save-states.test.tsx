@@ -144,7 +144,7 @@ describe('useSincronizacaoDeSaveStates', () => {
     expect(result.current.estadoPorSlot.size).toBe(0);
   });
 
-  it('slot "apenas-local": clicar sincronizar envia para a nuvem e marca o ponteiro', async () => {
+  it('slot "apenas-local": envia automaticamente para a nuvem e marca o ponteiro', async () => {
     let corpoEnviado: unknown = null;
     vi.stubGlobal(
       'fetch',
@@ -170,11 +170,8 @@ describe('useSincronizacaoDeSaveStates', () => {
       { wrapper },
     );
 
-    await waitFor(() => expect(result.current.estadoPorSlot.get(0)).toBe('apenas-local'));
-
-    result.current.aoClicarSincronizar(0);
-
     await waitFor(() => expect(corpoEnviado).not.toBeNull());
+    expect(result.current.conflito).toBeNull();
     expect((corpoEnviado as { revision: number }).revision).toBe(0);
     expect((corpoEnviado as { dataBase64: string }).dataBase64).not.toHaveLength(0);
   });

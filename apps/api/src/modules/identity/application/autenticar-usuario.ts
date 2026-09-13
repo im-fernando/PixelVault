@@ -89,6 +89,7 @@ export async function autenticarUsuario(
       email: credenciais.email,
       handle: credenciais.handle,
       displayName: credenciais.displayName,
+      publicProfile: credenciais.publicProfile,
     };
   });
 }

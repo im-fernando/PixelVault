@@ -124,12 +124,6 @@ export const RECUSA_POR_ARQUIVO_VAZIO: RecusaDeEnvio = {
   detalhe: 'Ele tem zero byte. Confira se o download terminou antes de enviar de novo.',
 };
 
-/** Mais de um arquivo de uma vez. Ver `envio-de-rom.ts`. */
-export const RECUSA_POR_LOTE: RecusaDeEnvio = {
-  titulo: 'Um arquivo por vez',
-  detalhe: 'Solte uma ROM só. Quando ela terminar, a próxima entra na sequência.',
-};
-
 /**
  * Traduz a recusa que chegou do outro lado.
  *

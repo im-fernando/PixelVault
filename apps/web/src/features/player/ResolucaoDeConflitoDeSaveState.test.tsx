@@ -89,7 +89,7 @@ describe('ResolucaoDeConflitoDeSaveState', () => {
     expect(screen.getByText(/^nuvem$/i)).toBeTruthy();
   });
 
-  it('sem miniatura local, desabilita "substituir pela local" e mostra o motivo', () => {
+  it('sem miniatura local, permite preservar os bytes na nuvem', () => {
     vi.stubGlobal('fetch', vi.fn());
     const { container } = renderizar({
       local: ladoLocal({ thumbnail: null }),
@@ -98,10 +98,10 @@ describe('ResolucaoDeConflitoDeSaveState', () => {
     });
 
     const radioLocal = screen.getByRole('radio', { name: /substituir/i });
-    expect((radioLocal as HTMLInputElement).disabled).toBe(true);
+    expect((radioLocal as HTMLInputElement).disabled).toBe(false);
     // Só uma miniatura agora: a nuvem tem, o local não.
     expect(container.querySelectorAll('img')).toHaveLength(1);
-    expect(screen.getByText(/não é possível enviar/i)).toBeTruthy();
+    expect(screen.queryByText(/não é possível enviar/i)).toBeNull();
   });
 
   it('"manter a nuvem" baixa os bytes e grava local, sem enviar nada para a nuvem', async () => {

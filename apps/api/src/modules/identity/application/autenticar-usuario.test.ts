@@ -18,6 +18,7 @@ const FULANO: CredenciaisDoUsuario = {
   email: 'fulano@exemplo.test',
   handle: 'fulano',
   displayName: 'Fulano',
+  publicProfile: true,
   senhaHash: '$argon2id$do-fulano',
 };
 
@@ -69,6 +70,7 @@ function montar(
       async perfilPublicoPorHandle(): Promise<PerfilPublico | null> {
         return null;
       },
+      async definirPerfilPublico(): Promise<void> {},
     },
   };
 
@@ -105,6 +107,7 @@ describe('autenticarUsuario', () => {
         email: 'fulano@exemplo.test',
         handle: 'fulano',
         displayName: 'Fulano',
+        publicProfile: true,
       },
     );
   });
@@ -117,7 +120,7 @@ describe('autenticarUsuario', () => {
       password: 'ok',
     });
 
-    expect(Object.keys(usuario)).toEqual(['id', 'email', 'handle', 'displayName']);
+    expect(Object.keys(usuario)).toEqual(['id', 'email', 'handle', 'displayName', 'publicProfile']);
   });
 
   it('roda a verificação contra o hash descartável quando o e-mail não tem conta', async () => {

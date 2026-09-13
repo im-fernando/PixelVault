@@ -451,3 +451,16 @@ describe('SaveManager — miniatura (issue #23)', () => {
     expect(guardado?.thumbnail).toBeNull();
   });
 });
+
+describe('SaveManager — gravações rápidas de slots', () => {
+  it('serializa duas gravações e distingue versões mesmo com o relógio parado', async () => {
+    const adapter = await adapterRodando();
+    const storage = new MemorySaveStorage();
+    const saves = gerenciador(adapter, storage, { thumbnail: false });
+    const [primeira, segunda] = await Promise.all([saves.saveState(0), saves.saveState(0)]);
+    expect(segunda.updatedAt).toBe(primeira.updatedAt + 1);
+    expect((await saves.listStates())[0]?.metadata?.updatedAt).toBe(segunda.updatedAt);
+    await saves.dispose();
+    await adapter.destroy();
+  });
+});

@@ -1,0 +1,13 @@
+FROM node:24-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g pnpm@11.25.0
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile --filter @pixelvault/api...
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/build pnpm --filter @pixelvault/api... build
+RUN node --input-type=module -e "await import('./apps/api/dist/app.js')"
+ENV NODE_ENV=production
+USER node
+EXPOSE 3333
+CMD ["node", "apps/api/dist/server.js"]

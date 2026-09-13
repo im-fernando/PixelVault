@@ -1,0 +1,14 @@
+.git
+.vercel
+.env
+.env.*
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+packages/database/generated
+apps/web
+docs
+test-results
+playwright-report

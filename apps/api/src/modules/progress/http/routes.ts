@@ -139,6 +139,11 @@ export const progressRoutes: FastifyPluginAsyncZod<OpcoesDeProgress> = async (ap
   app.post(
     '/progress/state/:romId/:slot',
     {
+      // Base64 cresce 4/3; o limite padrão de JSON recusava states válidos.
+      bodyLimit:
+        4 * Math.ceil(TAMANHO_MAXIMO_DE_SAVE_STATE_EM_BYTES / 3) +
+        4 * Math.ceil(TAMANHO_MAXIMO_DA_MINIATURA_EM_BYTES / 3) +
+        1024,
       preHandler: sessoes.exigirSessao,
       schema: {
         tags: ['progress'],

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeft, Check, Moon, Sparkles, Sun, X } from 'lucide-react';
-import { TEMAS, type PreferenciasConsole, type TemaConsole } from './temas.js';
+import { TEMAS, type PreferenciasConsole } from './temas.js';
 
 export function moverFocoDoDialogo(direcao: number) {
   const botoes = Array.from(
@@ -89,10 +89,15 @@ export function ConsoleDialog({
   );
 }
 
-function Miniatura({ tema, solsticeEscuro }: { tema: TemaConsole; solsticeEscuro: boolean }) {
+function Miniatura({
+  tema,
+  solsticeEscuro,
+  auroraWhite,
+}: Pick<PreferenciasConsole, 'tema' | 'solsticeEscuro' | 'auroraWhite'>) {
   return (
     <span
       className={`cx-theme-mini cx-mini-${tema}`}
+      data-aurora-mode={auroraWhite ? 'white' : 'dark'}
       data-solstice-mode={solsticeEscuro ? 'dark' : 'light'}
       aria-hidden="true"
     >
@@ -136,6 +141,11 @@ export function ConfiguracoesConsole({
   fechar: () => void;
   persistido: boolean;
 }) {
+  const aurora = preferencias.tema === 'aurora';
+  const nomeDaAparencia = aurora ? 'Aurora' : 'Solstice';
+  const claro = aurora ? preferencias.auroraWhite : !preferencias.solsticeEscuro;
+  const alterarAparencia = (claro: boolean) =>
+    alterar(aurora ? { auroraWhite: claro } : { solsticeEscuro: !claro });
   return (
     <ConsoleDialog titulo="Seu console. Seu estilo." fechar={fechar} amplo>
       <p className="cx-dialog-description">
@@ -152,7 +162,11 @@ export function ConfiguracoesConsole({
             aria-label={`Tema ${tema.nome}`}
             data-autofocus={preferencias.tema === tema.id ? '' : undefined}
           >
-            <Miniatura tema={tema.id} solsticeEscuro={preferencias.solsticeEscuro} />
+            <Miniatura
+              tema={tema.id}
+              solsticeEscuro={preferencias.solsticeEscuro}
+              auroraWhite={preferencias.auroraWhite}
+            />
             <span className="cx-theme-description">
               <span>
                 <strong>{tema.nome}</strong>
@@ -166,27 +180,23 @@ export function ConfiguracoesConsole({
           </button>
         ))}
       </div>
-      {preferencias.tema === 'solstice' && (
+      {(aurora || preferencias.tema === 'solstice') && (
         <div className="cx-solstice-appearance">
           <div>
             <span className="cx-overline">A LUZ MUDA. SEU CONSOLE TAMBÉM.</span>
-            <h3>Aparência do Solstice</h3>
+            <h3>Aparência do {nomeDaAparencia}</h3>
             <p>Da biblioteca à partida, no seu ritmo.</p>
           </div>
-          <div className="cx-color-modes" role="group" aria-label="Modo de cor do Solstice">
-            <button
-              type="button"
-              aria-pressed={!preferencias.solsticeEscuro}
-              onClick={() => alterar({ solsticeEscuro: false })}
-            >
+          <div
+            className="cx-color-modes"
+            role="group"
+            aria-label={`Modo de cor do ${nomeDaAparencia}`}
+          >
+            <button type="button" aria-pressed={claro} onClick={() => alterarAparencia(true)}>
               <Sun size={18} aria-hidden="true" />
-              Claro
+              {aurora ? 'White' : 'Claro'}
             </button>
-            <button
-              type="button"
-              aria-pressed={preferencias.solsticeEscuro}
-              onClick={() => alterar({ solsticeEscuro: true })}
-            >
+            <button type="button" aria-pressed={!claro} onClick={() => alterarAparencia(false)}>
               <Moon size={18} aria-hidden="true" />
               Escuro
             </button>

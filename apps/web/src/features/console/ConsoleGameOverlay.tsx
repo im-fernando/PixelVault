@@ -656,16 +656,20 @@ function SlotDoConsole({
         </button>
       </div>
       <div className="cgp-slot-cloud">
-        <span>
-          {estado === 'sincronizado'
-            ? 'Na nuvem'
-            : estado === 'apenas-nuvem'
-              ? 'Só na nuvem'
-              : estado === 'divergente'
-                ? 'Versões diferentes'
-                : slot.metadata
-                  ? 'Neste aparelho'
-                  : 'Slot vazio'}
+        <span role="status">
+          {nuvem.ocupado === slot.slot
+            ? 'Sincronizando…'
+            : estado === 'sincronizado'
+              ? 'Na nuvem'
+              : estado === 'apenas-nuvem'
+                ? 'Só na nuvem'
+                : estado === 'divergente'
+                  ? 'Versões diferentes'
+                  : estado === 'apenas-local'
+                    ? 'Aguardando envio'
+                    : slot.metadata
+                      ? 'Neste aparelho'
+                      : 'Slot vazio'}
         </span>
         {estado && estado !== 'sincronizado' && (
           <button

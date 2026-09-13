@@ -39,6 +39,7 @@ export type ItemDoConsole = {
 };
 export type PreferenciasConsole = {
   tema: TemaConsole;
+  auroraWhite: boolean;
   solsticeEscuro: boolean;
   movimento: boolean;
   ambiente: boolean;
@@ -48,6 +49,7 @@ export type PreferenciasConsole = {
 export const CHAVE_PREFERENCIAS = 'pixelvault.console.preferences.v1';
 const PADRAO: PreferenciasConsole = {
   tema: 'aurora',
+  auroraWhite: false,
   solsticeEscuro: false,
   movimento: true,
   ambiente: true,
@@ -61,6 +63,7 @@ export function lerPreferencias(): PreferenciasConsole {
     const dados = valor as Record<string, unknown>;
     return {
       tema: TEMAS.find((tema) => tema.id === dados.tema)?.id ?? PADRAO.tema,
+      auroraWhite: typeof dados.auroraWhite === 'boolean' ? dados.auroraWhite : PADRAO.auroraWhite,
       solsticeEscuro:
         typeof dados.solsticeEscuro === 'boolean' ? dados.solsticeEscuro : PADRAO.solsticeEscuro,
       movimento: typeof dados.movimento === 'boolean' ? dados.movimento : PADRAO.movimento,

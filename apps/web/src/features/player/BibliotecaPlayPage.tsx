@@ -195,6 +195,7 @@ export function BibliotecaPlayPage({ romId, registry, storage, aoSairDoConsole }
           registry={registry}
           onSramWritten={sincronizacao.registrarGravacaoLocal}
           sincronizarSaveStateNaNuvem
+          romIdNaBiblioteca={item.id}
           saveStateStorage={storage}
           modoConsole={
             aoSairDoConsole

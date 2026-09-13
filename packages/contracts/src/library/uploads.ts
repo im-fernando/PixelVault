@@ -159,6 +159,11 @@ export type MotivoDeRecusaDeRom = z.infer<typeof motivoDeRecusaDeRomSchema>;
  * `gameId` nulo é normal, e não erro: o hash não casou com nada do catálogo e
  * a biblioteca funciona do mesmo jeito (docs/adr/0006).
  *
+ * `title` e `coverUrl` vêm do catálogo quando `gameId` não é nulo — a mesma
+ * ficha que `GET /library/roms` usa. Sem isso, a tela de envio não tinha como
+ * mostrar a capa da ROM que acabou de reconhecer sem uma segunda chamada à
+ * biblioteca inteira só para achar a linha que ela mesma já tem em mãos.
+ *
  * `deduplicado` diz que nada foi transferido porque o conteúdo já existia no
  * storage. Ele conta, sim, que **alguém** já tinha aquele arquivo — mas é um
  * agregado sem dono, e o cliente concluiria o mesmo pelo relógio: dedupe
@@ -174,6 +179,10 @@ export const romUploadCompletedResponseSchema = z.object({
   sha256: sha256Schema,
   /** O jogo do catálogo, quando o hash casou. Nulo é o caso comum do BYOR. */
   gameId: uuidSchema.nullable(),
+  /** O título do catálogo quando `gameId` não é nulo. Nulo junto com ele. */
+  title: z.string().nullable(),
+  /** A capa do catálogo quando `gameId` não é nulo. Nulo junto com ele. */
+  coverUrl: z.url().nullable(),
   sizeBytes: z.number().int().positive(),
   /** `true` quando o conteúdo já existia no storage e nada foi transferido. */
   deduplicado: z.boolean(),

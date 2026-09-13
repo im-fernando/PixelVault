@@ -61,6 +61,10 @@ export interface RomEnviada {
   readonly sha256: string;
   /** O jogo do catálogo, quando o hash casou. Nulo é o caso comum do BYOR. */
   readonly gameId: string | null;
+  /** O título do catálogo, quando `gameId` não é nulo. */
+  readonly titulo: string | null;
+  /** A capa do catálogo, quando `gameId` não é nulo. */
+  readonly capaUrl: string | null;
   /** O conteúdo já existia no storage e nada foi transferido de lá para cá. */
   readonly deduplicado: boolean;
   /**
@@ -166,6 +170,8 @@ export async function enviarRom(
           sizeBytes: arquivo.size,
           sha256,
           gameId: null,
+          titulo: null,
+          capaUrl: null,
           deduplicado: true,
           jaTinha: true,
         },
@@ -192,6 +198,8 @@ export async function enviarRom(
         sizeBytes: naBiblioteca.sizeBytes,
         sha256: naBiblioteca.sha256,
         gameId: naBiblioteca.gameId,
+        titulo: naBiblioteca.title,
+        capaUrl: naBiblioteca.coverUrl,
         deduplicado: naBiblioteca.deduplicado,
         jaTinha: false,
       },

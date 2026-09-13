@@ -94,7 +94,7 @@ export function GaleriaDeSlots({
 }
 
 const ROTULO_DO_ESTADO: Record<EstadoDoSlotNaNuvem, string> = {
-  'apenas-local': 'não sincronizado',
+  'apenas-local': 'aguardando envio',
   'apenas-nuvem': 'só na nuvem',
   sincronizado: 'sincronizado',
   divergente: 'divergente',
@@ -163,7 +163,7 @@ function Slot({
             variante="secundaria"
             pequena
             className="flex-1"
-            disabled={incompativel}
+            disabled={incompativel || sincronizando}
             title={vista.incompatibleReason ?? undefined}
             aria-label={
               carregavel
@@ -175,9 +175,21 @@ function Slot({
             {carregavel ? 'Carregar' : 'Gravar'}
           </BotaoPilula>
           {gravado !== null && (
+            <BotaoPilula
+              pequena
+              variante="secundaria"
+              disabled={sincronizando || incompativel}
+              aria-label={`Gravar no slot ${botao.letra}`}
+              onClick={() => aoSalvar(vista.slot)}
+            >
+              Gravar
+            </BotaoPilula>
+          )}
+          {gravado !== null && (
             <BotaoIcone
               rotulo={`Apagar o estado do slot ${botao.letra}`}
               className="hover:text-alert"
+              disabled={sincronizando}
               onClick={() => aoApagar(vista.slot)}
             >
               <Trash2 size={15} />
@@ -188,12 +200,13 @@ function Slot({
         {estadoNaNuvem !== undefined && (
           <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <span
+              role="status"
               className={`leitura inline-flex items-center gap-1.5 ${
                 estadoNaNuvem === 'divergente' ? 'text-alert' : 'text-ink-700'
               }`}
             >
               <Cloud size={11} className="shrink-0" />
-              {ROTULO_DO_ESTADO[estadoNaNuvem]}
+              {sincronizando ? 'Sincronizando…' : ROTULO_DO_ESTADO[estadoNaNuvem]}
             </span>
             {estadoNaNuvem !== 'sincronizado' && aoSincronizar !== undefined && (
               <button

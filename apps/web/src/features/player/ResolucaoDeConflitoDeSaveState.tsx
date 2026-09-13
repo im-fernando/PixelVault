@@ -12,7 +12,7 @@ import {
 import {
   baixarBytesDoSaveState,
   base64ParaBlob,
-  blobParaBase64,
+  miniaturaParaEnvio,
   bytesParaBase64,
   useEnviarSaveStateParaNuvem,
 } from './state-nuvem.js';
@@ -41,6 +41,7 @@ type Escolha = 'nuvem' | 'local';
 
 interface Props {
   readonly romId: string;
+  readonly romIdLocal?: string;
   readonly slot: SaveSlot;
   readonly local: LadoLocalDoConflito;
   readonly nuvem: LadoNuvemDoConflito;
@@ -100,17 +101,12 @@ interface Props {
  * compatibilidade (`compatibility.ts`) em vez de vir marcado como
  * incompatível.
  *
- * ## Miniatura ausente do lado local
- *
- * `stateUploadRequestSchema` exige miniatura em todo envio (#105) — sem ela,
- * regravar apagaria a miniatura que já existe na nuvem. Um save local sem
- * miniatura (core sem `captureFrame`, ou save state antigo de antes da
- * miniatura existir) não tem o que mandar, então "substituir pela local"
- * fica desabilitado nesse caso, com o motivo à mostra — não é um upload sem
- * miniatura de qualquer jeito.
+ * Uma prévia ausente usa um placeholder; o backup dos bytes não depende
+ * da captura de imagem funcionar.
  */
 export function ResolucaoDeConflitoDeSaveState({
   romId,
+  romIdLocal = romId,
   slot,
   local,
   nuvem,
@@ -125,19 +121,14 @@ export function ResolucaoDeConflitoDeSaveState({
   const urlLocal = useMiniatura(local.thumbnail);
   const urlNuvem = useMiniaturaBase64(nuvem.thumbnailBase64);
 
-  const semMiniaturaLocal = local.thumbnail === null;
-
   const confirmar = async (): Promise<void> => {
     setErro(null);
     setAplicando(true);
     try {
       if (escolha === 'local') {
-        if (local.thumbnail === null) {
-          throw new Error('Este save local não tem miniatura — não é possível enviá-lo.');
-        }
         await enviar.mutateAsync({
           dataBase64: bytesParaBase64(local.data),
-          thumbnailBase64: await blobParaBase64(local.thumbnail),
+          thumbnailBase64: await miniaturaParaEnvio(local.thumbnail),
           revision: nuvem.revision,
           updatedAtLocal: local.metadata.updatedAt,
         });
@@ -148,7 +139,7 @@ export function ResolucaoDeConflitoDeSaveState({
         }
         const storage = storageInjetado ?? (await createSaveStorage());
         await storage.write({
-          key: stateKey(romId, slot),
+          key: stateKey(romIdLocal, slot),
           data: bytes,
           systemId: local.metadata.systemId,
           coreVersion: local.metadata.coreVersion,
@@ -199,11 +190,9 @@ export function ResolucaoDeConflitoDeSaveState({
             className="pv-radio"
             name={`escolha-state-${romId}-${slot}`}
             checked={escolha === 'local'}
-            disabled={semMiniaturaLocal}
             onChange={() => setEscolha('local')}
           />
           Substituir pelo deste aparelho
-          {semMiniaturaLocal && ' (sem miniatura, não é possível enviar)'}
         </label>
       </fieldset>
 

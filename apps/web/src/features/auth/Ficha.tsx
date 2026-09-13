@@ -1,10 +1,13 @@
 import {
   useId,
+  useState,
   type ButtonHTMLAttributes,
   type CSSProperties,
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { BotaoIcone } from '../../ui/Botao.js';
 import { Arte } from '../../ui/Arte.js';
 import { useGames } from '../library/use-games.js';
 
@@ -86,19 +89,34 @@ interface PropsDoCampo extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id' 
 export function Campo({ rotulo, ajuda, erro, ...props }: PropsDoCampo) {
   const id = useId();
   const idDaAjuda = `${id}-ajuda`;
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
+  const senha = props.type === 'password';
 
   return (
     <div className="mt-5">
       <label htmlFor={id} className="pv-rotulo">
         {rotulo}
       </label>
-      <input
-        {...props}
-        id={id}
-        aria-invalid={erro === undefined ? undefined : true}
-        aria-describedby={erro === undefined && ajuda === undefined ? undefined : idDaAjuda}
-        className="pv-campo"
-      />
+      <div className={senha ? 'pv-campo-senha' : undefined}>
+        <input
+          {...props}
+          type={senha && senhaVisivel ? 'text' : props.type}
+          id={id}
+          aria-invalid={erro === undefined ? undefined : true}
+          aria-describedby={erro === undefined && ajuda === undefined ? undefined : idDaAjuda}
+          className="pv-campo"
+        />
+        {senha && (
+          <BotaoIcone
+            rotulo={`${senhaVisivel ? 'Ocultar' : 'Mostrar'} senha: ${rotulo}`}
+            aria-controls={id}
+            disabled={props.disabled}
+            onClick={() => setSenhaVisivel(!senhaVisivel)}
+          >
+            {senhaVisivel ? <EyeOff size={18} /> : <Eye size={18} />}
+          </BotaoIcone>
+        )}
+      </div>
       {(erro ?? ajuda) !== undefined && (
         <p id={idDaAjuda} className={`pv-ajuda ${erro === undefined ? '' : 'pv-ajuda--erro'}`}>
           {erro ?? ajuda}
@@ -121,12 +139,23 @@ export function Caixa({
   return (
     <div className="mt-6">
       <div className="flex items-start gap-3">
-        <input {...props} id={id} type="checkbox" className="pv-marcador" />
+        <input
+          {...props}
+          id={id}
+          type="checkbox"
+          className="pv-marcador"
+          aria-invalid={erro === undefined ? undefined : true}
+          aria-describedby={erro === undefined ? undefined : `${id}-erro`}
+        />
         <label htmlFor={id} className="text-[12.5px] leading-relaxed text-ink-500">
           {children}
         </label>
       </div>
-      {erro !== undefined && <p className="pv-ajuda pv-ajuda--erro">{erro}</p>}
+      {erro !== undefined && (
+        <p id={`${id}-erro`} className="pv-ajuda pv-ajuda--erro">
+          {erro}
+        </p>
+      )}
     </div>
   );
 }

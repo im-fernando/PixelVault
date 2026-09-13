@@ -5,5 +5,6 @@ export * from './cadastro.js';
 export * from './login.js';
 export * from './troca-de-senha.js';
 export * from './recuperacao-de-senha.js';
+export * from './perfil-publico.js';
 export * from './habilidades.js';
 export * from './erros.js';

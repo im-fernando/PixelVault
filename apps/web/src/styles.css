@@ -123,6 +123,7 @@ body {
   .pv-shell {
     position: relative;
     isolation: isolate;
+    overflow-x: clip;
     min-height: 100svh;
     display: flex;
     flex-direction: column;
@@ -446,6 +447,48 @@ body {
   }
 
   /* ── Formulário ───────────────────────────────────────────────────────── */
+  .pv-pular-conteudo {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background: var(--color-label-100);
+    color: var(--color-ink-950);
+    transform: translateY(-200%);
+  }
+  .pv-pular-conteudo:focus {
+    transform: translateY(0);
+  }
+  .pv-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .pv-filtros-busca {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+  .pv-filtros select option {
+    background: var(--color-ink-950);
+    color: var(--color-label-100);
+  }
+  .pv-campo-senha {
+    position: relative;
+  }
+  .pv-campo-senha .pv-campo {
+    padding-right: 56px;
+  }
+  .pv-campo-senha .pv-icone {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    width: 44px;
+    height: 44px;
+  }
   .pv-campo {
     display: block;
     width: 100%;
@@ -1413,6 +1456,25 @@ body {
   .pv-esqueleto {
     flex-basis: 150px;
     width: 150px;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .pv-cartucho-acoes {
+    position: static;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    border-radius: 16px;
+    opacity: 1;
+    transform: none;
+  }
+  .pv-cartucho-acoes > a:first-child {
+    flex-basis: 100%;
+    min-height: 44px;
+  }
+  .pv-cartucho-acoes .pv-icone {
+    width: 44px;
+    height: 44px;
   }
 }
 

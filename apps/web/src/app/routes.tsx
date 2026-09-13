@@ -22,6 +22,7 @@ import { EnviarRomPage } from '../features/library/EnviarRomPage.js';
 import { GameLibrary } from '../features/library/GameLibrary.js';
 import { LocalLibrary } from '../features/library/LocalLibrary.js';
 import { MinhaBiblioteca } from '../features/library/MinhaBiblioteca.js';
+import { usePreferenciaDeHome } from '../features/library/use-preferencia-de-home.js';
 import { Vitrine } from '../features/library/Vitrine.js';
 import { LeaderboardPage } from '../features/leaderboards/LeaderboardPage.js';
 import { BibliotecaPlayPage } from '../features/player/BibliotecaPlayPage.js';
@@ -63,6 +64,9 @@ function Shell() {
 
   return (
     <div className="pv-shell">
+      <a href="#conteudo-principal" className="pv-pular-conteudo">
+        Pular para o conteúdo
+      </a>
       {/*
         A mesma luz do tema Aurora do console: dois anéis em órbita e um
         gradiente radial sobre a tinta. Fica fixa atrás de tudo, para o site
@@ -79,7 +83,7 @@ function Shell() {
           estampado com a assinatura embaixo. Quem vai da home ao console e
           volta precisa reconhecer o mesmo produto nos dois lados.
         */}
-        <Link to="/" className="pv-marca">
+        <Link to="/" className="pv-marca" aria-label="PixelVault — início">
           <span className="pv-marca-simbolo" aria-hidden="true">
             p<span>v</span>
           </span>
@@ -116,6 +120,7 @@ function Shell() {
           */}
           <Link
             to="/console"
+            aria-label="Modo console"
             className={classesDaPilula({ variante: 'secundaria', pequena: true })}
           >
             <Gamepad2 size={15} />
@@ -125,7 +130,7 @@ function Shell() {
         </div>
       </header>
 
-      <main className="pv-pagina pt-4 pb-10">
+      <main id="conteudo-principal" tabIndex={-1} className="pv-pagina pt-4 pb-10">
         <Outlet />
       </main>
 
@@ -159,11 +164,17 @@ const indexRoute = createRoute({
     // só aparece na máquina de quem montou um. Ver o cabeçalho de
     // `MinhaBiblioteca.tsx` para por que a estante pessoal mora aqui e não numa
     // rota própria.
+    //
+    // O catálogo público é a única peça opcional: quem só quer ver as
+    // próprias ROMs desliga em `/conta`, e a preferência mora no navegador,
+    // não na conta — ver `preferencia-de-home.ts`.
+    const { preferencia } = usePreferenciaDeHome();
+
     return (
       <>
         <Vitrine />
         <MinhaBiblioteca />
-        <GameLibrary />
+        {preferencia.catalogoPublico && <GameLibrary />}
         <LocalLibrary />
       </>
     );

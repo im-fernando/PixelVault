@@ -278,6 +278,14 @@ describe('POST /api/progress/state/:romId/:slot', () => {
     expect(linha.revision).toBe(2);
   });
 
+  it('aceita o teto de 4 MiB mesmo quando o JSON em base64 ultrapassa 1 MiB', async () => {
+    const cookie = await logar(dono);
+    const bytes = new Uint8Array(4 * 1024 * 1024).fill(0x42);
+    const resposta = await gravar(cookie, romId, 0, 0, bytes);
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json<StateUploadResponse>().sizeBytes).toBe(bytes.length);
+  });
+
   it('dois slots da mesma ROM não colidem entre si', async () => {
     const cookie = await logar(dono);
 
