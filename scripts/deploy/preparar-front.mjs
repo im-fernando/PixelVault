@@ -11,7 +11,10 @@ const estaticos = join(output, 'static');
 const api = process.env.PIXELVAULT_API_ORIGIN;
 if (api && new URL(api).protocol !== 'https:') throw new Error('A API deve usar HTTPS.');
 
-execFileSync('pnpm', ['--filter', '@pixelvault/web', 'build'], {
+// O `...` no filtro arrasta as dependências do workspace: sem ele o build
+// só funciona se `contracts` e `database` já tiverem sido construídos
+// antes, e falha em máquina limpa — como a do CI.
+execFileSync('pnpm', ['--filter', '@pixelvault/web...', 'build'], {
   cwd: raiz,
   stdio: 'inherit',
   env: { ...process.env, NODE_ENV: 'production', VITE_API_URL: '' },
