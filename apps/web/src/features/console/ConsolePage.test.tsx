@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { type ReactNode } from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMemoryHistory,
@@ -13,15 +13,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProvedorDeSessao } from '../auth/sessao.js';
 import { ConsolePage } from './ConsolePage.js';
 import { CHAVE_PREFERENCIAS, TEMAS } from './temas.js';
-
-/**
- * O critério de aceite da #116 pede navegação por gamepad físico — que este
- * ambiente não tem. O que se testa aqui é o fallback de teclado (setas/WASD),
- * que exercita a MESMA máquina de estado (`selecionarProximo`,
- * `alternarFavorito`, filtro de coleção, teclado virtual da busca) que o
- * polling de gamepad chama. A verificação com controle físico fica para
- * quando o Fernando testar (ver o corpo da issue).
- */
 
 const USUARIO = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -120,10 +111,6 @@ function montar(favoritarFetch?: (url: string, init?: RequestInit) => Response |
 
 beforeEach(() => {
   localStorage.clear();
-  // O polling de gamepad roda em intervalo real (120ms) fora do controle do
-  // teste; como nenhum destes testes usa fake timers, ele só teria efeito se
-  // `navigator.getGamepads` existisse — não existe em jsdom, então o handler
-  // retorna antes de tocar qualquer estado.
 });
 
 afterEach(() => {
@@ -427,6 +414,76 @@ describe('ConsolePage', () => {
     apertar(9); // Start conclui sem iniciar o jogo ao fundo.
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(router.state.location.pathname).toBe('/console');
+  });
+
+  it.each([
+    { id: 'Xbox Controller', mapping: 'standard', quantidade: 17, start: 9 },
+    { id: 'USB SNES', mapping: '', quantidade: 8, start: 7 },
+  ])('percorre temas, preferências e coleções só pelo controle $id', async (perfil) => {
+    vi.useFakeTimers();
+    const buttons = Array.from({ length: perfil.quantidade }, () => ({ pressed: false }));
+    const pad = { ...perfil, index: 0, connected: true, buttons, axes: [0, 0] };
+    vi.stubGlobal('navigator', { getGamepads: () => [pad] });
+    const quadro = (pressionados: number[] = [], axes = [0, 0], tempo = 40) =>
+      act(() => {
+        buttons.forEach((b, i) => {
+          b.pressed = pressionados.includes(i);
+        });
+        pad.axes = axes;
+        vi.advanceTimersByTime(tempo);
+      });
+    const apertar = (botao: number) => {
+      quadro([botao]);
+      quadro();
+    };
+    const { router } = montar();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    apertar(perfil.start);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Tema Aurora' }));
+    quadro([], [1, 0]);
+    quadro();
+    apertar(0);
+    expect(screen.getByRole('button', { name: 'Tema Obsidian' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    // Segurar navega mais de uma opção; confirmar continua sendo por borda.
+    quadro([], [1, 0]);
+    const primeiro = document.activeElement;
+    quadro([], [1, 0], 400);
+    expect(document.activeElement).not.toBe(primeiro);
+    quadro();
+    for (
+      let i = 0;
+      i < 20 && document.activeElement !== screen.getByRole('switch', { name: 'Animações' });
+      i++
+    ) {
+      quadro([], [0, 1]);
+      quadro();
+    }
+    expect(document.activeElement).toBe(screen.getByRole('switch', { name: 'Animações' }));
+    quadro([0], [0, 0], 800);
+    expect(screen.getByRole('switch', { name: 'Animações' }).getAttribute('aria-checked')).toBe(
+      'false',
+    );
+    quadro();
+    expect(router.state.location.pathname).toBe('/console');
+    apertar(1);
+    apertar(4);
+    expect(screen.getByRole('dialog', { name: 'Coleções' })).toBeTruthy();
+    quadro([], [0, 1]);
+    quadro();
+    apertar(0);
+    expect(screen.getByRole('heading', { name: 'Metroid Prime' })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    apertar(perfil.start);
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Tela cheia' }),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Sair do console' }),
+    ).toBeTruthy();
   });
 
   it('mantém edição física e instala o padrão de som nas preferências antigas', async () => {

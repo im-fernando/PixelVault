@@ -1,5 +1,9 @@
+import { perfilDoControle, traduzirControle } from '../player/input/gamepad-map.js';
+import { gamepadSolto } from '../player/input/snes-keymap.js';
+import { criarRepeticaoDoDirecional } from './teclado-do-console.js';
+import { moverFoco } from './foco-do-console.js';
 import { ArrowLeft, Gamepad2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function ConsoleGameStatus({
   titulo,
@@ -15,8 +19,45 @@ export function ConsoleGameStatus({
   tentar?: (() => void) | undefined;
 }) {
   const [capaFalhou, setCapaFalhou] = useState(false);
+  const raiz = useRef<HTMLDivElement>(null);
+  const acoes = useRef({ sair });
+  acoes.current = { sair };
+  useEffect(() => {
+    let anterior = gamepadSolto();
+    let armado = false;
+    const repetir = criarRepeticaoDoDirecional();
+    const intervalo = window.setInterval(() => {
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find((p) => p?.connected);
+      if (!pad || document.visibilityState === 'hidden') {
+        armado = false;
+        repetir(null, 0);
+        return;
+      }
+      const estado = traduzirControle(pad, perfilDoControle(pad));
+      // Não reaproveita o botão que iniciou o jogo na tela de carregamento.
+      if (!Object.values(estado).some(Boolean)) armado = true;
+      if (armado) {
+        const botoes = Array.from(
+          raiz.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
+        );
+        const direcao = repetir(
+          (['up', 'down', 'left', 'right'] as const).find((d) => estado[d]) ?? null,
+          performance.now(),
+        );
+        if (estado.a && !anterior.a) acoes.current.sair();
+        else if (direcao) moverFoco(botoes, direcao);
+        else if (estado.b && !anterior.b) {
+          const foco = document.activeElement;
+          if (foco instanceof HTMLButtonElement && botoes.includes(foco)) foco.click();
+          else botoes[0]?.focus();
+        }
+      }
+      anterior = estado;
+    }, 40);
+    return () => window.clearInterval(intervalo);
+  }, []);
   return (
-    <div className="cgp-loading" role={tentar ? 'alert' : 'status'}>
+    <div ref={raiz} className="cgp-loading" role={tentar ? 'alert' : 'status'}>
       <div className="cx-atmosphere" aria-hidden="true">
         <div />
         <i />
