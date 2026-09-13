@@ -7,7 +7,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # No main não se cancela: o run que o push do merge disparou é o que
+  # publica, e cancelar no meio pode ser no meio de uma migration.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   # Aponta para o serviço postgres do job. Só os testes de integração usam.
@@ -79,3 +81,126 @@ jobs:
 
       - name: Formatação
         run: pnpm format:check
+
+  # Publica sozinho a cada merge no main, e só depois do `verificar` passar:
+  # commit vermelho não chega em produção. Tudo num job só porque a ordem
+  # importa — API antes do frontend, para o frontend novo nunca falar com a
+  # API velha — e porque dois merges seguidos não podem intercalar a API de um
+  # com o front do outro.
+  publicar:
+    name: publicar em produção
+    needs: verificar
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: producao
+      cancel-in-progress: false
+    environment:
+      name: producao
+      url: https://pixelvault.nullpath.com.br
+    env:
+      VPS: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+      API_ORIGEM: https://pixelvault-api.nullpath.com.br
+
+    steps:
+      # Antes de tocar em produção: falta de credencial tem que reprovar aqui,
+      # não depois da API já ter subido e o frontend ter ficado para trás.
+      - name: Conferir credenciais
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          faltando=()
+          [ -n "$VERCEL_TOKEN" ] || faltando+=(VERCEL_TOKEN)
+          [ -n "$VPS_SSH_KEY" ] || faltando+=(VPS_SSH_KEY)
+          if [ ${#faltando[@]} -gt 0 ]; then
+            echo "::error::Faltam secrets: ${faltando[*]}. Ver docs/deploy.md."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - name: Abrir acesso à VPS
+        env:
+          CHAVE: ${{ secrets.VPS_SSH_KEY }}
+          HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          USUARIO: ${{ secrets.VPS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/deploy
+          # A chave do host vem de secret, e não de um ssh-keyscan na hora:
+          # aceitar o que o outro lado apresentar é confiar em quem atender.
+          printf '%s\n' "$HOST_KEY" > ~/.ssh/known_hosts
+          printf 'Host %s\n  User %s\n  IdentityFile ~/.ssh/deploy\n  IdentitiesOnly yes\n  BatchMode yes\n' "$HOST" "$USUARIO" > ~/.ssh/config
+          chmod 600 ~/.ssh/deploy ~/.ssh/config
+          ssh "$VPS" 'echo "VPS respondendo: $(hostname)"'
+
+      - name: Nomear a release
+        id: release
+        run: echo "tag=$(date -u +%Y%m%d)-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Enviar o código para a VPS
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          ssh "$VPS" "mkdir -p /opt/pixelvault/releases/$TAG"
+          # git archive leva só o que está versionado: nada de node_modules,
+          # de .env ou da biblioteca pessoal de ROMs.
+          git archive --format=tar HEAD | ssh "$VPS" "tar -x -C /opt/pixelvault/releases/$TAG && ln -sfn /opt/pixelvault/.env /opt/pixelvault/releases/$TAG/.env"
+
+      - name: Construir, migrar e publicar a API
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          # Grava em arquivo antes de executar. Com `bash -s`, o primeiro
+          # comando que lê stdin engole o resto do script e a publicação
+          # para no meio dizendo que deu certo.
+          ssh "$VPS" "cat > /tmp/publicar-na-oracle.sh && bash /tmp/publicar-na-oracle.sh '$TAG'" < scripts/deploy/publicar-na-oracle.sh | tee /tmp/publicacao.log
+          grep -q "PUBLICACAO-CONCLUIDA $TAG" /tmp/publicacao.log || {
+            echo "::error::A publicação não chegou ao fim."
+            exit 1
+          }
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      # O emulador não é versionado (ver .gitignore), então aqui ele é baixado
+      # e conferido por hash antes de entrar no pacote.
+      - name: Baixar o emulador
+        run: pnpm emulator:setup
+
+      - name: Refazer o vínculo com o projeto da Vercel
+        env:
+          ORG: ${{ secrets.VERCEL_ORG_ID }}
+          PROJETO: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          mkdir -p .vercel
+          printf '{"projectId":"%s","orgId":"%s","projectName":"pixelvault"}' "$PROJETO" "$ORG" > .vercel/project.json
+
+      - name: Montar o pacote do frontend
+        run: |
+          saida=$(PIXELVAULT_API_ORIGIN="$API_ORIGEM" node scripts/deploy/preparar-front.mjs)
+          echo "$saida"
+          pacote=$(printf '%s\n' "$saida" | sed -n 's/^Pacote de publicação: //p')
+          [ -d "$pacote" ] || { echo "::error::Não achei o pacote na saída do preparar-front."; exit 1; }
+          echo "PACOTE=$pacote" >> "$GITHUB_ENV"
+
+      - name: Publicar o frontend na Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@59 deploy --prebuilt --prod --yes --cwd "$PACOTE" --token "$VERCEL_TOKEN"
+
+      # Exercita produção de verdade pelos dois domínios, com uma conta
+      # temporária que ele mesmo apaga no fim.
+      - name: Verificar produção
+        run: node scripts/deploy/verificar-producao.mjs

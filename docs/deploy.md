@@ -86,18 +86,59 @@ Em atualizações, faça backup do PostgreSQL antes das migrations. Não use
 `down -v`: isso remove o volume persistente. Este primeiro deploy não
 configurou backup automático.
 
-## Futuro CI/CD
+## Publicação automática
 
-Ainda não há pipeline de publicação. A imagem foi construída na VPS usando
-`deploy/Dockerfile.api`. O Compose aceita `PIXELVAULT_IMAGE` (por exemplo,
-`ghcr.io/ORGANIZACAO/pixelvault-api`) e `PIXELVAULT_RELEASE` (tag do commit),
-permitindo depois construir/publicar pelo GitHub Actions e executar `pull`,
-migrations e `up -d --wait` na Oracle. Como a VPS é ARM64, a imagem do GHCR
-deve incluir `linux/arm64`.
+Todo merge no `main` publica sozinho, pelo job `publicar` do
+`.github/workflows/ci.yml`. Ele depende do job `verificar`, então commit que
+reprova no CI não chega em produção.
 
-O script `scripts/deploy/configurar-oracle.mjs` foi usado apenas no primeiro
-provisionamento: recusa sobrescrever o arquivo de segredos existente.
-`scripts/deploy/verificar-producao.mjs` exercita a API com uma conta temporária
-e a remove ao terminar. As credenciais R2 existentes são compartilhadas entre
-buckets; a rotação para uma credencial exclusiva do bucket PixelVault fica
-pendente.
+A ordem é API primeiro, frontend depois — para o frontend novo nunca falar com
+a API velha — e tudo num job só: dois merges seguidos não podem intercalar a
+API de um com o front do outro. O grupo de concorrência `producao` não cancela
+no meio, porque cancelar pode ser cancelar durante uma migration.
+
+Na API, `scripts/deploy/publicar-na-oracle.sh` roda na VPS e faz, em ordem:
+envio da release por `git archive` (só o que está versionado), build da imagem
+ARM64, backup do PostgreSQL, migrations, `up -d --wait` e conferência de saúde
+pela porta publicada. Se a subida ou a saúde falharem, ele volta para a release
+anterior e reprova o job. Se a migration falhar, ele para antes de trocar o
+container: a API antiga continua no ar e o banco fica no último estado bom.
+
+Ao final, a faxina guarda as 5 últimas releases, os 10 últimos backups e as 3
+últimas imagens. Tudo escopado em `pixelvault`: a VPS roda outros produtos em
+produção, e um comando Docker de escopo global ali derruba serviço de terceiro.
+
+O frontend é montado pelo `preparar-front.mjs` e publicado com
+`vercel deploy --prebuilt --prod`. Por fim, `verificar-producao.mjs` exercita
+produção pelos dois domínios com uma conta temporária, que ele mesmo apaga.
+
+### Segredos necessários
+
+| Secret                               | Para quê                                                                                                                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VPS_SSH_KEY`                        | Chave dedicada à publicação, só dela — a chave pessoal não vai para o GitHub. Revogar é tirar a linha `github-actions-pixelvault-deploy` do `authorized_keys` da VPS. |
+| `VPS_HOST_KEY`                       | Chave pública do host, fixada. Evita aceitar na hora o que o outro lado apresentar.                                                                                   |
+| `VPS_HOST`, `VPS_USER`               | Endereço e usuário da Oracle.                                                                                                                                         |
+| `VERCEL_TOKEN`                       | Token de publicação, criado em https://vercel.com/account/tokens.                                                                                                     |
+| `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | Vínculo com o projeto, já que `.vercel/` não é versionado.                                                                                                            |
+
+Para exigir aprovação manual antes de cada publicação, basta proteger o
+Environment `producao` com um reviewer em Settings › Environments; o job já
+está preso a ele e passa a esperar o OK sem mudar nenhuma linha de código.
+
+### Rollback à mão
+
+```sh
+cd /opt/pixelvault/releases/<RELEASE-ANTERIOR>
+PIXELVAULT_RELEASE=<RELEASE-ANTERIOR> docker compose --env-file /opt/pixelvault/.env -f deploy/compose.yml up -d --wait api
+ln -sfn /opt/pixelvault/releases/<RELEASE-ANTERIOR> /opt/pixelvault/current
+```
+
+Os backups ficam em `/opt/pixelvault/backups`, um por publicação, feitos antes
+das migrations. Restaurar schema é `zcat <backup> | docker exec -i
+pixelvault-postgres-1 psql -U pixelvault -d pixelvault`.
+
+O `configurar-oracle.mjs` continua sendo só do primeiro provisionamento: ele
+recusa sobrescrever o arquivo de segredos existente. As credenciais R2 ainda
+são compartilhadas entre buckets; a rotação para uma credencial exclusiva do
+bucket PixelVault continua pendente.
