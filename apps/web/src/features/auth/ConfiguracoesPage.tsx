@@ -78,12 +78,23 @@ export function ConfiguracoesPage() {
           <BotaoPilula
             pequena
             variante="secundaria"
+            aria-pressed={usuario.publicProfile}
             disabled={definirPerfilPublico.isPending}
             onClick={() => definirPerfilPublico.mutate(!usuario.publicProfile)}
           >
-            {usuario.publicProfile ? 'Desligar' : 'Ligar'}
+            {definirPerfilPublico.isPending
+              ? 'Salvando…'
+              : usuario.publicProfile
+                ? 'Desligar'
+                : 'Ligar'}
           </BotaoPilula>
         </div>
+        {definirPerfilPublico.isError && (
+          <p role="alert" className="mt-3 text-[13px] text-alert">
+            Não foi possível confirmar a alteração de visibilidade do perfil. Confira sua conexão e
+            tente novamente.
+          </p>
+        )}
       </Painel>
 
       <Painel className="mt-6 p-6">

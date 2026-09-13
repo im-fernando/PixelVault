@@ -67,6 +67,8 @@ export function IdentificarCapa({
 
       <input
         type="text"
+        aria-label="Nome do jogo"
+        disabled={identificar.isPending}
         value={termo}
         onChange={(evento) => {
           setTermo(evento.target.value);
@@ -85,7 +87,9 @@ export function IdentificarCapa({
           <ListaDeCandidatas
             termo={termo}
             candidatas={candidatas.data}
-            carregando={candidatas.isFetching}
+            carregando={termo !== termoParaBuscar || candidatas.isFetching}
+            erro={candidatas.isError}
+            tentar={() => void candidatas.refetch()}
             aoEscolher={escolher}
             escolhendo={identificar.isPending}
           />
@@ -132,12 +136,16 @@ function ListaDeCandidatas({
   termo,
   candidatas,
   carregando,
+  erro,
+  tentar,
   escolhendo,
   aoEscolher,
 }: {
   readonly termo: string;
   readonly candidatas: readonly CapaCandidata[] | undefined;
   readonly carregando: boolean;
+  readonly erro: boolean;
+  readonly tentar: () => void;
   readonly escolhendo: boolean;
   readonly aoEscolher: (candidata: CapaCandidata) => void;
 }) {
@@ -149,6 +157,19 @@ function ListaDeCandidatas({
 
   if (carregando) {
     return <p className="mt-4 text-[12.5px] text-ink-700">Procurando…</p>;
+  }
+
+  if (erro) {
+    return (
+      <div className="mt-4" role="alert">
+        <p className="text-[13px] text-alert">
+          Não foi possível buscar sugestões. Tente novamente.
+        </p>
+        <BotaoPilula pequena variante="secundaria" onClick={tentar}>
+          Tentar novamente
+        </BotaoPilula>
+      </div>
+    );
   }
 
   if (candidatas === undefined || candidatas.length === 0) {

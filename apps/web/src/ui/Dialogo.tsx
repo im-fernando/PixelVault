@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { BotaoIcone } from './Botao.js';
 
 /**
@@ -25,20 +25,45 @@ export function Dialogo({
   readonly children: ReactNode;
 }) {
   const painel = useRef<HTMLElement>(null);
-  const idDoTitulo = `dialogo-${titulo.replace(/\W+/g, '-').toLowerCase()}`;
+  const idDoTitulo = useId();
+  const fecharAtual = useRef(fechar);
+  fecharAtual.current = fechar;
 
   useEffect(() => {
     const anterior = document.activeElement as HTMLElement | null;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     (painel.current?.querySelector<HTMLElement>('[data-autofocus]') ?? painel.current)?.focus();
     function aoTeclar(evento: KeyboardEvent): void {
-      if (evento.key === 'Escape') fechar();
+      if (evento.key === 'Escape') {
+        evento.preventDefault();
+        fecharAtual.current();
+      }
+      if (evento.key !== 'Tab') return;
+      const elementos = Array.from(
+        painel.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+        ) ?? [],
+      ).filter((el) => !el.closest('[hidden], [inert]') && el.tabIndex >= 0);
+      const primeiro = elementos[0];
+      const ultimo = elementos.at(-1);
+      const fora = !elementos.includes(document.activeElement as HTMLElement);
+      if (
+        !primeiro ||
+        fora ||
+        (evento.shiftKey ? document.activeElement === primeiro : document.activeElement === ultimo)
+      ) {
+        evento.preventDefault();
+        (evento.shiftKey ? ultimo : primeiro)?.focus();
+      }
     }
     document.addEventListener('keydown', aoTeclar);
     return () => {
+      document.body.style.overflow = overflowAnterior;
       document.removeEventListener('keydown', aoTeclar);
       if (anterior?.isConnected) anterior.focus();
     };
-  }, [fechar]);
+  }, []);
 
   return (
     <div className="pv-sobreposicao">
