@@ -1002,7 +1002,7 @@
 [data-console-theme='solstice'] .cx-main-nav button {
   padding: 8px 20px;
   font-size: 12px;
-  border-radius: 35px;
+  border-radius: 3px;
 }
 [data-console-theme='solstice'] .cx-main-nav .is-active {
   background: var(--cs-raised, #fff);
@@ -1424,13 +1424,14 @@
 }
 .cx-dialog {
   position: relative;
-  width: min(650px, 100%);
+  width: min(880px, 100%);
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 30px;
-  border: 1px solid var(--cx-line);
-  border-radius: 24px;
+  padding: clamp(24px, 4vw, 56px);
+  border-block: 1px solid var(--cx-line);
+  border-inline: 0;
+  border-radius: 0;
   background: var(--cx-panel);
   box-shadow: 0 35px 150px #0008;
   outline: none;
@@ -1439,13 +1440,15 @@
   scrollbar-color: var(--cx-muted) transparent;
 }
 .cx-dialog-wide {
-  width: min(1000px, 100%);
+  width: min(1200px, 100%);
 }
 .cx-dialog-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--cx-line);
 }
 .cx-dialog-header h2 {
   font:
@@ -1467,8 +1470,8 @@
 .cx-theme-choice {
   overflow: hidden;
   padding: 0 0 16px;
-  border: 1px solid var(--cx-line);
-  border-radius: 13px;
+  border: 1px solid transparent;
+  border-radius: 3px;
   background: #ffffff03;
   text-align: left;
   transition:
@@ -1524,7 +1527,7 @@
 .cx-theme-mini {
   position: relative;
   display: block;
-  aspect-ratio: 1.25;
+  aspect-ratio: 1.8;
   overflow: hidden;
   border-bottom: 1px solid #ffffff17;
   background: #111b34;
@@ -1855,10 +1858,8 @@
   justify-content: space-between;
   gap: 18px;
   margin-top: 24px;
-  padding: 20px;
-  border: 1px solid var(--cx-line);
-  border-radius: 18px;
-  background: radial-gradient(ellipse at 0 0, #d9a36112, transparent 75%);
+  padding: 20px 16px;
+  border-block: 1px solid var(--cx-line);
 }
 .cx-solstice-appearance .cx-overline {
   color: var(--cx-accent);
@@ -1879,7 +1880,7 @@
   gap: 5px;
   padding: 5px;
   border: 1px solid var(--cx-line);
-  border-radius: 35px;
+  border-radius: 3px;
   background: var(--cx-bg);
 }
 .cx-color-modes button {
@@ -1890,7 +1891,7 @@
   min-height: 42px;
   padding: 9px 18px;
   border: 1px solid transparent;
-  border-radius: 30px;
+  border-radius: 3px;
   background: transparent;
   color: var(--cx-muted);
   font-size: 12px;
@@ -1903,9 +1904,9 @@
 }
 .cx-preferences {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 25px;
-  margin-top: 25px;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 16px;
   border-top: 1px solid var(--cx-line);
 }
 .cx-preference {
@@ -1913,44 +1914,60 @@
   align-items: center;
   justify-content: space-between;
   gap: 15px;
-  padding: 20px 0;
+  min-height: 76px;
+  padding: 16px;
   border: 0;
+  border-bottom: 1px solid var(--cx-line);
   background: none;
   text-align: left;
 }
 .cx-preference b {
   display: block;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 .cx-preference small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--cx-muted);
   margin-top: 3px;
 }
-.cx-switch {
-  width: 36px;
-  height: 22px;
-  padding: 3px;
-  border-radius: 20px;
-  background: var(--cx-line);
+/* Estados legíveis à distância, com a mesma seleção dos menus de sistema. */
+.cx-setting-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 142px;
   flex-shrink: 0;
+  color: var(--cx-muted);
+  font-size: 14px;
 }
-.cx-switch i {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: var(--cx-muted);
-  border-radius: 50%;
-  transition: transform 0.2s;
+[aria-checked='true'] > .cx-setting-value {
+  color: var(--cx-accent);
 }
-[aria-checked='true'] > .cx-switch {
-  background: var(--cx-accent);
+.cx-system-menu {
+  display: grid;
+  margin: 16px 0 24px;
 }
-[aria-checked='true'] > .cx-switch > i {
-  background: var(--cx-bg);
-  transform: translateX(14px);
+.cx-system-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--cx-line);
+  background: transparent;
+  text-align: left;
+}
+.cx-dialog :is(.cx-preference, .cx-system-menu button, .cx-collections button):is(:hover, :focus) {
+  background: color-mix(in srgb, var(--cx-accent) 12%, transparent);
+  box-shadow: inset 3px 0 var(--cx-accent);
+}
+.cx-dialog button {
+  scroll-margin-block: 24px;
 }
 .cx-dialog-footer {
   display: flex;
@@ -1975,7 +1992,7 @@
   padding: 11px 16px;
   border: 1px solid var(--cx-line);
   background: var(--cx-line);
-  border-radius: 30px;
+  border-radius: 3px;
   font-size: 12px !important;
 }
 .cx-collections {
@@ -1989,9 +2006,9 @@
   padding: 17px;
   background: #ffffff04;
   border: 1px solid var(--cx-line);
-  border-radius: 10px;
+  border-radius: 2px;
   text-align: left;
-  font-size: 12px;
+  font-size: 16px;
 }
 .cx-collections button > span {
   flex: 1;
@@ -2007,7 +2024,7 @@
   padding: 15px;
   margin: 25px 0 10px;
   border: 1px solid var(--cx-line);
-  border-radius: 12px;
+  border-radius: 2px;
   background: #ffffff06;
 }
 .cx-search-input input {
@@ -2043,8 +2060,8 @@
   display: grid;
   place-items: center;
   flex: 1;
-  max-width: 55px;
-  height: 42px;
+  max-width: 72px;
+  height: 52px;
   border: 1px solid var(--cx-line);
   border-radius: 6px;
   background: #ffffff08;
@@ -2619,7 +2636,7 @@
   .cx-dialog {
     max-height: calc(100dvh - 24px);
     padding: 22px 18px;
-    border-radius: 20px;
+    border-radius: 0;
   }
   .cx-dialog-header h2 {
     font-size: 26px;
@@ -2671,7 +2688,11 @@
     margin-top: 20px;
   }
   .cx-preference {
-    padding: 15px 0;
+    padding: 15px 8px;
+    flex-wrap: wrap;
+  }
+  .cx-setting-value {
+    margin-left: auto;
   }
   .cx-dialog-footer {
     flex-direction: column;
@@ -2681,7 +2702,7 @@
   .cx-dialog-footer > span {
     font-size: 9px;
   }
-  .cx-dialog-return {
+  .cx-dialog-footer .cx-dialog-return {
     width: 100%;
   }
   .cx-keyboard {

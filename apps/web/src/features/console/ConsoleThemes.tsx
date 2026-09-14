@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { ArrowUpRight, ChevronLeft, ChevronRight, Gamepad2, Heart, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Gamepad2, Heart, Play } from 'lucide-react';
 import { matizDoJogo, type ItemDoConsole, type TemaConsole } from './temas.js';
 
 export type PropsDoTema = {
@@ -149,7 +149,7 @@ function Aurora(props: PropsDoTema) {
       <section className="cx-aurora-library" aria-label="Biblioteca">
         <div className="cx-section-line">
           <span>{props.colecao}</span>
-          <span>{props.total} jogos para explorar</span>
+          <span>{props.total} jogos</span>
         </div>
         <Trilho {...props} />
       </section>
@@ -161,12 +161,12 @@ function Aurora(props: PropsDoTema) {
           <div className="cx-aurora-case" key={props.selecionado.id}>
             <Capa jogo={props.selecionado} />
           </div>
-          <span className="cx-orbit-caption">UM NOVO UNIVERSO. A CADA PLAY.</span>
+          <span className="cx-orbit-caption">JOGO SELECIONADO</span>
         </div>
       </section>
       <div className="cx-scene-bottom">
         <span>
-          AURORA <i /> Entre no seu universo.
+          AURORA <i /> Biblioteca
         </span>
         <Paginacao {...props} />
       </div>
@@ -180,7 +180,7 @@ function Obsidian(props: PropsDoTema) {
     <main className="cx-obsidian-layout" data-console-layout="obsidian">
       <aside className="cx-obsidian-library" aria-label="Biblioteca">
         <p className="cx-overline">SUA COLEÇÃO / {String(props.total).padStart(2, '0')}</p>
-        <h2>Em cena.</h2>
+        <h2>{props.colecao}</h2>
         <div className="cx-obsidian-list">
           {props.jogos.map((jogo, index) => (
             <button
@@ -202,13 +202,13 @@ function Obsidian(props: PropsDoTema) {
                 <b>{jogo.titulo}</b>
                 <small>{jogo.sistema ?? 'Biblioteca'}</small>
               </span>
-              <ArrowUpRight size={16} />
+              <ChevronRight size={16} />
             </button>
           ))}
         </div>
         <div className="cx-obsidian-library-bottom">
           <span>OBSIDIAN</span>
-          <span>O próximo ato é seu.</span>
+          <span>Biblioteca</span>
         </div>
       </aside>
       <section className="cx-obsidian-stage" aria-label="Jogo selecionado">
@@ -216,7 +216,7 @@ function Obsidian(props: PropsDoTema) {
           <Capa jogo={props.selecionado} />
         </div>
         <div className="cx-obsidian-topline">
-          <span>AGORA EM DESTAQUE</span>
+          <span>JOGO SELECIONADO</span>
           <span>{props.selecionado.sistema ?? 'PIXELVAULT'}</span>
         </div>
         <span className="cx-cinema-number" aria-hidden="true">
@@ -224,7 +224,7 @@ function Obsidian(props: PropsDoTema) {
         </span>
         <Informacoes {...props} />
         <div className="cx-obsidian-bottom">
-          <span>SEUS JOGOS. EM PRIMEIRO PLANO.</span>
+          <span>BIBLIOTECA</span>
           <Paginacao {...props} />
         </div>
       </section>
@@ -239,7 +239,7 @@ function Solstice(props: PropsDoTema) {
       <div className="cx-solstice-heading">
         <span className="cx-overline">SOLSTICE / SUA BIBLIOTECA</span>
         <h2>Hora de jogar.</h2>
-        <p>Escolha um mundo. Fique à vontade.</p>
+        <p>{props.colecao}</p>
       </div>
       <section className="cx-solstice-stage" aria-label="Jogos da coleção">
         <div className="cx-solstice-sun" aria-hidden="true" />

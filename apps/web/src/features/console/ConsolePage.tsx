@@ -404,7 +404,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
               p<span>v</span>
             </span>
             <span>
-              PIXELVAULT<small>PLAY YOUR WAY</small>
+              PIXELVAULT<small>MODO CONSOLE</small>
             </span>
           </div>
           <nav className="cx-main-nav" aria-label="Modo console">
@@ -537,7 +537,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
               <kbd>{controleConectado ? rotulos.y : 'F'}</kbd>Favorito
             </span>
             <button type="button" onClick={() => setPainel('settings')}>
-              <kbd>{controleConectado ? rotulos.start : 'F2'}</kbd>Temas
+              <kbd>{controleConectado ? rotulos.start : 'F2'}</kbd>Sistema
             </button>
           </div>
           <button type="button" className="cx-exit" onClick={() => void navigate({ to: '/' })}>
