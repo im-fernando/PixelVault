@@ -74,7 +74,9 @@ jobs:
         run: pnpm turbo run typecheck
 
       - name: Testes
-        run: pnpm turbo run test
+        run: |
+          node --test scripts/deploy/*.test.mjs
+          pnpm turbo run test
 
       - name: Build
         run: pnpm turbo run build

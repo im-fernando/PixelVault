@@ -14,7 +14,7 @@ import { useCapaAutomatica } from './use-capa-automatica.js';
  * moldura quadrada que o console já usa. Ver docs/design.md e a ADR 0024.
  *
  * As ações (jogar, favoritar, ranking, remover) chegam prontas por `acoes` e
- * aparecem junto dos metadados em um painel sobre a capa ao passar o mouse ou dar foco. O
+ * aparecem junto dos metadados em um painel abaixo da capa ao passar o mouse ou dar foco. O
  * cartucho não sabe o que se faz com ele; quem sabe é a prateleira que o
  * desenhou. Quem quer o cartucho INTEIRO como link usa `MioloDoCartucho`
  * dentro de um `<Link className="pv-cartucho">` — um `<a>` por cima de uma
@@ -61,23 +61,15 @@ export function MioloDoCartucho({
         <Heart className="pv-cartucho-favorito" size={14} fill="currentColor" aria-hidden="true" />
       )}
       <Arte titulo={titulo} sistema={systemId} capaUrl={capa} />
-      <div className="pv-cartucho-legenda">
-        <span className="pv-cartucho-titulo" title={titulo}>
-          {titulo}
-        </span>
-        <span className="pv-cartucho-nota">{nota ?? numeroDeAcervo(titulo, systemId)}</span>
-      </div>
-      {acoes !== undefined && (
-        <div className="pv-cartucho-painel">
-          <div className="pv-cartucho-resumo">
-            <span className="pv-cartucho-titulo" title={titulo}>
-              {titulo}
-            </span>
-            <span className="pv-cartucho-nota">{nota ?? numeroDeAcervo(titulo, systemId)}</span>
-          </div>
-          <div className="pv-cartucho-acoes">{acoes}</div>
+      <div className={acoes === undefined ? 'pv-cartucho-legenda' : 'pv-cartucho-painel'}>
+        <div className={acoes === undefined ? undefined : 'pv-cartucho-resumo'}>
+          <span className="pv-cartucho-titulo" title={titulo}>
+            {titulo}
+          </span>
+          <span className="pv-cartucho-nota">{nota ?? numeroDeAcervo(titulo, systemId)}</span>
         </div>
-      )}
+        {acoes !== undefined && <div className="pv-cartucho-acoes">{acoes}</div>}
+      </div>
     </>
   );
 }

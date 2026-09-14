@@ -31,7 +31,7 @@ import { useBiblioteca, useFavoritarRom, useRemoverRom } from './use-biblioteca.
  *
  * ## O que o cartucho faz
  *
- * O painel que aparece sobre a capa tem as quatro ações que ele aceita:
+ * O painel que aparece abaixo da capa tem as quatro ações que ele aceita:
  * "Jogar" leva a `/biblioteca/:romId` (#99), o coração favorita, o troféu
  * abre o ranking (#122, só para ROM reconhecida no catálogo) e a lixeira
  * pede confirmação antes de tirar do acervo.
