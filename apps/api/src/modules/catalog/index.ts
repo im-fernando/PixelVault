@@ -19,3 +19,8 @@ export { catalogRoutes } from './http/routes.js';
 export { descreverJogos } from './application/descrever-jogos.js';
 export { identificarRomPorHash } from './application/identificar-rom.js';
 export type { FichaDeJogo, GameRepository, RomDoCatalogo } from './domain/game-repository.js';
+
+export {
+  procurarCapaPorSistema,
+  procurarCapasCandidatasPorSistema,
+} from './application/capas-por-sistema.js';

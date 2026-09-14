@@ -57,6 +57,9 @@ function armazenamentoFalso(): ArmazenamentoFalso {
 
 function repositorioFalso(uso: UsoDaBiblioteca): UserRomRepository {
   return {
+    definirCapa: async () => {
+      throw new Error('envio não altera capa');
+    },
     buscarPorHash: async () => null,
     registrar: async () => {
       throw new Error('a autorização de envio não registra nada');
@@ -152,6 +155,9 @@ describe('solicitarEnvioDeRom, do lado da cota', () => {
     // dela — e ainda por cima mandá-la enviar de novo o que não precisa.
     const armazenamento = armazenamentoFalso();
     const roms: UserRomRepository = {
+      definirCapa: async () => {
+        throw new Error('envio não altera capa');
+      },
       buscarPorHash: async () => ({ id: 'rom-1', sha256: 'a'.repeat(64) }),
       registrar: async () => {
         throw new Error('não deveria registrar');

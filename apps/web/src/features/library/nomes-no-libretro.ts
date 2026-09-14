@@ -62,14 +62,25 @@ function nomeDeArquivoNoLibretro(nome: string): string {
  * Devolve lista vazia para título em branco: não faz sentido pedir
  * `/Named_Boxarts/.png` ao servidor.
  */
-export function urlsCandidatasDeLombada(titulo: string, systemId: SystemId): string[] {
+export function urlsCandidatasDeLombada(
+  titulo: string,
+  systemId: SystemId,
+  fileName?: string,
+): string[] {
   const tituloLimpo = titulo.trim();
   if (tituloLimpo.length === 0) return [];
 
   const playlist = PLAYLIST_POR_SISTEMA[systemId];
 
-  return REGIOES.map((regiao) => {
-    const arquivo = nomeDeArquivoNoLibretro(`${tituloLimpo}${regiao}`);
+  const original = fileName?.replace(/\.[^.]+$/, '').trim();
+  const nomes = [
+    ...new Set([
+      ...(original ? [original] : []),
+      ...REGIOES.map((regiao) => `${tituloLimpo}${regiao}`),
+    ]),
+  ];
+  return nomes.map((nome) => {
+    const arquivo = nomeDeArquivoNoLibretro(nome);
     return `${BASE_URL}/${encodeURIComponent(playlist)}/Named_Boxarts/${encodeURIComponent(arquivo)}.png`;
   });
 }

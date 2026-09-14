@@ -11,6 +11,9 @@ import type {
 } from '../domain/user-rom-repository.js';
 
 export const prismaUserRomRepository: UserRomRepository = {
+  async definirCapa(romId, coverUrl) {
+    await prisma.userRom.updateMany({ where: { id: romId }, data: { coverUrl } });
+  },
   async buscarPorHash(userId: string, sha256: string): Promise<RomDoUsuario | null> {
     // `@@unique([userId, sha256])` existe desde a M0, então isto é um acerto
     // de índice, não uma varredura. O `select` é explícito: a chave do objeto
@@ -94,6 +97,7 @@ export const prismaUserRomRepository: UserRomRepository = {
         fileName: true,
         isFavorite: true,
         uploadedAt: true,
+        coverUrl: true,
       },
       // Favorito na frente, e dentro de cada grupo o mais recente primeiro: é
       // a ordem da estante, e ela sai daqui para não ser reinventada por cada

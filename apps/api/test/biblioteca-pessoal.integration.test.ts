@@ -1,5 +1,6 @@
+import * as catalogo from '../src/modules/catalog/index.js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pixelvault/database';
 import type {
@@ -429,3 +430,71 @@ describe('DELETE /api/library/roms/:romId', () => {
     expect(resposta.json()).toMatchObject({ code: 'VALIDATION_FAILED' });
   }, 60_000);
 });
+
+it('pesquisa e persiste capa privada de PS1 sem reconhecer o hash, isolando contas', async () => {
+  const cookie = await logar(dona);
+  const cookieAlheio = await logar(outra);
+  const sha256 = createHash('sha256').update(randomBytes(32)).digest('hex');
+  const title = 'Resident Evil 2 - Dual Shock Ver. (USA) (Disc 1)';
+  const coverUrl = `https://thumbnails.libretro.com/Sony%20-%20PlayStation/Named_Boxarts/${encodeURIComponent(title)}.png`;
+  const base = { sha256, fileName: `${title}.chd`, storageKey: `roms/${sha256}`, sizeBytes: 1000 };
+  const rom = await prisma.userRom.create({
+    data: { ...base, userId: identificadores.get(dona.email)! },
+  });
+  const alheia = await prisma.userRom.create({
+    data: { ...base, userId: identificadores.get(outra.email)! },
+  });
+  const buscar = vi.spyOn(catalogo, 'procurarCapaPorSistema').mockResolvedValue(coverUrl);
+  const candidatas = vi
+    .spyOn(catalogo, 'procurarCapasCandidatasPorSistema')
+    .mockResolvedValue([{ title, coverUrl }]);
+  try {
+    // As rotas já foram montadas no beforeEach; refaz para injetar apenas o provedor falso.
+    await app.close();
+    app = await buildApp(configDeTeste);
+    for (const method of ['GET', 'POST'] as const) {
+      const requisicao = (id: string, sessao?: string) =>
+        app.inject({
+          method,
+          url: `/api/library/roms/${id}/cover${method === 'GET' ? '/search?q=Resident' : ''}`,
+          ...(method === 'POST' ? { payload: { title } } : {}),
+          ...comCookie(sessao),
+        });
+      expect((await requisicao(rom.id)).statusCode).toBe(401);
+      const proibida = await requisicao(rom.id, cookieAlheio);
+      const inexistente = await requisicao(randomUUID(), cookieAlheio);
+      expect(proibida.statusCode).toBe(404);
+      expect(corpoSemRastro(proibida)).toEqual(corpoSemRastro(inexistente));
+      expect(buscar).not.toHaveBeenCalled();
+      const sucesso = await requisicao(rom.id, cookie);
+      expect(sucesso.statusCode).toBe(200);
+      expect(sucesso.json()).toEqual(
+        method === 'GET'
+          ? { candidatas: [{ title, coverUrl }] }
+          : { status: 'encontrada', coverUrl },
+      );
+    }
+    expect(candidatas).toHaveBeenCalledExactlyOnceWith('ps1', 'Resident');
+    expect(buscar).toHaveBeenCalledExactlyOnceWith('ps1', title);
+    expect((await listar(cookie)).find((item) => item.id === rom.id)).toMatchObject({
+      coverUrl,
+      gameId: null,
+      systemId: 'ps1',
+    });
+    expect(
+      (await prisma.userRom.findUniqueOrThrow({ where: { id: alheia.id } })).coverUrl,
+    ).toBeNull();
+    buscar.mockResolvedValue(null);
+    const semCapa = await app.inject({
+      method: 'POST',
+      url: `/api/library/roms/${rom.id}/cover`,
+      payload: { title: 'inexistente' },
+      ...comCookie(cookie),
+    });
+    expect(semCapa.json()).toEqual({ status: 'nao-encontrada' });
+    expect((await listar(cookie)).find((item) => item.id === rom.id)?.coverUrl).toBe(coverUrl);
+  } finally {
+    buscar.mockRestore();
+    candidatas.mockRestore();
+  }
+}, 60000);

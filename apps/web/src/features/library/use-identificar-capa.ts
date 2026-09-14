@@ -6,7 +6,7 @@ import { CHAVE_DA_BIBLIOTECA } from './use-biblioteca.js';
 /**
  * O botão "Identificar" da estante: a pessoa digita o nome exato do dump, e o
  * servidor tenta esse nome contra o provedor de capa (`POST
- * /api/games/:gameId/cover`) — cobre o caso que a busca automática não
+ * /api/library/roms/:romId/cover`) — cobre o caso que a busca automática não
  * cobre (região e idioma juntos no nome do arquivo, por exemplo).
  *
  * Invalida a biblioteca no sucesso: é a mesma consulta que `MinhaBiblioteca`
@@ -17,13 +17,13 @@ export function useIdentificarCapa() {
 
   return useMutation({
     mutationFn: ({
-      gameId,
+      romId,
       title,
     }: {
-      readonly gameId: string;
+      readonly romId: string;
       readonly title: string;
     }): Promise<IdentificarCapaResponse> =>
-      apiFetch(`/api/games/${gameId}/cover`, identificarCapaResponseSchema, {
+      apiFetch(`/api/library/roms/${romId}/cover`, identificarCapaResponseSchema, {
         method: 'POST',
         body: JSON.stringify({ title }),
       }),

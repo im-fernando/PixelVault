@@ -195,6 +195,8 @@ model UserRom {
   storageKey String   @map("storage_key")
   sizeBytes  Int      @map("size_bytes")
   fileName   String   @map("file_name")
+  /// Capa escolhida na biblioteca, independente do reconhecimento no catálogo.
+  coverUrl   String?  @map("cover_url")
   /// Favorito é do CARTUCHO na estante, não do jogo do catálogo, e por isso
   /// a coluna mora aqui — a de `user_games` foi removida na #75 em vez de
   /// conviver com esta. O motivo é o BYOR: `game_id` nulo é o caso comum

@@ -40,6 +40,7 @@ export interface OpcoesDaBuscaPorNome {
 interface EntradaDaArvore {
   path: string;
   type: string;
+  sha?: string;
 }
 
 interface RespostaDaArvore {
@@ -82,14 +83,32 @@ export function criarBuscaDeCapaPorNomeNoLibretro(
 
     try {
       const resposta = await buscarHttp(
-        `${BASE_DA_API}/${repositorio}/git/trees/master?recursive=1`,
+        `${BASE_DA_API}/${repositorio}/git/trees/master${systemId === 'ps1' ? '' : '?recursive=1'}`,
         { signal: controlador.signal },
       );
       if (!resposta.ok) {
         throw new Error(`GitHub respondeu ${resposta.status} para ${repositorio}`);
       }
 
-      const corpo = (await resposta.json()) as RespostaDaArvore;
+      let corpo = (await resposta.json()) as RespostaDaArvore;
+      // A árvore recursiva inteira de PS1 pode falhar no GitHub pelo tamanho.
+      // Buscamos só a pasta de capas; títulos e screenshots não participam.
+      if (systemId === 'ps1') {
+        const pasta = corpo.tree.find(
+          (item) => item.path === 'Named_Boxarts' && item.type === 'tree',
+        );
+        if (!pasta?.sha || !/^[a-f0-9]{40}$/.test(pasta.sha))
+          throw new Error('Pasta de capas não encontrada');
+        const imagens = await buscarHttp(`${BASE_DA_API}/${repositorio}/git/trees/${pasta.sha}`, {
+          signal: controlador.signal,
+        });
+        if (!imagens.ok) throw new Error(`GitHub respondeu ${imagens.status} para ${repositorio}`);
+        const arvore = (await imagens.json()) as RespostaDaArvore;
+        corpo = {
+          ...arvore,
+          tree: arvore.tree.map((item) => ({ ...item, path: `Named_Boxarts/${item.path}` })),
+        };
+      }
       // `truncated` só aconteceria acima de 100 000 entradas ou 7 MB de
       // resposta — nenhum sistema suportado chega perto disso hoje —, mas
       // ignorá-lo em silêncio devolveria uma lista incompleta sem avisar.
