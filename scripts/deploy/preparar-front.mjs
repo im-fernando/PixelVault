@@ -21,7 +21,7 @@ execFileSync('pnpm', ['--filter', '@pixelvault/web...', 'build'], {
 });
 await mkdir(estaticos, { recursive: true });
 // Publicação por lista explícita: nunca copia .env, fontes ou ROMs pessoais.
-for (const entrada of ['index.html', 'assets', 'emulator', 'roms']) {
+for (const entrada of ['index.html', 'favicon.svg', 'assets', 'emulator', 'roms']) {
   await cp(resolve(raiz, 'apps/web/dist', entrada), join(estaticos, entrada), { recursive: true });
 }
 await cp(resolve(raiz, '.vercel/project.json'), join(destino, '.vercel/project.json'));
