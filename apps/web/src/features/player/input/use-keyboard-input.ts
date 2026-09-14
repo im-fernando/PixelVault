@@ -1,8 +1,10 @@
+import { MAPA_DE_TECLADO_PS1, MAPA_PADRAO_DE_TECLADO } from '@pixelvault/emulator-runtime';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { EntradaDeTeclado } from './keyboard-input.js';
 import type { EstadoDoGamepad } from './snes-keymap.js';
 
 export interface OpcoesDoTeclado {
+  readonly ps1?: boolean;
   /** Elemento focável que representa o console. Sem foco nele, o teclado é do site. */
   readonly alvo: RefObject<HTMLElement | null>;
   /** Controle ligado. Falso com o jogo pausado ou a aba oculta. */
@@ -21,7 +23,13 @@ export interface OpcoesDoTeclado {
  * o que estava pressionado — senão o personagem continua correndo enquanto a
  * pessoa usa o Tab para chegar no botão de salvar.
  */
-export function useKeyboardInput({ alvo, ativo, aoMudar, atalhos }: OpcoesDoTeclado): void {
+export function useKeyboardInput({
+  alvo,
+  ativo,
+  aoMudar,
+  atalhos,
+  ps1 = false,
+}: OpcoesDoTeclado): void {
   const aoMudarRef = useRef(aoMudar);
   aoMudarRef.current = aoMudar;
 
@@ -29,8 +37,12 @@ export function useKeyboardInput({ alvo, ativo, aoMudar, atalhos }: OpcoesDoTecl
   atalhosRef.current = atalhos ?? {};
 
   const entrada = useMemo(
-    () => new EntradaDeTeclado({ aoMudar: (estado) => aoMudarRef.current(estado) }),
-    [],
+    () =>
+      new EntradaDeTeclado({
+        mapa: ps1 ? MAPA_DE_TECLADO_PS1 : MAPA_PADRAO_DE_TECLADO,
+        aoMudar: (estado) => aoMudarRef.current(estado),
+      }),
+    [ps1],
   );
 
   useEffect(() => {

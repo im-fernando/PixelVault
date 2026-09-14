@@ -11,7 +11,11 @@ import { RomRecusada } from '../domain/erros.js';
 import type { AvisarPrimeiraRomEnviada } from '../domain/eventos-de-gamificacao.js';
 import { caminhoNaQuarentena } from '../domain/quarentena.js';
 import type { UserRomRepository } from '../domain/user-rom-repository.js';
-import { verificarRom, type RomVerificada } from '../domain/verificacao-de-rom.js';
+import {
+  verificarRom,
+  verificarRomEmPartes,
+  type RomVerificada,
+} from '../domain/verificacao-de-rom.js';
 
 export interface DependenciasDaConfirmacao {
   armazenamento: ArmazenamentoDeObjetos;
@@ -136,9 +140,10 @@ async function verificarOuLimpar(
   quarentena: string,
   fileName: string,
 ): Promise<RomVerificada> {
-  const bytes = await armazenamento.ler(quarentena);
-
   try {
+    if (armazenamento.lerEmPartes)
+      return await verificarRomEmPartes(await armazenamento.lerEmPartes(quarentena), fileName);
+    const bytes = await armazenamento.ler(quarentena);
     return verificarRom(bytes, fileName);
   } catch (erro) {
     if (!(erro instanceof RomRecusada)) throw erro;

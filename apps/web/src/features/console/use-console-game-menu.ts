@@ -29,6 +29,7 @@ function mover(direcao: 'left' | 'right' | 'up' | 'down') {
 
 export function useConsoleGameMenu({
   ativo,
+  ps1 = false,
   disponivel,
   bloqueado,
   impedirRetomada,
@@ -37,6 +38,7 @@ export function useConsoleGameMenu({
   palco,
 }: {
   ativo: boolean;
+  ps1?: boolean;
   disponivel: boolean;
   bloqueado: boolean;
   impedirRetomada: boolean;
@@ -96,6 +98,7 @@ export function useConsoleGameMenu({
     if (!ativo) return;
     const teclado = (evento: KeyboardEvent) => {
       if (evento.altKey || evento.ctrlKey || evento.metaKey) return;
+      if (!abertoRef.current && !atual.current.disponivel) return;
       if (evento.key === 'Escape') {
         evento.preventDefault();
         evento.stopImmediatePropagation();
@@ -146,10 +149,11 @@ export function useConsoleGameMenu({
         )
           concluirRetomada();
         if (pad) {
-          if (perfil?.id !== pad.id || perfil.index !== pad.index) perfil = perfilDoControle(pad);
+          if (perfil?.id !== pad.id || perfil.index !== pad.index)
+            perfil = perfilDoControle(pad, ps1);
           const estado = traduzirControle(pad, perfil);
-          const l1 = estado.l;
-          const r1 = estado.r;
+          const l1 = ps1 ? estado.select : estado.l;
+          const r1 = ps1 ? estado.start : estado.r;
           const direcao = repetir(
             abertoRef.current && !retomarPendente.current && !atual.current.bloqueado
               ? ((['left', 'right', 'up', 'down'] as const).find((dir) => estado[dir]) ?? null)
@@ -192,6 +196,6 @@ export function useConsoleGameMenu({
       window.cancelAnimationFrame(quadro);
       window.removeEventListener('keydown', teclado, true);
     };
-  }, [ativo, abrir, fechar, concluirRetomada, tocar]);
+  }, [ativo, abrir, fechar, concluirRetomada, tocar, ps1]);
   return { aberto, abrir, fechar };
 }

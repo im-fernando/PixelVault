@@ -4,6 +4,7 @@ import type { PerfilDoControle } from './gamepad-map.js';
 import type { EstadoDoGamepad } from './snes-keymap.js';
 
 export interface OpcoesDoControle {
+  readonly ps1?: boolean;
   /** Entrada ligada. Falso com o jogo pausado ou a aba oculta — mas a detecção continua. */
   readonly ativo: boolean;
   readonly aoMudar: (estado: EstadoDoGamepad) => void;
@@ -35,6 +36,7 @@ function lerDoNavegador(): LeituraDeControles {
  */
 export function useGamepadInput({
   ativo,
+  ps1 = false,
   aoMudar,
   aoConectar,
   aoDesconectar,
@@ -54,6 +56,7 @@ export function useGamepadInput({
   const entrada = useMemo(
     () =>
       new EntradaDeControle({
+        ps1,
         aoMudar: (estado) => aoMudarRef.current(estado),
         aoConectar: (perfil) => {
           setControle(perfil);
@@ -64,7 +67,7 @@ export function useGamepadInput({
           aoDesconectarRef.current?.(perfil);
         },
       }),
-    [],
+    [ps1],
   );
 
   useEffect(() => {

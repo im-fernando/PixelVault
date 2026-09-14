@@ -1,4 +1,9 @@
-import { EmulatorRegistry, registrarAdapterDeSnes } from '@pixelvault/emulator-runtime';
+import { lerBiosPs1 } from './ps1-bios.js';
+import {
+  EmulatorRegistry,
+  registrarAdapterDeSnes,
+  Ps1EmulatorAdapter,
+} from '@pixelvault/emulator-runtime';
 import type { EmulatorAdapterFactory } from '@pixelvault/emulator-runtime';
 import type { SystemId } from '@pixelvault/contracts';
 
@@ -21,3 +26,5 @@ export function registrarAdapter(systemId: SystemId, fabrica: EmulatorAdapterFac
 // SNES roda no core de verdade: snes9x2010 sobre Nostalgist. Ver ADR 0011
 // (runtime) e ADR 0008 (por que este core, e não o snes9x).
 registrarAdapterDeSnes(emulatorRegistry, {}, { replace: true });
+
+emulatorRegistry.register('ps1', () => new Ps1EmulatorAdapter({ bios: lerBiosPs1 }));

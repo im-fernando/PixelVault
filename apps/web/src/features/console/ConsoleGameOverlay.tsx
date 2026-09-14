@@ -98,9 +98,9 @@ export function ConsoleGameOverlay(props: Props) {
           onClick={props.abrir}
           aria-label="Abrir menu do console"
         >
-          <kbd>L1</kbd>
+          <kbd>{props.sistema === 'ps1' ? 'Select' : 'L1'}</kbd>
           <span>+</span>
-          <kbd>R1</kbd>
+          <kbd>{props.sistema === 'ps1' ? 'Start' : 'R1'}</kbd>
           <span>Menu</span>
           <Pause size={16} />
         </button>
@@ -543,7 +543,8 @@ function MenuDaPartida(props: Props) {
             <kbd>✚</kbd>Navegar <kbd>A / ✕</kbd>Selecionar
           </span>
           <span>
-            <kbd>L1</kbd> + <kbd>R1</kbd> ou <kbd>Esc</kbd>Voltar ao jogo
+            <kbd>{props.sistema === 'ps1' ? 'Select' : 'L1'}</kbd> +{' '}
+            <kbd>{props.sistema === 'ps1' ? 'Start' : 'R1'}</kbd> ou <kbd>Esc</kbd>Voltar ao jogo
           </span>
         </footer>
         {confirmacao && (

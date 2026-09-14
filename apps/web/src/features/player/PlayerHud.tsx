@@ -23,6 +23,7 @@ export interface AcoesDoHud {
 }
 
 interface Props {
+  readonly atalhoReiniciar?: string;
   readonly status: EmulatorStatus;
   readonly capabilities: EmulatorCapabilities;
   readonly visivel: boolean;
@@ -59,6 +60,7 @@ const COM_ROM: readonly EmulatorStatus[] = ['ready', 'running', 'paused'];
  * não ter que aprender duas interfaces.
  */
 export function PlayerHud({
+  atalhoReiniciar = 'R',
   status,
   capabilities,
   visivel,
@@ -99,7 +101,12 @@ export function PlayerHud({
           {rodando ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}
         </BotaoDoHud>
 
-        <BotaoDoHud rotulo="Reiniciar" atalho="R" desabilitado={!temRom} aoClicar={acoes.resetar}>
+        <BotaoDoHud
+          rotulo="Reiniciar"
+          atalho={atalhoReiniciar}
+          desabilitado={!temRom}
+          aoClicar={acoes.resetar}
+        >
           <RotateCcw size={15} />
         </BotaoDoHud>
 

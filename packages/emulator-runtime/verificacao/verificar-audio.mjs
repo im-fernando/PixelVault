@@ -62,12 +62,14 @@ const servidor = http.createServer((requisicao, resposta) => {
 });
 
 function resolver(rota) {
-  const candidatos = rota.startsWith('/runtime/')
-    ? [path.join(PACOTE, 'dist', rota.slice('/runtime/'.length))]
-    : [
-        path.join(PACOTE, 'verificacao', rota === '/' ? 'audio.html' : rota),
-        path.join(PUBLICO, rota),
-      ];
+  const candidatos = rota.startsWith('/contracts/')
+    ? [path.join(RAIZ, 'packages/contracts/dist', rota.slice('/contracts/'.length))]
+    : rota.startsWith('/runtime/')
+      ? [path.join(PACOTE, 'dist', rota.slice('/runtime/'.length))]
+      : [
+          path.join(PACOTE, 'verificacao', rota === '/' ? 'audio.html' : rota),
+          path.join(PUBLICO, rota),
+        ];
   return (
     candidatos.find((caminho) => fs.existsSync(caminho) && fs.statSync(caminho).isFile()) ?? null
   );

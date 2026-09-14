@@ -23,6 +23,7 @@ enum SystemId {
   gb
   gba
   genesis
+  ps1
 }
 
 /// Papel da conta. Dois valores e nada além disso: o produto não tem

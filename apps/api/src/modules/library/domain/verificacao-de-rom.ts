@@ -1,3 +1,4 @@
+import { erroNaImagemPs1, TAMANHO_MAXIMO_DE_PS1_EM_BYTES } from '@pixelvault/contracts';
 import { createHash } from 'node:crypto';
 import { TAMANHO_MAXIMO_DO_NOME_DE_ARQUIVO, type SystemId } from '@pixelvault/contracts';
 import { RomRecusada } from './erros.js';
@@ -118,6 +119,11 @@ interface RegraDeSistema {
  * kilobytes e recusá-lo seria inventar uma regra que o hardware não tem.
  */
 const REGRA_POR_SISTEMA: Record<SystemId, RegraDeSistema> = {
+  ps1: {
+    extensoes: ['chd', 'iso', 'exe'],
+    tamanhoMinimo: 124,
+    tamanhoMaximo: TAMANHO_MAXIMO_DE_PS1_EM_BYTES,
+  },
   snes: {
     extensoes: ['sfc', 'smc', 'fig', 'swc'],
     tamanhoMinimo: 32 * KIB,
@@ -206,7 +212,10 @@ export function verificarRom(bytes: Uint8Array, nomeInformado: string): RomVerif
   // e não que o arquivo não é múltiplo de 512.
   conferirQueNaoEOutraCoisa(bytes, systemId);
   conferirTamanho(bytes, systemId);
-  conferirCabecalho(bytes, systemId);
+  if (systemId === 'ps1') {
+    const erro = erroNaImagemPs1(bytes.subarray(0, 65536), bytes.byteLength, fileName);
+    if (erro) throw new RomRecusada('CONTEUDO_NAO_RECONHECIDO', erro);
+  } else conferirCabecalho(bytes, systemId);
 
   const temCabecalhoDeCopiador =
     systemId === 'snes' && bytes.byteLength % KIB === TAMANHO_DO_CABECALHO_DE_COPIADOR;
@@ -241,7 +250,7 @@ function conferirTamanho(bytes: Uint8Array, systemId: SystemId): void {
   if (tamanho < regra.tamanhoMinimo || tamanho > regra.tamanhoMaximo) {
     throw new RomRecusada(
       'TAMANHO_IMPLAUSIVEL',
-      `${tamanho} bytes está fora da faixa de cartucho de ${systemId} ` +
+      `${tamanho} bytes está fora da faixa de tamanho de ${systemId} ` +
         `(${regra.tamanhoMinimo} a ${regra.tamanhoMaximo} bytes)`,
     );
   }
@@ -349,4 +358,65 @@ function leUint16(bytes: Uint8Array, offset: number): number {
 function combina(bytes: Uint8Array, assinatura: Assinatura): boolean {
   if (assinatura.offset + assinatura.bytes.length > bytes.byteLength) return false;
   return assinatura.bytes.every((valor, i) => bytes[assinatura.offset + i] === valor);
+}
+
+/** Mesmas regras e identidade da leitura inteira, com prefixo de no máximo 64 KiB. */
+export async function verificarPs1EmPartes(
+  partes: AsyncIterable<Uint8Array>,
+  nome: string,
+): Promise<RomVerificada> {
+  const fileName = nomeDeArquivoSeguro(nome);
+  const inicio = new Uint8Array(65536);
+  let tamanho = 0;
+  let prefixo = 0;
+  const sha256 = createHash('sha256');
+  const md5 = createHash('md5');
+  for await (const bytes of partes) {
+    tamanho += bytes.length;
+    if (tamanho > TAMANHO_MAXIMO_DE_PS1_EM_BYTES)
+      throw new RomRecusada('TAMANHO_IMPLAUSIVEL', 'O disco excede 1 GiB.');
+    const copiar = Math.min(bytes.length, inicio.length - prefixo);
+    inicio.set(bytes.subarray(0, copiar), prefixo);
+    prefixo += copiar;
+    sha256.update(bytes);
+    md5.update(bytes);
+  }
+  const cabecalho = inicio.subarray(0, prefixo);
+  conferirQueNaoEOutraCoisa(cabecalho, 'ps1');
+  const erro = erroNaImagemPs1(cabecalho, tamanho, fileName);
+  if (erro) throw new RomRecusada('CONTEUDO_NAO_RECONHECIDO', erro);
+  return {
+    systemId: 'ps1',
+    fileName,
+    sizeBytes: tamanho,
+    sha256: sha256.digest('hex'),
+    md5: md5.digest('hex'),
+    sha256SemHeader: null,
+    md5SemHeader: null,
+  };
+}
+
+/** Cartuchos também têm leitura limitada antes de materializar o buffer. */
+export async function verificarRomEmPartes(
+  partes: AsyncIterable<Uint8Array>,
+  nome: string,
+): Promise<RomVerificada> {
+  const sistema = sistemaPelaExtensao(nomeDeArquivoSeguro(nome));
+  if (sistema === 'ps1') return verificarPs1EmPartes(partes, nome);
+  const limite = sistema ? REGRA_POR_SISTEMA[sistema].tamanhoMaximo : 64 * MIB;
+  const pedacos: Uint8Array[] = [];
+  let total = 0;
+  for await (const parte of partes) {
+    total += parte.length;
+    if (total > limite)
+      throw new RomRecusada('TAMANHO_IMPLAUSIVEL', 'O arquivo excede o limite deste sistema.');
+    pedacos.push(parte);
+  }
+  const bytes = new Uint8Array(total);
+  let posicao = 0;
+  for (const parte of pedacos) {
+    bytes.set(parte, posicao);
+    posicao += parte.length;
+  }
+  return verificarRom(bytes, nome);
 }

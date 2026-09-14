@@ -9,6 +9,10 @@ describe('sistemaPelaExtensao', () => {
     ['jogo.gbc', 'gb'],
     ['jogo.gba', 'gba'],
     ['jogo.md', 'genesis'],
+    ['jogo.bin', 'genesis'],
+    ['jogo.CHD', 'ps1'],
+    ['jogo.iso', 'ps1'],
+    ['homebrew.exe', 'ps1'],
   ])('lê %s como %s', (nome, sistema) => {
     expect(sistemaPelaExtensao(nome)).toBe(sistema);
   });

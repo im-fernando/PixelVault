@@ -285,3 +285,24 @@ describe('convivência com o teclado', () => {
     expect(apertados(combinarEstados(gamepadCom(new Set()), doControle))).toEqual(['right']);
   });
 });
+
+it('perfil PS1 mantém L2/R2 separados dos ombros no controle padrão e no legado', () => {
+  for (const mapping of ['standard', '']) {
+    const pad = {
+      id: 'Wireless Controller (Vendor: 054c Product: 09cc)',
+      index: 0,
+      mapping,
+      connected: true,
+      axes: [0, 0],
+      buttons: Array.from({ length: 17 }, (_, i) => ({
+        pressed: i === 6 || i === 7,
+        value: i === 6 || i === 7 ? 1 : 0,
+      })),
+    };
+    const estado = traduzirControle(pad, perfilDoControle(pad, true));
+    expect(estado.l2).toBe(true);
+    expect(estado.r2).toBe(true);
+    expect(estado.l).toBe(false);
+    expect(estado.r).toBe(false);
+  }
+});

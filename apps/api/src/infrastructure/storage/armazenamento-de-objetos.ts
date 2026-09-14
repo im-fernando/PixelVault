@@ -165,38 +165,10 @@ export interface ArmazenamentoDeObjetos {
   /** URL para o cliente ler o objeto direto do storage. */
   assinarLeitura(chave: string, opcoes?: OpcoesDeUrlAssinada): Promise<string>;
 
-  /**
-   * Lê o objeto **no servidor**, inteiro, na memória do processo.
-   *
-   * É o que a verificação da quarentena (ADR 0014) precisa: sem ler os bytes
-   * não há SHA-256 calculado por nós, e sem ele o caminho definitivo passaria
-   * a depender do que o cliente disse que enviou.
-   *
-   * Devolve um `Uint8Array` de uma vez, e não um stream, por três razões que
-   * se somam:
-   *
-   * 1. **O teto é conhecido e pequeno.** O maior objeto possível tem 64 MiB
-   *    (`TAMANHO_MAXIMO_DE_ROM_EM_BYTES`), e não por confiança: o tamanho
-   *    entra na assinatura do PUT como `Content-Length`, então o storage
-   *    recusa quem tenta escrever mais do que foi negociado.
-   * 2. **A verificação precisa do arquivo inteiro de qualquer jeito** — são
-   *    dois hashes (com e sem cabeçalho de copiador) sobre os mesmos bytes,
-   *    mais a inspeção do começo do arquivo. Por stream, isso seria duas
-   *    passagens ou um buffer montado à mão, e o ganho de memória evaporaria
-   *    justamente onde ele importaria.
-   * 3. **O domínio fica puro e síncrono.** As funções de verificação recebem
-   *    `Uint8Array` e são testáveis sem storage, sem I/O e sem async.
-   *
-   * O que isso custa é pico de memória proporcional a uploads verificando ao
-   * mesmo tempo. Se um dia isso apertar, o caminho já está claro — hash
-   * incremental sobre o stream, com um prefixo bufferizado para o cabeçalho —
-   * e ele muda este adaptador, não quem chama.
-   *
-   * Objeto ausente é erro, e não `null`: quem chama pergunta antes com
-   * {@link ArmazenamentoDeObjetos.existe}, e a ausência depois disso é falha
-   * de verdade, não caso normal.
-   */
+  /** Lê objetos pequenos, como cartuchos e saves, de uma vez. */
   ler(chave: string): Promise<Uint8Array>;
+  /** CDs são verificados em partes, sem manter o disco inteiro na RAM da API. */
+  lerEmPartes?(chave: string): Promise<AsyncIterable<Uint8Array>>;
 
   /**
    * Copia um objeto dentro do bucket, servidor a servidor: nenhum byte passa

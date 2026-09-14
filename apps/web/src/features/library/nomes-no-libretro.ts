@@ -32,6 +32,7 @@ const PLAYLIST_POR_SISTEMA: Record<SystemId, string> = {
   gb: 'Nintendo - Game Boy',
   gba: 'Nintendo - Game Boy Advance',
   genesis: 'Sega - Mega Drive - Genesis',
+  ps1: 'Sony - PlayStation',
 };
 
 /** As regiões tentadas, em ordem — mesma ordem e mesmo motivo do backend. */

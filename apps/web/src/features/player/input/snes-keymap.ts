@@ -1,5 +1,6 @@
 import {
   BOTOES_DO_SNES,
+  BOTOES_DO_CONTROLE,
   MAPA_PADRAO_DE_TECLADO,
   type BotaoDoSnes,
 } from '@pixelvault/emulator-runtime';
@@ -65,6 +66,8 @@ export const LEGENDA_DO_TECLADO: readonly DescricaoDeBotao[] = Object.freeze(
       ['x', 'X', 'KeyS'],
       ['l', 'L', 'KeyQ'],
       ['r', 'R', 'KeyW'],
+      ['l2', 'L2', 'KeyE'],
+      ['r2', 'R2', 'KeyR'],
       ['select', 'Select', 'ShiftRight'],
       ['start', 'Start', 'Enter'],
     ] as const
@@ -75,7 +78,7 @@ export const LEGENDA_DO_TECLADO: readonly DescricaoDeBotao[] = Object.freeze(
 export type EstadoDoGamepad = Readonly<Record<BotaoDoSnes, boolean>>;
 
 const SOLTO: EstadoDoGamepad = Object.freeze(
-  Object.fromEntries(BOTOES_DO_SNES.map((botao) => [botao, false])),
+  Object.fromEntries(BOTOES_DO_CONTROLE.map((botao) => [botao, false])),
 ) as EstadoDoGamepad;
 
 export function gamepadSolto(): EstadoDoGamepad {
@@ -86,7 +89,7 @@ export function gamepadSolto(): EstadoDoGamepad {
 export function gamepadCom(pressionados: ReadonlySet<BotaoDoSnes>): EstadoDoGamepad {
   if (pressionados.size === 0) return SOLTO;
   return Object.freeze(
-    Object.fromEntries(BOTOES_DO_SNES.map((botao) => [botao, pressionados.has(botao)])),
+    Object.fromEntries(BOTOES_DO_CONTROLE.map((botao) => [botao, pressionados.has(botao)])),
   ) as EstadoDoGamepad;
 }
 
@@ -100,7 +103,7 @@ export function gamepadCom(pressionados: ReadonlySet<BotaoDoSnes>): EstadoDoGame
  */
 export function estadosIguais(a: EstadoDoGamepad, b: EstadoDoGamepad): boolean {
   if (a === b) return true;
-  return BOTOES_DO_SNES.every((botao) => a[botao] === b[botao]);
+  return BOTOES_DO_CONTROLE.every((botao) => a[botao] === b[botao]);
 }
 
 /**
@@ -113,5 +116,5 @@ export function estadosIguais(a: EstadoDoGamepad, b: EstadoDoGamepad): boolean {
 export function combinarEstados(a: EstadoDoGamepad, b: EstadoDoGamepad): EstadoDoGamepad {
   if (a === SOLTO) return b;
   if (b === SOLTO) return a;
-  return gamepadCom(new Set(BOTOES_DO_SNES.filter((botao) => a[botao] || b[botao])));
+  return gamepadCom(new Set(BOTOES_DO_CONTROLE.filter((botao) => a[botao] || b[botao])));
 }

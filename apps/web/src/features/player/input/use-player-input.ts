@@ -5,6 +5,7 @@ import { useGamepadInput } from './use-gamepad-input.js';
 import { useKeyboardInput } from './use-keyboard-input.js';
 
 export interface OpcoesDaEntrada {
+  readonly ps1?: boolean;
   /** Elemento focável que representa o console. Sem foco nele, o teclado é do site. */
   readonly alvo: RefObject<HTMLElement | null>;
   /** O teclado vale com o console focado. */
@@ -43,6 +44,7 @@ export interface EntradaDoJogador {
  */
 export function useEntradaDoJogador({
   alvo,
+  ps1 = false,
   tecladoAtivo,
   controleAtivo,
   aoMudar,
@@ -53,9 +55,10 @@ export function useEntradaDoJogador({
   const [doTeclado, setDoTeclado] = useState<EstadoDoGamepad>(gamepadSolto);
   const [doControle, setDoControle] = useState<EstadoDoGamepad>(gamepadSolto);
 
-  useKeyboardInput({ alvo, ativo: tecladoAtivo, aoMudar: setDoTeclado, atalhos });
+  useKeyboardInput({ ps1, alvo, ativo: tecladoAtivo, aoMudar: setDoTeclado, atalhos });
 
   const controle = useGamepadInput({
+    ps1,
     ativo: controleAtivo,
     aoMudar: setDoControle,
     aoConectar: aoConectarControle,

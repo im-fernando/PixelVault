@@ -172,17 +172,22 @@ export function nomeDoControle(id: string): string {
  * controle estiver plugado — e porque expressão regular sessenta vezes por
  * segundo é trabalho que o quadro não tem para dar.
  */
-export function perfilDoControle(leitura: LeituraDoControle): PerfilDoControle {
+export function perfilDoControle(leitura: LeituraDoControle, ps1 = false): PerfilDoControle {
   const familia = familiaDoControle(leitura.id);
   const layout = identificarLayout(leitura, familia);
 
+  const botoes = new Map(botoesDoLayout(layout, leitura.buttons.length));
+  if (ps1 && layout !== 'retro-generico') {
+    botoes.set(6, 'l2');
+    botoes.set(7, 'r2');
+  }
   return Object.freeze({
     index: leitura.index,
     id: leitura.id,
     nome: nomeDoControle(leitura.id),
     familia,
     layout,
-    botoes: botoesDoLayout(layout, leitura.buttons.length),
+    botoes,
     direcionais:
       layout === 'playstation-legado' ? DIRECIONAL_PLAYSTATION_LEGADO : DIRECIONAL_PADRAO,
   });
@@ -301,19 +306,54 @@ const ACAO_POR_FAMILIA: Readonly<
     Readonly<Record<Exclude<BotaoDoSnes, 'up' | 'down' | 'left' | 'right'>, string>>
   >
 > = Object.freeze({
-  xbox: { b: 'A', a: 'B', y: 'X', x: 'Y', l: 'LB', r: 'RB', select: 'View', start: 'Menu' },
+  xbox: {
+    b: 'A',
+    a: 'B',
+    y: 'X',
+    x: 'Y',
+    l: 'LB',
+    r: 'RB',
+    l2: 'LT',
+    r2: 'RT',
+    select: 'View',
+    start: 'Menu',
+  },
   playstation: {
     b: '✕',
     a: '○',
     y: '□',
     x: '△',
     l: 'L1',
+    l2: 'L2',
+    r2: 'R2',
     r: 'R1',
     select: 'Share',
     start: 'Options',
   },
-  nintendo: { b: 'B', a: 'A', y: 'Y', x: 'X', l: 'L', r: 'R', select: '−', start: '+' },
-  generico: { b: 'B', a: 'A', y: 'Y', x: 'X', l: 'L', r: 'R', select: 'Select', start: 'Start' },
+  nintendo: {
+    b: 'B',
+    a: 'A',
+    y: 'Y',
+    x: 'X',
+    l: 'L',
+    r: 'R',
+    l2: 'ZL',
+    r2: 'ZR',
+    select: '−',
+    start: '+',
+  },
+  generico: {
+    b: 'B',
+    a: 'A',
+    y: 'Y',
+    x: 'X',
+    l: 'L',
+    r: 'R',
+    l2: 'L2',
+    r2: 'R2',
+    select: 'Select',
+    start: 'Start',
+  },
 });
 
 /**

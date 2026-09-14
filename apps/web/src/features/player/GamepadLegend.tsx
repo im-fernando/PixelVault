@@ -5,6 +5,7 @@ import { rotulosDoControle, type PerfilDoControle } from './input/gamepad-map.js
 import { LEGENDA_DO_TECLADO, type BotaoDoSnes, type EstadoDoGamepad } from './input/snes-keymap.js';
 
 interface Props {
+  readonly ps1?: boolean;
   readonly estado: EstadoDoGamepad;
   readonly ativo: boolean;
   /** O controle em uso. `null` é o teclado sozinho — que é o padrão, e é silencioso. */
@@ -36,7 +37,7 @@ const POR_BOTAO = new Map(LEGENDA_DO_TECLADO.map((item) => [item.botao, item]));
  * `styles.css`): fica como atributo, e não como classe condicional, para o
  * estado ser legível no DOM por quem depura e por quem testa.
  */
-export function GamepadLegend({ estado, ativo, controle }: Props) {
+export function GamepadLegend({ estado, ativo, controle, ps1 = false }: Props) {
   const rotulosNoControle = useMemo(
     () => (controle === null ? null : rotulosDoControle(controle.familia)),
     [controle],
@@ -65,7 +66,13 @@ export function GamepadLegend({ estado, ativo, controle }: Props) {
       </div>
 
       <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {GRUPOS.map((grupo) => (
+        {GRUPOS.map((original) => ({
+          ...original,
+          botoes:
+            ps1 && original.titulo === 'Gatilhos'
+              ? (['l', 'r', 'l2', 'r2'] as const)
+              : original.botoes,
+        })).map((grupo) => (
           <div key={grupo.titulo}>
             <p className="sobrelinha mb-2">{grupo.titulo}</p>
             <ul className="flex flex-wrap gap-2">
@@ -76,7 +83,15 @@ export function GamepadLegend({ estado, ativo, controle }: Props) {
                 return (
                   <li key={botao}>
                     <span className="pv-legenda-tecla" data-pressionado={aceso}>
-                      <span className="text-[12px] font-semibold">{item.rotulo}</span>
+                      <span className="text-[12px] font-semibold">
+                        {ps1
+                          ? ((
+                              { b: '✕', a: '○', y: '□', x: '△', l: 'L1', r: 'R1' } as Partial<
+                                Record<BotaoDoSnes, string>
+                              >
+                            )[botao] ?? item.rotulo)
+                          : item.rotulo}
+                      </span>
                       <span className="leitura opacity-80">{item.tecla}</span>
                       {rotulosNoControle !== null && (
                         <span className="leitura text-luz">{rotulosNoControle[botao]}</span>

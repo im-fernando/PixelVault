@@ -28,6 +28,7 @@ export const EXTENSOES_POR_SISTEMA: Readonly<Record<SystemId, readonly string[]>
   gb: ['gb', 'gbc'],
   gba: ['gba'],
   genesis: ['md', 'gen', 'bin', 'smd'],
+  ps1: ['chd', 'iso', 'exe'],
 };
 
 /** O `accept` do input, no formato que o navegador espera. */

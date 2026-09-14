@@ -239,6 +239,39 @@ describe('ConsolePage', () => {
     await screen.findByRole('heading', { name: 'Alien vs. Predator' });
   });
 
+  it('não reabre o jogo ao chegar ao console com a confirmação ainda segurada', async () => {
+    vi.useFakeTimers();
+    const buttons = Array.from({ length: 17 }, (_, i) => ({ pressed: i === 0 }));
+    const pad = {
+      connected: true,
+      buttons,
+      axes: [0, 0],
+      id: 'Xbox Controller',
+      index: 0,
+      mapping: 'standard',
+    };
+    vi.stubGlobal('navigator', { getGamepads: () => [pad] });
+    const { router } = montar();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.getByRole('heading', { name: 'Alien vs. Predator' })).toBeTruthy();
+    expect(router.state.location.pathname).toBe('/console');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(router.state.location.pathname).toBe('/console');
+    buttons[0]!.pressed = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(40);
+    });
+    buttons[0]!.pressed = true;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(router.state.location.pathname).toBe('/console/11111111-1111-4111-8111-111111111111');
+  });
+
   it('consome teclado e gamepad no painel sem navegar ou iniciar o jogo ao fundo', async () => {
     const { router } = montar();
     await screen.findByRole('heading', { name: 'Alien vs. Predator' });
@@ -246,7 +279,6 @@ describe('ConsolePage', () => {
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     fireEvent.keyDown(window, { key: 'Enter' });
     const buttons = Array.from({ length: 16 }, () => ({ pressed: false }));
-    buttons[15]!.pressed = true;
     vi.stubGlobal('navigator', {
       getGamepads: () => [
         {
@@ -259,6 +291,10 @@ describe('ConsolePage', () => {
         },
       ],
     });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    buttons[15]!.pressed = true;
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Tema Solstice' })).toBe(document.activeElement),
     );

@@ -407,6 +407,38 @@ describe('POST /api/library/uploads/:uploadId/complete', () => {
     });
   }, 60_000);
 
+  it('importa PS1 pelo storage real e registra o sistema sem alterar BIN do Mega Drive', async () => {
+    const bytes = new Uint8Array(4096);
+    bytes.set(new TextEncoder().encode('PS-X EXE'));
+    bytes.set(MARCADOR, 3000);
+    const v = new DataView(bytes.buffer);
+    v.setUint32(16, 0x80010000, true);
+    v.setUint32(24, 0x80010000, true);
+    v.setUint32(28, 2048, true);
+    const cookie = await logar(conta);
+    const resposta = await biblioteca(cookie, contaId, bytes, 'homebrew.exe');
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    expect(resposta.sha256).toBe(sha256);
+    expect(resposta.sizeBytes).toBe(4096);
+    const linha = await prisma.userRom.findUniqueOrThrow({
+      where: { userId_sha256: { userId: contaId, sha256 } },
+    });
+    expect(linha.fileName).toBe('homebrew.exe');
+    const lista = await app.inject({
+      method: 'GET',
+      url: '/api/library/roms',
+      ...comCookie(cookie),
+    });
+    expect(
+      lista.json<Array<{ id: string; systemId: string }>>().find((item) => item.id === linha.id)
+        ?.systemId,
+    ).toBe('ps1');
+    expect(await armazenamento.ler(`roms/${sha256}`)).toEqual(bytes);
+    expect(await prisma.system.findUnique({ where: { id: 'ps1' } })).toMatchObject({
+      coreSlug: 'pcsx_rearmed',
+    });
+  });
+
   it('dois usuários com o mesmo arquivo dividem um objeto só', async () => {
     // O critério de aceite da #72, e a economia inteira da ADR 0013: a segunda
     // pessoa não transfere nada e ganha a referência do mesmo objeto.
