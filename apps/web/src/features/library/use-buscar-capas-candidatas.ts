@@ -11,14 +11,14 @@ import { apiFetch } from '../../lib/api.js';
  * escolher. O mesmo mínimo que o servidor exige em `buscarCapasCandidatasQuerySchema`
  * — repetido aqui para não disparar a requisição que o servidor recusaria.
  */
-export function useBuscarCapasCandidatas(gameId: string, termo: string) {
+export function useBuscarCapasCandidatas(romId: string, termo: string) {
   const termoValido = termo.trim().length >= 2;
 
   return useQuery<readonly CapaCandidata[]>({
-    queryKey: ['capas-candidatas', gameId, termo.trim().toLowerCase()],
+    queryKey: ['capas-candidatas', romId, termo.trim().toLowerCase()],
     queryFn: async () => {
       const resposta = await apiFetch(
-        `/api/games/${gameId}/cover/search?q=${encodeURIComponent(termo.trim())}`,
+        `/api/library/roms/${romId}/cover/search?q=${encodeURIComponent(termo.trim())}`,
         buscarCapasCandidatasResponseSchema,
       );
       return resposta.candidatas;

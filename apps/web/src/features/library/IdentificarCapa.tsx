@@ -29,23 +29,21 @@ const DEBOUNCE_MS = 350;
  * texto digitado tal como está, pelo mesmo caminho que a versão anterior
  * deste diálogo usava sozinha.
  *
- * Só aparece em cartucho reconhecido (`gameId` não nulo) sem capa: sem
- * `gameId` não há jogo do catálogo para guardar a capa encontrada, e com
- * capa já não há o que procurar.
+ * A capa fica na ROM da conta, mesmo sem reconhecimento no catálogo.
  */
 export function IdentificarCapa({
-  gameId,
+  romId,
   tituloSugerido,
   fechar,
 }: {
-  readonly gameId: string;
+  readonly romId: string;
   readonly tituloSugerido: string;
   readonly fechar: () => void;
 }) {
   const [termo, setTermo] = useState(tituloSugerido);
   const [termoParaBuscar, setTermoParaBuscar] = useState(tituloSugerido);
   const identificar = useIdentificarCapa();
-  const candidatas = useBuscarCapasCandidatas(gameId, termoParaBuscar);
+  const candidatas = useBuscarCapasCandidatas(romId, termoParaBuscar);
 
   useEffect(() => {
     const temporizador = window.setTimeout(() => setTermoParaBuscar(termo), DEBOUNCE_MS);
@@ -55,7 +53,7 @@ export function IdentificarCapa({
   const achada = identificar.isSuccess && identificar.data.status === 'encontrada';
 
   function escolher(candidata: CapaCandidata): void {
-    identificar.mutate({ gameId, title: candidata.title });
+    identificar.mutate({ romId, title: candidata.title });
   }
 
   return (
@@ -117,7 +115,7 @@ export function IdentificarCapa({
             pequena
             type="button"
             disabled={identificar.isPending || termo.trim().length === 0}
-            onClick={() => identificar.mutate({ gameId, title: termo.trim() })}
+            onClick={() => identificar.mutate({ romId, title: termo.trim() })}
             title="Tenta o texto do campo exatamente como está, sem passar pela lista"
           >
             {identificar.isPending ? 'Procurando…' : 'Procurar esse nome exato'}

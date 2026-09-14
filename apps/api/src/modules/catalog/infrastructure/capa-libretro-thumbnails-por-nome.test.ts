@@ -148,3 +148,28 @@ describe('criarBuscaDeCapaPorNomeNoLibretro', () => {
     expect(candidatos).toHaveLength(20);
   });
 });
+
+it('consulta só a pasta de capas de PS1 e reaproveita a lista', async () => {
+  const pedidas: string[] = [];
+  const sha = 'a'.repeat(40);
+  const title = 'Resident Evil 2 - Dual Shock Ver. (USA) (Disc 1)';
+  const busca = criarBuscaDeCapaPorNomeNoLibretro({
+    buscarHttp: async (url) => {
+      pedidas.push(url);
+      return {
+        ok: true,
+        status: 200,
+        json: async () =>
+          url.endsWith('/master')
+            ? { tree: [{ path: 'Named_Boxarts', type: 'tree', sha }], truncated: false }
+            : { tree: [{ path: `${title}.png`, type: 'blob' }], truncated: false },
+      };
+    },
+  });
+  expect((await busca('ps1', 'Resident Evil 2'))[0]?.title).toBe(title);
+  await busca('ps1', 'Dual Shock');
+  expect(pedidas).toEqual([
+    'https://api.github.com/repos/libretro-thumbnails/Sony_-_PlayStation/git/trees/master',
+    `https://api.github.com/repos/libretro-thumbnails/Sony_-_PlayStation/git/trees/${sha}`,
+  ]);
+});

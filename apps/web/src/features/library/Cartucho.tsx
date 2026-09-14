@@ -23,6 +23,7 @@ import { useCapaAutomatica } from './use-capa-automatica.js';
 
 interface PropsDoMiolo {
   readonly titulo: string;
+  readonly fileName?: string;
   /**
    * De que console. Nulo quando nem o catálogo nem a extensão do arquivo
    * respondem — caso que a biblioteca pessoal traz e que não pode virar
@@ -44,6 +45,7 @@ interface PropsDoMiolo {
 
 export function MioloDoCartucho({
   titulo,
+  fileName,
   systemId,
   capaUrl,
   selo,
@@ -51,7 +53,7 @@ export function MioloDoCartucho({
   favorito = false,
   acoes,
 }: PropsDoMiolo) {
-  const capaAutomatica = useCapaAutomatica(titulo, systemId);
+  const capaAutomatica = useCapaAutomatica(titulo, capaUrl ? null : systemId, fileName);
   const capa = capaUrl ?? capaAutomatica;
 
   return (

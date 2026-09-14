@@ -3,7 +3,11 @@ import type { SystemId } from '@pixelvault/contracts';
 import { urlsCandidatasDeLombada } from './nomes-no-libretro.js';
 
 /** Resolve uma capa pública pelo título quando a ROM ainda não tem catálogo. */
-export function useCapaAutomatica(titulo: string, systemId: SystemId | null): string | null {
+export function useCapaAutomatica(
+  titulo: string,
+  systemId: SystemId | null,
+  fileName?: string,
+): string | null {
   const [urlResolvida, setUrlResolvida] = useState<string | null>(null);
 
   useEffect(() => {
@@ -14,7 +18,7 @@ export function useCapaAutomatica(titulo: string, systemId: SystemId | null): st
     let cancelado = false;
 
     async function tentarCandidatas() {
-      for (const url of urlsCandidatasDeLombada(titulo, sistema)) {
+      for (const url of urlsCandidatasDeLombada(titulo, sistema, fileName)) {
         const carregou = await new Promise<boolean>((resolve) => {
           const imagem = new Image();
           imagem.onload = () => resolve(true);
@@ -33,7 +37,7 @@ export function useCapaAutomatica(titulo: string, systemId: SystemId | null): st
     return () => {
       cancelado = true;
     };
-  }, [titulo, systemId]);
+  }, [titulo, systemId, fileName]);
 
   return urlResolvida;
 }

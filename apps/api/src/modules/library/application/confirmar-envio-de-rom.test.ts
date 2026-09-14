@@ -95,6 +95,9 @@ function repositorioFalso(): RepositorioFalso {
 
   return {
     registradas,
+    definirCapa: async () => {
+      throw new Error('envio não altera capa');
+    },
     buscarPorHash: async () => null,
     buscarPorId: async () => {
       throw new Error('a confirmação não busca por id');

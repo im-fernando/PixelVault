@@ -85,6 +85,7 @@ export interface RomDoUsuarioParaDownload {
  * sabe sozinha é o resto.
  */
 export interface RomNaBiblioteca {
+  coverUrl: string | null;
   id: string;
   gameId: string | null;
   sha256: string;
@@ -140,6 +141,7 @@ export interface RomSemJogoReconhecido {
 }
 
 export interface UserRomRepository {
+  definirCapa(romId: string, coverUrl: string): Promise<void>;
   /**
    * A ROM daquela pessoa com aquele conteúdo, ou `null`.
    *

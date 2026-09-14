@@ -8,9 +8,8 @@ import { TAMANHO_MAXIMO_DO_NOME_DE_ARQUIVO } from './uploads.js';
  *
  * É a ficha da ROM **enviada**, e não a do jogo do catálogo: o que a pessoa
  * tem é o arquivo dela, e o catálogo entra só quando o hash casou com alguma
- * coisa (ADR 0006). Por isso os campos que dependem do catálogo — `gameId` e
- * `coverUrl` — são nulos no caso comum, e o `title` continua preenchido do
- * mesmo jeito.
+ * coisa (ADR 0006). `gameId` pode ser nulo mesmo com uma capa escolhida
+ * na biblioteca; o `title` continua preenchido pelo arquivo nesse caso.
  *
  * ## De onde sai o `title`
  *
@@ -49,7 +48,7 @@ export const libraryRomSchema = z.object({
   systemId: systemIdSchema.nullable(),
   /** O jogo do catálogo, quando o hash casou. Nulo é o caso comum do BYOR. */
   gameId: uuidSchema.nullable(),
-  /** A capa do jogo reconhecido. ROM sem jogo não tem capa — e nem deveria. */
+  /** Capa escolhida na biblioteca, ou a do catálogo quando reconhecida. */
   coverUrl: coverRefSchema.nullable(),
   /** O nome que a pessoa deu ao arquivo dela, como está em `user_roms`. */
   fileName: z.string().min(1).max(TAMANHO_MAXIMO_DO_NOME_DE_ARQUIVO),

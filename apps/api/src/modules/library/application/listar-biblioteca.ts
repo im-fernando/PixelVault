@@ -72,7 +72,7 @@ function paraEtiqueta(rom: RomNaBiblioteca, ficha: JogoDoCatalogo | null): Libra
     title: ficha?.title ?? tituloPeloNomeDoArquivo(rom.fileName),
     systemId: ficha?.systemId ?? sistemaPelaExtensao(rom.fileName),
     gameId: ficha?.gameId ?? null,
-    coverUrl: ficha?.coverUrl ?? null,
+    coverUrl: rom.coverUrl ?? ficha?.coverUrl ?? null,
     fileName: rom.fileName,
     sizeBytes: rom.sizeBytes,
     sha256: rom.sha256,

@@ -44,7 +44,7 @@ export function MinhaBiblioteca() {
   const [ordem, setOrdem] = useState<OrdemDaBiblioteca>('original');
   const [emBaixa, setEmBaixa] = useState<LibraryRom | null>(null);
   const [identificando, setIdentificando] = useState<{
-    readonly gameId: string;
+    readonly romId: string;
     readonly titulo: string;
   } | null>(null);
   const remover = useRemoverRom();
@@ -158,14 +158,16 @@ export function MinhaBiblioteca() {
       )}
       <Prateleira>
         {visiveis.map((rom) => {
-          const gameId = rom.gameId;
           return (
             <NaEstante
               key={rom.id}
               rom={rom}
               aoRemover={() => setEmBaixa(rom)}
-              aoIdentificarCapa={
-                gameId === null ? null : () => setIdentificando({ gameId, titulo: rom.title })
+              aoIdentificarCapa={() =>
+                setIdentificando({
+                  romId: rom.id,
+                  titulo: rom.fileName.replace(/\.[^.]+$/, '').slice(0, 200),
+                })
               }
             />
           );
@@ -174,7 +176,7 @@ export function MinhaBiblioteca() {
 
       {identificando !== null && (
         <IdentificarCapa
-          gameId={identificando.gameId}
+          romId={identificando.romId}
           tituloSugerido={identificando.titulo}
           fechar={() => setIdentificando(null)}
         />
@@ -245,8 +247,7 @@ function NaEstante({
 }: {
   readonly rom: LibraryRom;
   readonly aoRemover: () => void;
-  /** `null` quando não há jogo do catálogo para guardar a capa — botão nem aparece. */
-  readonly aoIdentificarCapa: (() => void) | null;
+  readonly aoIdentificarCapa: () => void;
 }) {
   const favoritar = useFavoritarRom();
 
@@ -255,6 +256,7 @@ function NaEstante({
       titulo={rom.title}
       systemId={rom.systemId}
       capaUrl={rom.coverUrl}
+      fileName={rom.fileName}
       favorito={rom.isFavorite}
       nota={`${rom.systemId?.toUpperCase() ?? 'ROM'} · ${emBytesLegiveis(rom.sizeBytes)}`}
       rotulo={`${rom.title} — ${rom.fileName}`}
@@ -271,16 +273,11 @@ function NaEstante({
           >
             <Heart size={15} fill={rom.isFavorite ? 'currentColor' : 'none'} />
           </BotaoIcone>
-          {
-            // Só quando há jogo casado E ele ainda não tem capa — jogo sem
-            // capa mas sem `gameId` não tem onde a capa encontrada seria
-            // guardada, e jogo com capa não tem o que procurar.
-            rom.coverUrl === null && aoIdentificarCapa !== null && (
-              <BotaoIcone rotulo="Identificar capa" onClick={aoIdentificarCapa}>
-                <Search size={15} />
-              </BotaoIcone>
-            )
-          }
+          {rom.coverUrl === null && (
+            <BotaoIcone rotulo="Identificar capa" onClick={aoIdentificarCapa}>
+              <Search size={15} />
+            </BotaoIcone>
+          )}
           {
             // Ranking (#122) é POR JOGO do catálogo, não por arquivo — só
             // existe link para quem já tem `gameId` (hash reconhecido, ADR

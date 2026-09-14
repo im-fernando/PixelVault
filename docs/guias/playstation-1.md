@@ -17,6 +17,13 @@ A biblioteca identifica `.bin` como Mega Drive: não renomeie discos PS1 para es
 BIN/CUE, PBP, M3U, troca de discos, CHDs diferenciais e arquivos SBI não são suportados nesta versão.
 Jogos PAL que exigem SBI e jogos que exigem troca de disco durante a partida ainda não são compatíveis.
 
+## Capas
+
+A busca automática tenta primeiro o nome original do arquivo, preservando edição e disco.
+Se não achar, use **Identificar capa** na biblioteca: procure por parte do título e escolha
+a edição. A escolha fica na sua conta, mesmo quando o hash do CHD não é reconhecido
+no catálogo; não é necessário enviar o jogo novamente.
+
 ## BIOS
 
 Ao iniciar um jogo, escolha uma BIOS própria de **512 KiB**, mantendo seu nome original

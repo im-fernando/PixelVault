@@ -1,8 +1,13 @@
+import { buscarCapasDaRom, identificarCapaDaRom } from '../application/capa-da-rom.js';
 import type { FastifyPluginOptions } from 'fastify';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   apiErrorSchema,
+  buscarCapasCandidatasQuerySchema,
+  buscarCapasCandidatasResponseSchema,
+  identificarCapaRequestSchema,
+  identificarCapaResponseSchema,
   libraryRomListSchema,
   romDownloadResponseSchema,
   romFavoriteResponseSchema,
@@ -22,7 +27,12 @@ import {
   type ArmazenamentoDeObjetos,
 } from '../../../infrastructure/storage/armazenamento-de-objetos.js';
 import { avisarPrimeiraRomEnviada } from '../../achievements/index.js';
-import { descreverJogos, identificarRomPorHash } from '../../catalog/index.js';
+import {
+  descreverJogos,
+  identificarRomPorHash,
+  procurarCapaPorSistema,
+  procurarCapasCandidatasPorSistema,
+} from '../../catalog/index.js';
 import {
   autorizarOuProibido,
   habilidadesDoUsuario,
@@ -64,6 +74,57 @@ export interface OpcoesDeLibrary extends FastifyPluginOptions {
  */
 export const libraryRoutes: FastifyPluginAsyncZod<OpcoesDeLibrary> = async (app, opcoes) => {
   const { sessoes, armazenamento } = opcoes;
+  const capas = {
+    roms: prismaUserRomRepository,
+    buscar: procurarCapaPorSistema,
+    candidatas: procurarCapasCandidatasPorSistema,
+  };
+  const esquemaDeCapa = {
+    tags: ['library'],
+    params: z.object({ romId: uuidSchema }),
+  };
+  app.get(
+    '/library/roms/:romId/cover/search',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        ...esquemaDeCapa,
+        summary: 'Busca capas para uma ROM da própria biblioteca',
+        querystring: buscarCapasCandidatasQuerySchema,
+        response: {
+          200: buscarCapasCandidatasResponseSchema,
+          401: apiErrorSchema,
+          404: apiErrorSchema,
+        },
+      },
+    },
+    async (request) =>
+      buscarCapasDaRom(
+        capas,
+        await habilidadesDoUsuario(sessoes.usuarioAutenticado(request)),
+        request.params.romId,
+        request.query.q,
+      ),
+  );
+  app.post(
+    '/library/roms/:romId/cover',
+    {
+      preHandler: sessoes.exigirSessao,
+      schema: {
+        ...esquemaDeCapa,
+        summary: 'Escolhe a capa de uma ROM da própria biblioteca',
+        body: identificarCapaRequestSchema,
+        response: { 200: identificarCapaResponseSchema, 401: apiErrorSchema, 404: apiErrorSchema },
+      },
+    },
+    async (request) =>
+      identificarCapaDaRom(
+        capas,
+        await habilidadesDoUsuario(sessoes.usuarioAutenticado(request)),
+        request.params.romId,
+        request.body.title,
+      ),
+  );
 
   /**
    * A habilidade da #48 sobre a PRÓPRIA biblioteca, perguntada contra o

@@ -34,7 +34,7 @@ it('esconde sugestões antigas imediatamente e permite recuperar falha de rede',
   render(
     <QueryClientProvider client={client}>
       <IdentificarCapa
-        gameId="11111111-1111-4111-8111-111111111111"
+        romId="11111111-1111-4111-8111-111111111111"
         tituloSugerido="Mario"
         fechar={() => undefined}
       />
