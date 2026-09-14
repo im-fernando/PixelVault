@@ -874,30 +874,58 @@ body {
     color: #fff;
     filter: drop-shadow(0 1px 2px #000);
   }
+  .pv-cartucho-legenda {
+    min-height: 48px;
+    padding-top: 12px;
+  }
+  .pv-cartucho-legenda .pv-cartucho-titulo {
+    margin-top: 0;
+  }
+  .pv-cartucho-painel {
+    position: absolute;
+    z-index: 3;
+    inset-inline: 10px;
+    bottom: 60px;
+    padding: 10px;
+    border: 1px solid oklch(1 0 0 / 0.2);
+    border-radius: 14px;
+    background: var(--color-ink-950);
+    box-shadow: 0 8px 24px #0005;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(5px);
+    transition:
+      opacity 0.2s,
+      transform 0.2s;
+  }
+  .pv-cartucho-resumo {
+    padding-bottom: 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid oklch(1 0 0 / 0.12);
+  }
+  .pv-cartucho-resumo .pv-cartucho-titulo {
+    margin-top: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .pv-cartucho:hover .pv-cartucho-painel,
+  .pv-cartucho:focus-within .pv-cartucho-painel {
+    pointer-events: auto;
+    opacity: 1;
+    transform: none;
+  }
+  .pv-cartucho:has(.pv-cartucho-painel):is(:hover, :focus-within) .pv-cartucho-legenda {
+    visibility: hidden;
+  }
   .pv-cartucho-acoes {
-    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    margin-top: 16px;
-    padding: 6px;
-    border: 1px solid oklch(1 0 0 / 0.14);
-    border-radius: 16px;
-    background: var(--color-ink-950);
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(4px);
-    transition:
-      opacity 0.2s,
-      transform 0.2s;
-  }
-  .pv-cartucho:hover .pv-cartucho-acoes,
-  .pv-cartucho:focus-within .pv-cartucho-acoes {
-    pointer-events: auto;
-    opacity: 1;
-    transform: translateY(0);
   }
   .pv-cartucho-acoes > a:first-child {
     flex: 1 0 100%;
@@ -1527,12 +1555,13 @@ body {
 }
 
 @media (hover: none), (pointer: coarse) {
-  .pv-cartucho-acoes {
+  .pv-cartucho:has(.pv-cartucho-painel) .pv-cartucho-legenda {
+    display: none;
+  }
+  .pv-cartucho-painel {
     position: static;
     pointer-events: auto;
-    flex-wrap: wrap;
-    margin-top: 16px;
-    border-radius: 16px;
+    margin-top: 12px;
     opacity: 1;
     transform: none;
   }
@@ -1544,6 +1573,13 @@ body {
     flex-basis: 44px;
     width: 44px;
     height: 44px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pv-cartucho:has(.pv-cartucho-painel) {
+    flex-basis: clamp(190px, 15vw, 210px);
+    width: clamp(190px, 15vw, 210px);
   }
 }
 

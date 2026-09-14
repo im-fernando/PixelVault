@@ -33,6 +33,11 @@ async function pedir(path, method = 'GET', body, esperado = 200) {
   return dados;
 }
 try {
+  const favicon = await fetch(`${origem}/favicon.svg`);
+  assert.equal(favicon.status, 200, 'Favicon deve estar publicado');
+  assert.match(favicon.headers.get('content-type') ?? '', /image\/svg\+xml/i);
+  assert.match(await favicon.text(), /<svg[\s>]/);
+  console.log('Favicon SVG publicado corretamente');
   const jogos = await pedir('/api/games');
   assert.ok(Array.isArray(jogos) && jogos.length >= 4);
   await pedir(
