@@ -3,6 +3,7 @@ import { Heart, Play, Search, Trash2, Trophy, Upload } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { LibraryRom } from '@pixelvault/contracts';
 import { BotaoIcone, BotaoPilula, classesDaPilula } from '../../ui/Botao.js';
+import { Seletor } from '../../ui/Seletor.js';
 import { Aviso, Vazio } from '../../ui/Painel.js';
 import { useSessao } from '../auth/sessao.js';
 import { Cartucho } from './Cartucho.js';
@@ -30,7 +31,7 @@ import { useBiblioteca, useFavoritarRom, useRemoverRom } from './use-biblioteca.
  *
  * ## O que o cartucho faz
  *
- * A barra que aparece sobre a arte tem as quatro ações que ele aceita:
+ * A barra que aparece abaixo dos metadados tem as quatro ações que ele aceita:
  * "Jogar" leva a `/biblioteca/:romId` (#99), o coração favorita, o troféu
  * abre o ranking (#122, só para ROM reconhecida no catálogo) e a lixeira
  * pede confirmação antes de tirar do acervo.
@@ -114,18 +115,16 @@ export function MinhaBiblioteca() {
             onChange={(evento) => setBusca(evento.target.value)}
           />
         </label>
-        <label>
-          <span className="pv-rotulo">Ordenar por</span>
-          <select
-            className="pv-campo"
-            value={ordem}
-            onChange={(evento) => setOrdem(evento.target.value as OrdemDaBiblioteca)}
-          >
-            <option value="original">Favoritos primeiro</option>
-            <option value="titulo">Nome: A–Z</option>
-            <option value="tamanho">Maior tamanho</option>
-          </select>
-        </label>
+        <Seletor<OrdemDaBiblioteca>
+          rotulo="Ordenar por"
+          valor={ordem}
+          aoAlterar={setOrdem}
+          opcoes={[
+            { valor: 'original', rotulo: 'Favoritos primeiro' },
+            { valor: 'titulo', rotulo: 'Nome: A–Z' },
+            { valor: 'tamanho', rotulo: 'Maior tamanho' },
+          ]}
+        />
         <BotaoPilula
           variante={soFavoritos ? 'principal' : 'secundaria'}
           aria-pressed={soFavoritos}

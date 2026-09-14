@@ -14,7 +14,7 @@ import { useCapaAutomatica } from './use-capa-automatica.js';
  * moldura quadrada que o console já usa. Ver docs/design.md e a ADR 0024.
  *
  * As ações (jogar, favoritar, ranking, remover) chegam prontas por `acoes` e
- * aparecem numa barra sobre a arte ao passar o mouse ou ao dar foco. O
+ * aparecem numa barra abaixo dos metadados ao passar o mouse ou ao dar foco. O
  * cartucho não sabe o que se faz com ele; quem sabe é a prateleira que o
  * desenhou. Quem quer o cartucho INTEIRO como link usa `MioloDoCartucho`
  * dentro de um `<Link className="pv-cartucho">` — um `<a>` por cima de uma
@@ -61,9 +61,11 @@ export function MioloDoCartucho({
         <Heart className="pv-cartucho-favorito" size={14} fill="currentColor" aria-hidden="true" />
       )}
       <Arte titulo={titulo} sistema={systemId} capaUrl={capa} />
-      {acoes !== undefined && <div className="pv-cartucho-acoes">{acoes}</div>}
-      <span className="pv-cartucho-titulo">{titulo}</span>
+      <span className="pv-cartucho-titulo" title={titulo}>
+        {titulo}
+      </span>
       <span className="pv-cartucho-nota">{nota ?? numeroDeAcervo(titulo, systemId)}</span>
+      {acoes !== undefined && <div className="pv-cartucho-acoes">{acoes}</div>}
     </>
   );
 }

@@ -95,7 +95,8 @@ o mesmo palco na tela de jogo. É assim que o site e o console se reconhecem.
 A biblioteca é um **trilho de cartuchos**: molduras quadradas de canto largo
 com a arte do jogo dentro, título e nota embaixo, respiro igual ao do console.
 O trilho sangra até a borda da tela e continua além dela, porque acervo não
-termina onde a janela termina.
+termina onde a janela termina. Setas permitem percorrê-lo com mouse ou teclado;
+nos limites, a direção indisponível fica desativada.
 
 A arte tem duas camadas quando há capa — a imagem em `contain`, para nunca
 cortar a caixa, sobre uma cópia desfocada preenchendo a moldura. **Sem capa,
@@ -104,7 +105,9 @@ do jogo e o console. Todo lugar que mostra capa opcional usa `Arte`
 (`apps/web/src/ui/Arte.tsx`), nunca um `<img>` sozinho.
 
 Passar o mouse ou dar foco **acende o cartucho** (contorno de luz, leve
-elevação) e revela a barra de ações sobre a arte. O carimbo no canto diz a
+elevação) e revela a barra de ações abaixo do título e da nota, em espaço
+reservado para não sobrepor metadados nem deslocar o trilho. No toque, as
+ações ficam sempre visíveis. O carimbo no canto diz a
 procedência ("Homebrew", "Local", "Precisa da sua ROM"); a marca de favorito
 fica visível de longe.
 
