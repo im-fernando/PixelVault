@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verificarFavicon } from './verificar-favicon.mjs';
 import { randomBytes, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -32,12 +33,9 @@ async function pedir(path, method = 'GET', body, esperado = 200) {
   console.log(`${method} ${path}: ${resposta.status}`);
   return dados;
 }
+await verificarFavicon(origem);
+console.log('Favicon SVG publicado corretamente');
 try {
-  const favicon = await fetch(`${origem}/favicon.svg`);
-  assert.equal(favicon.status, 200, 'Favicon deve estar publicado');
-  assert.match(favicon.headers.get('content-type') ?? '', /image\/svg\+xml/i);
-  assert.match(await favicon.text(), /<svg[\s>]/);
-  console.log('Favicon SVG publicado corretamente');
   const jogos = await pedir('/api/games');
   assert.ok(Array.isArray(jogos) && jogos.length >= 4);
   await pedir(

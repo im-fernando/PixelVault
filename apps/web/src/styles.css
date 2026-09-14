@@ -882,21 +882,14 @@ body {
     margin-top: 0;
   }
   .pv-cartucho-painel {
-    position: absolute;
-    z-index: 3;
-    inset-inline: 10px;
-    bottom: 60px;
+    position: relative;
+    margin-top: 12px;
     padding: 10px;
-    border: 1px solid oklch(1 0 0 / 0.2);
+    border: 1px solid transparent;
     border-radius: 14px;
-    background: var(--color-ink-950);
-    box-shadow: 0 8px 24px #0005;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(5px);
     transition:
-      opacity 0.2s,
-      transform 0.2s;
+      background 0.2s,
+      border-color 0.2s;
   }
   .pv-cartucho-resumo {
     padding-bottom: 10px;
@@ -913,12 +906,17 @@ body {
   }
   .pv-cartucho:hover .pv-cartucho-painel,
   .pv-cartucho:focus-within .pv-cartucho-painel {
-    pointer-events: auto;
-    opacity: 1;
-    transform: none;
+    border-color: oklch(1 0 0 / 0.2);
+    background: var(--color-ink-950);
   }
-  .pv-cartucho:has(.pv-cartucho-painel):is(:hover, :focus-within) .pv-cartucho-legenda {
-    visibility: hidden;
+  .pv-cartucho-acoes {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .pv-cartucho:is(:hover, :focus-within) .pv-cartucho-acoes {
+    opacity: 1;
+    pointer-events: auto;
   }
   .pv-cartucho-acoes {
     display: flex;
@@ -1555,15 +1553,13 @@ body {
 }
 
 @media (hover: none), (pointer: coarse) {
-  .pv-cartucho:has(.pv-cartucho-painel) .pv-cartucho-legenda {
-    display: none;
-  }
   .pv-cartucho-painel {
-    position: static;
+    border-color: oklch(1 0 0 / 0.2);
+    background: var(--color-ink-950);
+  }
+  .pv-cartucho-acoes {
     pointer-events: auto;
-    margin-top: 12px;
     opacity: 1;
-    transform: none;
   }
   .pv-cartucho-acoes > a:first-child {
     flex-basis: 100%;

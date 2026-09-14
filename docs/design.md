@@ -105,9 +105,9 @@ do jogo e o console. Todo lugar que mostra capa opcional usa `Arte`
 (`apps/web/src/ui/Arte.tsx`), nunca um `<img>` sozinho.
 
 Passar o mouse ou dar foco **acende o cartucho** (contorno de luz, leve
-elevação) e revela um painel sobre a capa, com título, nota e ações juntos. A legenda
-externa some enquanto o painel está aberto, sem deslocar o trilho. No toque,
-o painel fica sempre visível abaixo da capa. O carimbo no canto diz a
+elevação) e destaca um painel abaixo da capa, com título, nota e ações juntos.
+Os metadados permanecem visíveis e o espaço das ações fica reservado para
+não deslocar o trilho. No toque, as ações ficam sempre visíveis. O carimbo no canto diz a
 procedência ("Homebrew", "Local", "Precisa da sua ROM"); a marca de favorito
 fica visível de longe.
 
