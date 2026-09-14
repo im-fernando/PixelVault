@@ -472,9 +472,58 @@ body {
     flex: 1 1 240px;
     min-width: 0;
   }
-  .pv-filtros select option {
+  .pv-seletor {
+    position: relative;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .pv-seletor .pv-seletor-gatilho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .pv-seletor-gatilho > svg {
+    flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .pv-seletor-gatilho[aria-expanded='true'] > svg {
+    transform: rotate(180deg);
+  }
+  .pv-seletor-lista {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 8px);
+    inset-inline: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 6px;
+    border: 1px solid oklch(1 0 0 / 0.16);
+    border-radius: 14px;
     background: var(--color-ink-950);
+    box-shadow: 0 16px 40px #0006;
+  }
+  .pv-seletor-lista [role='option'] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--color-label-200);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .pv-seletor-lista [data-ativo='true'] {
+    background: color-mix(in oklch, var(--color-luz) 16%, transparent);
     color: var(--color-label-100);
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-luz) 50%, transparent);
+  }
+  .pv-seletor-lista [aria-selected='true'] {
+    color: var(--color-luz);
   }
   .pv-campo-senha {
     position: relative;
@@ -708,6 +757,23 @@ body {
   }
 
   /* ── Trilho e cartucho ────────────────────────────────────────────────── */
+  .pv-trilho-controles {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .pv-trilho-controles .pv-icone {
+    width: 40px;
+    height: 40px;
+    border: 1px solid oklch(1 0 0 / 0.14);
+    background: oklch(1 0 0 / 0.04);
+  }
+  .pv-trilho-controles .pv-icone:disabled {
+    opacity: 0.3;
+    cursor: default;
+    transform: none;
+  }
   .pv-trilho {
     display: flex;
     align-items: flex-start;
@@ -809,32 +875,32 @@ body {
     filter: drop-shadow(0 1px 2px #000);
   }
   .pv-cartucho-acoes {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    z-index: 2;
+    position: relative;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    padding: 4px;
+    margin-top: 16px;
+    padding: 6px;
     border: 1px solid oklch(1 0 0 / 0.14);
-    border-radius: 40px;
-    background: oklch(0.1 0.03 262 / 0.78);
-    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    background: var(--color-ink-950);
     opacity: 0;
-    transform: translateY(6px);
+    pointer-events: none;
+    transform: translateY(4px);
     transition:
       opacity 0.2s,
       transform 0.2s;
   }
   .pv-cartucho:hover .pv-cartucho-acoes,
   .pv-cartucho:focus-within .pv-cartucho-acoes {
+    pointer-events: auto;
     opacity: 1;
     transform: translateY(0);
   }
   .pv-cartucho-acoes > a:first-child {
-    flex: 1;
+    flex: 1 0 100%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -853,6 +919,7 @@ body {
     outline-offset: 2px;
   }
   .pv-cartucho-acoes .pv-icone {
+    flex: 0 0 32px;
     width: 32px;
     height: 32px;
   }
@@ -1462,8 +1529,9 @@ body {
 @media (hover: none), (pointer: coarse) {
   .pv-cartucho-acoes {
     position: static;
+    pointer-events: auto;
     flex-wrap: wrap;
-    margin-top: 10px;
+    margin-top: 16px;
     border-radius: 16px;
     opacity: 1;
     transform: none;
@@ -1473,8 +1541,56 @@ body {
     min-height: 44px;
   }
   .pv-cartucho-acoes .pv-icone {
+    flex-basis: 44px;
     width: 44px;
     height: 44px;
+  }
+}
+
+/* A capa responde ao mouse sem mover os metadados ou a barra de ações.
+   Propriedades individuais compõem com a animação de entrada da vitrine. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .pv-vitrine .pv-caixa {
+    position: relative;
+    transition:
+      rotate 0.45s ease,
+      translate 0.45s ease,
+      scale 0.45s ease,
+      box-shadow 0.45s ease;
+  }
+  .pv-vitrine .pv-caixa:hover {
+    rotate: 0 1 0 12deg;
+    translate: 0 -8px;
+    scale: 1.025;
+    box-shadow:
+      12px 20px 0 -10px oklch(0.62 0.05 262 / 0.4),
+      0 38px 80px oklch(0.05 0.03 262 / 0.7),
+      0 0 85px oklch(0.7 0.12 262 / 0.22);
+  }
+  .pv-cartucho > .pv-arte {
+    transition:
+      opacity 0.25s,
+      box-shadow 0.25s,
+      transform 0.3s ease,
+      outline-color 0.25s;
+  }
+  .pv-cartucho:hover > .pv-arte {
+    transform: translateY(-5px) rotate(-1.5deg) scale(1.015);
+  }
+  .pv-vitrine .pv-caixa::after,
+  .pv-cartucho > .pv-arte::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(115deg, transparent 25%, #ffffff20 48%, transparent 72%);
+    transform: translateX(-110%);
+    transition: transform 0.65s ease;
+  }
+  .pv-vitrine .pv-caixa:hover::after,
+  .pv-cartucho:hover > .pv-arte::after {
+    transform: translateX(110%);
   }
 }
 
