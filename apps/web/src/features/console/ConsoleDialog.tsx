@@ -1,7 +1,7 @@
 import { moverFoco } from './foco-do-console.js';
 import type { DirecaoDoTeclado } from './teclado-do-console.js';
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ArrowLeft, Check, Moon, Sparkles, Sun, X } from 'lucide-react';
+import { ArrowLeft, Check, Moon, ChevronLeft, ChevronRight, Sun } from 'lucide-react';
 import { TEMAS, type PreferenciasConsole } from './temas.js';
 
 export function moverFocoDoDialogo(direcao: DirecaoDoTeclado) {
@@ -74,17 +74,18 @@ export function ConsoleDialog({
       >
         <header className="cx-dialog-header">
           <div>
-            <span className="cx-overline">PERSONALIZE SEU CONSOLE</span>
+            <span className="cx-overline">PIXELVAULT / SISTEMA</span>
             <h2>{titulo}</h2>
           </div>
           <button
             type="button"
-            className="cx-icon-button"
+            className="cx-dialog-return"
             onClick={fechar}
             data-console-sound="voltar"
             aria-label={`Fechar ${titulo.toLowerCase()}`}
           >
-            <X size={22} />
+            <ArrowLeft size={20} />
+            Voltar
           </button>
         </header>
         {children}
@@ -157,10 +158,8 @@ export function ConfiguracoesConsole({
   const alterarAparencia = (claro: boolean) =>
     alterar(aurora ? { auroraWhite: claro } : { solsticeEscuro: !claro });
   return (
-    <ConsoleDialog titulo="Seu console. Seu estilo." fechar={fechar} amplo>
-      <p className="cx-dialog-description">
-        Quatro maneiras de entrar no jogo. Escolha uma experiência completa.
-      </p>
+    <ConsoleDialog titulo="Configurações" fechar={fechar} amplo>
+      <p className="cx-dialog-description">Tema do console</p>
       <div className="cx-theme-gallery" role="group" aria-label="Temas do modo console">
         {TEMAS.map((tema) => (
           <button
@@ -186,16 +185,13 @@ export function ConfiguracoesConsole({
                 {preferencias.tema === tema.id && <Check size={16} />}
               </span>
             </span>
-            <span className="cx-theme-caption">{tema.descricao}</span>
           </button>
         ))}
       </div>
       {(aurora || preferencias.tema === 'solstice') && (
         <div className="cx-solstice-appearance">
           <div>
-            <span className="cx-overline">A LUZ MUDA. SEU CONSOLE TAMBÉM.</span>
             <h3>Aparência do {nomeDaAparencia}</h3>
-            <p>Da biblioteca à partida, no seu ritmo.</p>
           </div>
           <div
             className="cx-color-modes"
@@ -235,26 +231,30 @@ export function ConfiguracoesConsole({
               <b>{nome}</b>
               <small>{descricao}</small>
             </span>
-            <span className="cx-switch">
-              <i />
+            <span className="cx-setting-value" aria-hidden="true">
+              <ChevronLeft size={16} />
+              {preferencias[chave] ? 'Ligado' : 'Desligado'}
+              <ChevronRight size={16} />
             </span>
           </button>
         ))}
       </div>
-      <div className="cx-color-modes">
+      <div className="cx-system-menu">
         <button type="button" onClick={alternarTelaCheia}>
           {telaCheia ? 'Sair da tela cheia' : 'Tela cheia'}
+          <ChevronRight size={18} />
         </button>
         <button type="button" onClick={sair}>
           Sair do console
+          <ChevronRight size={18} />
         </button>
       </div>
       <footer className="cx-dialog-footer">
         <span role="status">
-          <Sparkles size={15} />
+          <Check size={15} />
           {persistido
-            ? 'Aplicado ao console · salvo neste navegador'
-            : 'Aplicado nesta sessão · armazenamento indisponível'}
+            ? 'Configurações salvas neste aparelho'
+            : 'Configurações válidas apenas nesta sessão'}
         </span>
         <button
           type="button"
