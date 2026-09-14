@@ -26,6 +26,22 @@ export const VERSAO_NOSTALGIST = '0.22.0';
  */
 export const CORES = [
   {
+    nome: 'pcsx_rearmed',
+    versao: VERSAO_RETROARCH,
+    url: `https://cdn.jsdelivr.net/gh/arianrhodsandlot/retroarch-emscripten-build@v${VERSAO_RETROARCH}/retroarch/pcsx_rearmed_libretro.zip`,
+    sha256Zip: '4c058822c08d38df709e8a03a0e3a4209d178bada0478996a46d2cf058d6a530',
+    arquivos: [
+      {
+        nome: 'pcsx_rearmed_libretro.js',
+        sha256: '89c3b0910e087732c08ccc741df1ed0df068a79791e163a6d21ae957f2499d32',
+      },
+      {
+        nome: 'pcsx_rearmed_libretro.wasm',
+        sha256: 'ecd3a8092f7342ca3cd55af715c79deab30f2618c5ca1b9d88bdd509b17807db',
+      },
+    ],
+  },
+  {
     nome: 'snes9x2010',
     versao: VERSAO_RETROARCH,
     url: `https://cdn.jsdelivr.net/gh/arianrhodsandlot/retroarch-emscripten-build@v${VERSAO_RETROARCH}/retroarch/snes9x2010_libretro.zip`,

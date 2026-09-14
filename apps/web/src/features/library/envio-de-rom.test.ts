@@ -165,3 +165,31 @@ describe('enviarRom', () => {
     expect(final.fase).toBe('recusado');
   });
 });
+
+it('envia CDs grandes sem calcular hash numa segunda cópia integral no navegador', async () => {
+  const arquivo = arquivoQueSeDizEnorme(700 * 1024 * 1024);
+  const calcularHash = vi.fn(async () => HASH);
+  const enviarBytes = vi.fn(async () => {});
+  const fetch = respostas(
+    { status: 200, body: { ...TICKET, sizeBytes: arquivo.size } },
+    {
+      status: 200,
+      body: {
+        romId: ROM_ID,
+        sha256: HASH,
+        sizeBytes: arquivo.size,
+        gameId: null,
+        title: null,
+        coverUrl: null,
+        deduplicado: false,
+      },
+    },
+  );
+  vi.stubGlobal('fetch', fetch);
+  await enviarRom(arquivo, () => {}, deps({ calcularHash, enviarBytes }));
+  expect(calcularHash).not.toHaveBeenCalled();
+  expect(enviarBytes).toHaveBeenCalledOnce();
+  expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({
+    sizeBytes: arquivo.size,
+  });
+});

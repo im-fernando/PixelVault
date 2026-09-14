@@ -129,6 +129,7 @@ async function main(): Promise<void> {
       { id: SystemId.gb, name: 'Game Boy', coreSlug: 'gambatte' },
       { id: SystemId.gba, name: 'Game Boy Advance', coreSlug: 'mgba' },
       { id: SystemId.genesis, name: 'Mega Drive', coreSlug: 'genesis_plus_gx' },
+      { id: SystemId.ps1, name: 'PlayStation', coreSlug: 'pcsx_rearmed' },
     ],
     skipDuplicates: true,
   });

@@ -1,3 +1,4 @@
+import { Ps1Setup } from './Ps1Setup.js';
 import { Play } from 'lucide-react';
 import {
   useCallback,
@@ -86,7 +87,21 @@ const MILISSEGUNDOS_DO_AVISO = 4000;
  * HUD sabem que existe um adapter. É o que permite trocar o runtime inteiro —
  * ou rodar a tela contra o adapter falso — sem tocar em mais nada.
  */
-export function EmulatorPlayer({
+export function EmulatorPlayer(props: PropsDoPlayer) {
+  if (props.systemId === 'ps1')
+    return (
+      <Ps1Setup
+        modoConsole={Boolean(props.modoConsole)}
+        titulo={props.titulo}
+        sair={props.modoConsole?.aoSair ?? (() => window.location.assign('/'))}
+      >
+        <PlayerPronto {...props} />
+      </Ps1Setup>
+    );
+  return <PlayerPronto {...props} />;
+}
+
+function PlayerPronto({
   systemId,
   rom,
   titulo,
@@ -141,6 +156,7 @@ export function EmulatorPlayer({
   const [consoleOcupado, setConsoleOcupado] = useState(false);
   const menuConsole = useConsoleGameMenu({
     ativo: Boolean(modoConsole),
+    ps1: systemId === 'ps1',
     disponivel: ['running', 'paused', 'ready'].includes(status) && emulador.erro === null,
     bloqueado: consoleOcupado || sincronizacaoDeSaveState.ocupado !== null,
     impedirRetomada: sincronizacaoDeSaveState.conflito !== null,
@@ -190,7 +206,7 @@ export function EmulatorPlayer({
     if (modoConsole) return {};
     const mapa: Record<string, () => void> = {
       Space: acoes.alternarPausa,
-      KeyR: acoes.resetar,
+      [systemId === 'ps1' ? 'F8' : 'KeyR']: acoes.resetar,
       KeyF: telaCheia.alternar,
       [ATALHO_DE_DIAGNOSTICO]: diagnostico.alternar,
     };
@@ -200,13 +216,14 @@ export function EmulatorPlayer({
       mapa['F4'] = acoes.carregarEstado;
     }
     return mapa;
-  }, [acoes, capabilities.saveState, telaCheia, diagnostico.alternar, modoConsole]);
+  }, [acoes, capabilities.saveState, telaCheia, diagnostico.alternar, modoConsole, systemId]);
 
   // O controle não pede foco: ele não é compartilhado com o navegador nem com o
   // resto da página, então exigir clique na tela seria inventar uma trava que só
   // o teclado precisa ter.
   const { estado: gamepad, controle } = useEntradaDoJogador({
     alvo: palcoRef,
+    ps1: systemId === 'ps1',
     tecladoAtivo: teclado,
     controleAtivo: rodando && emulador.abaVisivel && !menuConsole.aberto,
     atalhos,
@@ -401,6 +418,7 @@ export function EmulatorPlayer({
             />
           ) : (
             <PlayerHud
+              atalhoReiniciar={systemId === 'ps1' ? 'F8' : 'R'}
               status={status}
               capabilities={capabilities}
               visivel={hudVisivel || !rodando}
@@ -478,7 +496,12 @@ export function EmulatorPlayer({
 
           {conflitoDeSave}
 
-          <GamepadLegend estado={gamepad} ativo={teclado} controle={controle} />
+          <GamepadLegend
+            ps1={systemId === 'ps1'}
+            estado={gamepad}
+            ativo={teclado}
+            controle={controle}
+          />
         </>
       )}
     </div>

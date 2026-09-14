@@ -3,7 +3,7 @@ import { gamepadSolto } from '../player/input/snes-keymap.js';
 import { criarRepeticaoDoDirecional } from './teclado-do-console.js';
 import { moverFoco } from './foco-do-console.js';
 import { ArrowLeft, Gamepad2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export function ConsoleGameStatus({
   titulo,
@@ -11,18 +11,42 @@ export function ConsoleGameStatus({
   capaUrl,
   sair,
   tentar,
+  children,
+  rotuloDaAcao = 'Tentar novamente',
+  rotuloDeSaida = 'Voltar ao console',
+  sobrelinha,
 }: {
   titulo: string;
   detalhe: string;
   capaUrl?: string | null | undefined;
   sair: () => void;
   tentar?: (() => void) | undefined;
+  children?: ReactNode;
+  rotuloDaAcao?: string;
+  rotuloDeSaida?: string;
+  sobrelinha?: string;
 }) {
   const [capaFalhou, setCapaFalhou] = useState(false);
   const raiz = useRef<HTMLDivElement>(null);
   const acoes = useRef({ sair });
   acoes.current = { sair };
   useEffect(() => {
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (!e.repeat) acoes.current.sair();
+      } else if (e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        moverFoco(
+          Array.from(
+            raiz.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
+          ),
+          e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right',
+        );
+      }
+    };
+    window.addEventListener('keydown', aoTeclar);
     let anterior = gamepadSolto();
     let armado = false;
     const repetir = criarRepeticaoDoDirecional();
@@ -54,7 +78,10 @@ export function ConsoleGameStatus({
       }
       anterior = estado;
     }, 40);
-    return () => window.clearInterval(intervalo);
+    return () => {
+      window.clearInterval(intervalo);
+      window.removeEventListener('keydown', aoTeclar);
+    };
   }, []);
   return (
     <div ref={raiz} className="cgp-loading" role={tentar ? 'alert' : 'status'}>
@@ -73,7 +100,7 @@ export function ConsoleGameStatus({
         )}
       </div>
       <span className="cx-overline">
-        {tentar ? 'A SESSÃO PRECISA DE ATENÇÃO' : 'PREPARANDO SEU UNIVERSO'}
+        {sobrelinha ?? (tentar ? 'A SESSÃO PRECISA DE ATENÇÃO' : 'PREPARANDO SEU UNIVERSO')}
       </span>
       <h1>{titulo}</h1>
       <p>{detalhe}</p>
@@ -82,14 +109,15 @@ export function ConsoleGameStatus({
           <i />
         </span>
       )}
+      {children}
       {tentar && (
         <button type="button" className="cx-play" onClick={tentar}>
-          Tentar novamente
+          {rotuloDaAcao}
         </button>
       )}
       <button type="button" className="cgp-back" onClick={sair}>
         <ArrowLeft size={16} />
-        Voltar ao console
+        {rotuloDeSaida}
       </button>
     </div>
   );

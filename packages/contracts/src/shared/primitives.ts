@@ -16,7 +16,7 @@ export type Sha256 = z.infer<typeof sha256Schema>;
  * é escrever um adapter e uma linha aqui. Retrofitar `system` num schema que
  * assumiu SNES em todo lugar seria caro. Ver docs/adr/0002.
  */
-export const systemIdSchema = z.enum(['snes', 'nes', 'gb', 'gba', 'genesis']);
+export const systemIdSchema = z.enum(['snes', 'nes', 'gb', 'gba', 'genesis', 'ps1']);
 export type SystemId = z.infer<typeof systemIdSchema>;
 
 /**

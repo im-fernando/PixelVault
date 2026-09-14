@@ -8,6 +8,7 @@ import {
 import { estadosIguais, gamepadSolto, type EstadoDoGamepad } from './snes-keymap.js';
 
 export interface OpcoesDaEntradaDeControle {
+  readonly ps1?: boolean;
   /** Chamado só quando algum dos doze botões muda de verdade. */
   readonly aoMudar?: (estado: EstadoDoGamepad) => void;
   readonly aoConectar?: (perfil: PerfilDoControle) => void;
@@ -36,12 +37,14 @@ export class EntradaDeControle {
   readonly #aoConectar: ((perfil: PerfilDoControle) => void) | undefined;
   readonly #aoDesconectar: ((perfil: PerfilDoControle) => void) | undefined;
   readonly #zonaMorta: number;
+  readonly #ps1: boolean;
 
   #perfil: PerfilDoControle | null = null;
   #estado: EstadoDoGamepad = gamepadSolto();
   #ativa = false;
 
   constructor(opcoes: OpcoesDaEntradaDeControle = {}) {
+    this.#ps1 = opcoes.ps1 ?? false;
     this.#aoMudar = opcoes.aoMudar;
     this.#aoConectar = opcoes.aoConectar;
     this.#aoDesconectar = opcoes.aoDesconectar;
@@ -89,7 +92,7 @@ export class EntradaDeControle {
 
     if (this.#perfil === null || !this.#mesmoControle(leitura)) {
       const anterior = this.#perfil;
-      this.#perfil = perfilDoControle(leitura);
+      this.#perfil = perfilDoControle(leitura, this.#ps1);
       this.#aplicar(gamepadSolto());
       if (anterior !== null) this.#aoDesconectar?.(anterior);
       this.#aoConectar?.(this.#perfil);

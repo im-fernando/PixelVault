@@ -107,6 +107,24 @@ export function criarArmazenamentoS3(opcoes: OpcoesDoArmazenamentoS3): Armazenam
       return getSignedUrl(cliente, comando, { expiresIn: validadeEmSegundos(ajustes) });
     },
 
+    async lerEmPartes(chave: string): Promise<AsyncIterable<Uint8Array>> {
+      const resposta = await cliente.send(new GetObjectCommand({ Bucket: bucket, Key: chave }));
+      if (!resposta.Body) throw new Error(`Objeto ${chave} veio sem corpo`);
+      const leitor = resposta.Body.transformToWebStream().getReader();
+      return (async function* () {
+        try {
+          for (;;) {
+            const { done, value } = await leitor.read();
+            if (done) return;
+            yield value;
+          }
+        } finally {
+          await leitor.cancel();
+          leitor.releaseLock();
+        }
+      })();
+    },
+
     async ler(chave: string): Promise<Uint8Array> {
       const resposta = await cliente.send(new GetObjectCommand({ Bucket: bucket, Key: chave }));
       if (resposta.Body === undefined) {

@@ -36,6 +36,19 @@ describe('recusaDeEnvio', () => {
     },
   );
 
+  it('preserva a instrução específica para corrigir um disco PS1', () => {
+    const message = 'CHD diferencial não é aceito. Envie um CHD completo.';
+    expect(
+      recusaDeEnvio(
+        recusa(422, {
+          code: 'VALIDATION_FAILED',
+          message,
+          details: { rom: ['CONTEUDO_NAO_RECONHECIDO'] },
+        }),
+      ).detalhe,
+    ).toBe(message);
+  });
+
   it('não repete a mesma frase para os quatro motivos de recusa', () => {
     const frases = motivoDeRecusaDeRomSchema.options.map(
       (motivo) =>

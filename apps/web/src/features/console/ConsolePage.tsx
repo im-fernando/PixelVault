@@ -78,6 +78,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
   const raiz = useRef<HTMLDivElement>(null);
   const anteriores = useRef<EstadoDoGamepad>(gamepadSolto());
   const perfilControle = useRef<PerfilDoControle | null>(null);
+  const controleArmado = useRef(false);
   const [preferencias, setPreferencias] = useState(lerPreferencias);
   const [persistido, setPersistido] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(jogoInicial ?? null);
@@ -286,6 +287,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
 
   consultarControle.current = () => {
     if (document.visibilityState === 'hidden') {
+      controleArmado.current = false;
       anteriores.current = gamepadSolto();
       perfilControle.current = null;
       repeticao.current(null, 0);
@@ -294,6 +296,7 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
     const controle = Array.from(navigator.getGamepads?.() ?? []).find((pad) => pad?.connected);
     setControleConectado(Boolean(controle));
     if (!controle) {
+      controleArmado.current = false;
       anteriores.current = gamepadSolto();
       perfilControle.current = null;
       repeticao.current(null, 0);
@@ -308,10 +311,20 @@ export function ConsolePage({ jogoInicial }: { jogoInicial?: string | undefined 
       !perfilControle.current ||
       perfilControle.current.id !== controle.id ||
       perfilControle.current.index !== controle.index
-    )
+    ) {
+      controleArmado.current = false;
       perfilControle.current = perfilDoControle(controle);
+    }
     setFamilia(perfilControle.current.familia);
     const estado = traduzirControle(controle, perfilControle.current);
+    // Uma rota pode montar enquanto o botão que confirmou a saída ainda está
+    // pressionado. Só aceitar comandos depois de observar o controle solto.
+    if (!controleArmado.current) {
+      controleArmado.current = !Object.values(estado).some(Boolean);
+      anteriores.current = estado;
+      repeticao.current(null, 0);
+      return;
+    }
     const anterior = anteriores.current;
     const novo = (botao: BotaoDoSnes) => estado[botao] && !anterior[botao];
     const direcaoSegurada = estado.up

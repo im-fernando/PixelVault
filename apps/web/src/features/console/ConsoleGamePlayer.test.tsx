@@ -57,13 +57,13 @@ async function controle(...pressionados: number[]) {
 async function montar(options: FakeAdapterOptions = {}) {
   const registry = new EmulatorRegistry();
   const adapter = new FakeAdapter(options);
-  registry.register('snes', () => adapter);
+  registry.register(options.systemId ?? 'snes', () => adapter);
   const sair = vi.fn();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
       <EmulatorPlayer
-        systemId="snes"
+        systemId={options.systemId ?? 'snes'}
         titulo="Sure Instinct"
         rom={ROM}
         romId={'a'.repeat(64)}
@@ -72,11 +72,27 @@ async function montar(options: FakeAdapterOptions = {}) {
       />
     </QueryClientProvider>,
   );
+  if (options.systemId === 'ps1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Iniciar com BIOS HLE' }));
   await waitFor(() => expect(adapter.status).toBe('running'));
   return { adapter, sair };
 }
 
 describe('partida no modo console', () => {
+  it('PS1 libera L1+R1 para o jogo e abre a pausa por Select+Start', async () => {
+    const { adapter } = await montar({ systemId: 'ps1' });
+    await controle(4, 5);
+    expect(adapter.status).toBe('running');
+    await controle();
+    await controle(8, 9);
+    expect(adapter.status).toBe('paused');
+    expect(screen.getByRole('dialog', { name: 'Menu do console' })).toBeTruthy();
+    await controle();
+    await controle(1);
+    await controle();
+    expect(adapter.status).toBe('running');
+  });
+
   it('inicia imersiva, pausa por Esc e isola o teclado do core durante o menu', async () => {
     const { adapter } = await montar();
     expect(screen.getByRole('application').classList.contains('cgp-stage')).toBe(true);
@@ -165,6 +181,32 @@ describe('partida no modo console', () => {
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(adapter.status).toBe('paused');
     expect(sair).not.toHaveBeenCalled();
+  });
+
+  it('confirma a saída pelo joystick uma única vez sem reiniciar a partida', async () => {
+    const { adapter, sair } = await montar();
+    act(() => adapter.advanceFrames(60));
+    const resetar = vi.spyOn(adapter, 'reset');
+    await controle(4, 5);
+    await controle();
+    screen.getByRole('button', { name: 'Voltar ao console' }).focus();
+    await controle(0);
+    const dialogo = screen.getByRole('alertdialog');
+    expect(document.activeElement).toBe(within(dialogo).getByRole('button', { name: 'Cancelar' }));
+    await controle(0);
+    expect(sair).not.toHaveBeenCalled();
+    await controle();
+    await controle(15);
+    expect(document.activeElement).toBe(
+      within(dialogo).getByRole('button', { name: 'Voltar ao console' }),
+    );
+    await controle();
+    await controle(0);
+    await waitFor(() => expect(sair).toHaveBeenCalledOnce());
+    await controle(0);
+    expect(sair).toHaveBeenCalledOnce();
+    expect(resetar).not.toHaveBeenCalled();
+    expect(adapter.frameCount).toBe(60);
   });
 
   it('espera a bateria ser persistida antes de voltar à biblioteca', async () => {

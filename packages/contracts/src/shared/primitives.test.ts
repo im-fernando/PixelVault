@@ -27,6 +27,6 @@ describe('slugSchema', () => {
 
 describe('systemIdSchema', () => {
   it('cobre os cinco consoles previstos', () => {
-    expect(systemIdSchema.options).toEqual(['snes', 'nes', 'gb', 'gba', 'genesis']);
+    expect(systemIdSchema.options).toEqual(['snes', 'nes', 'gb', 'gba', 'genesis', 'ps1']);
   });
 });

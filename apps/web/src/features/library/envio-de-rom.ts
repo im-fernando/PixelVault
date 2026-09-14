@@ -151,7 +151,9 @@ export async function enviarRom(
 
   try {
     anunciar({ fase: 'conferindo', arquivo: descricao });
-    const sha256 = await deps.calcularHash(arquivo);
+    // Hash antecipado é só uma otimização. CDs grandes são hasheados pelo
+    // servidor, evitando uma segunda cópia integral na memória do navegador.
+    const sha256 = arquivo.size <= 64 * 1024 * 1024 ? await deps.calcularHash(arquivo) : undefined;
 
     const autorizacao = await apiFetch('/api/library/uploads', romUploadResponseSchema, {
       method: 'POST',
@@ -159,6 +161,7 @@ export async function enviarRom(
     });
 
     if (autorizacao.status === 'ja-na-biblioteca') {
+      if (!sha256) throw new Error('Resposta de deduplicação sem hash solicitado.');
       // O hash que casou é este mesmo, calculado aqui: a consulta do servidor
       // é por igualdade contra `user_roms.sha256`, então guardá-lo não é
       // palpite.

@@ -52,6 +52,11 @@ export function EnviarRomPage() {
           </p>
         </header>
 
+        <p className="mt-4 text-sm text-ink-500">
+          PS1: CHD de disco único, ISO com setores de 2048 bytes ou homebrew PS-X EXE, até 1 GiB.
+          Para BIN/CUE, converta o CD completo para CHD. PBP, troca de discos e arquivos SBI ainda
+          não são suportados. A BIOS é escolhida ao iniciar o jogo e fica neste navegador.
+        </p>
         <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <ZonaDeEntrada aoEscolher={envio.enviar} />
           <Protocolo

@@ -27,7 +27,8 @@ export const BOTOES_DO_SNES = [
   'start',
 ] as const;
 
-export type BotaoDoSnes = (typeof BOTOES_DO_SNES)[number];
+export const BOTOES_DO_CONTROLE = [...BOTOES_DO_SNES, 'l2', 'r2'] as const;
+export type BotaoDoSnes = (typeof BOTOES_DO_CONTROLE)[number];
 
 /**
  * Mapa padrão, indexado por `KeyboardEvent.code` e não por `key`.
@@ -111,3 +112,9 @@ export function configDeTecladoDoRetroArch(
   }
   return Object.freeze(config);
 }
+
+export const MAPA_DE_TECLADO_PS1: Readonly<Record<string, BotaoDoSnes>> = Object.freeze({
+  ...MAPA_PADRAO_DE_TECLADO,
+  KeyE: 'l2',
+  KeyR: 'r2',
+});

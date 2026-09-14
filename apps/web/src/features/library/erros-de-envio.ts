@@ -27,10 +27,9 @@ import { EXTENSOES_ACEITAS } from './arquivo-de-rom.js';
  * exatamente o tipo de atalho que dissolve fronteira.
  *
  * O que se herda de lá é a **disciplina**, e ela vale inteira: a tradução é
- * por CÓDIGO, nunca pela mensagem que veio junto. O código o contrato promete
- * manter estável; a mensagem é para humano e muda sem aviso. A mensagem do
- * servidor só aparece na tela quando ela é tudo que existe — recusa sem
- * `details` que a gente reconheça.
+ * por código para escolher o título. As recusas de discos PS1 preservam
+ * também a orientação específica do servidor, como converter setores ou
+ * escolher um CHD completo. Códigos desconhecidos usam a mensagem recebida.
  */
 export interface RecusaDeEnvio {
   /** O que houve, em uma frase. Não pede desculpa e não é vago. */
@@ -68,11 +67,11 @@ const RECUSA_POR_MOTIVO: Readonly<Record<MotivoDeRecusaDeRom, RecusaDeEnvio>> = 
   EXTENSAO_NAO_RECONHECIDA: {
     titulo: 'Não dá para saber de que console é este arquivo',
     detalhe:
-      `A extensão precisa ser a do cartucho — ${EXTENSOES_ACEITAS.join(', ')}. ` +
+      `A extensão precisa ser a do jogo — ${EXTENSOES_ACEITAS.join(', ')}. ` +
       'Se o arquivo veio dentro de um .zip ou .rar, descompacte e envie a ROM de dentro.',
   },
   TAMANHO_IMPLAUSIVEL: {
-    titulo: 'O tamanho não é de um cartucho desse console',
+    titulo: 'O tamanho não é de um jogo desse console',
     detalhe:
       'Ou o arquivo está truncado, ou não é a ROM. Vale conferir se o download terminou: ' +
       'dump de SNES, por exemplo, sempre tem tamanho múltiplo de 512 bytes.',
@@ -113,9 +112,7 @@ const RECUSA_POR_COTA: Readonly<Record<MotivoDeCota, RecusaDeEnvio>> = {
 export const RECUSA_POR_TAMANHO: RecusaDeEnvio = {
   titulo: `O arquivo passa de ${TAMANHO_MAXIMO_DE_ROM_EM_BYTES / MIB} MB`,
   detalhe:
-    'Esse é o teto por arquivo, e ele é maior que o maior cartucho que existe nos consoles ' +
-    'suportados. Um arquivo desse tamanho provavelmente não é uma ROM — pode ser um pacote ' +
-    'inteiro, ou uma imagem de CD.',
+    'O limite é de 1 GiB por arquivo. Envie um disco PS1 por vez; cartuchos têm limites menores conforme o sistema.',
 };
 
 /** Arquivo de zero byte. Não chega a ser um caso, mas chega na tela. */
@@ -152,7 +149,14 @@ export function recusaDeEnvio(erro: unknown): RecusaDeEnvio {
   const detalhes = erro.payload.details ?? {};
 
   const motivoDaRom = primeiroCodigo(detalhes['rom'], motivoDeRecusaDeRomSchema.options);
-  if (motivoDaRom !== null) return RECUSA_POR_MOTIVO[motivoDaRom];
+  if (motivoDaRom !== null) {
+    const recusa = RECUSA_POR_MOTIVO[motivoDaRom];
+    // Discos têm recusas específicas (diferencial, truncado, setores), úteis
+    // para escolher/converter o arquivo certo sem repetir o mesmo upload.
+    if (/^(CHD|ISO|PS-X|PS1|Use CHD|O CHD|A imagem ISO|O executável)/.test(erro.payload.message))
+      return { ...recusa, detalhe: erro.payload.message };
+    return recusa;
+  }
 
   const motivoDaCota = primeiroCodigo(detalhes['cota'], motivoDeCotaSchema.options);
   if (motivoDaCota !== null) return RECUSA_POR_COTA[motivoDaCota];

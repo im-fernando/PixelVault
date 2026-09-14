@@ -32,11 +32,17 @@ export function ConsoleDialog({
     const anterior = document.activeElement as HTMLElement | null;
     const overflowAnterior = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    (painel.current?.querySelector<HTMLElement>('[data-autofocus]') ?? painel.current)?.focus();
+    (
+      painel.current?.querySelector<HTMLElement>('[data-autofocus]') ??
+      painel.current?.querySelector<HTMLElement>('button:not(:disabled)') ??
+      painel.current
+    )?.focus();
     const prenderFoco = (evento: KeyboardEvent) => {
       if (evento.key !== 'Tab') return;
       const elementos = Array.from(
-        painel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input') ?? [],
+        painel.current?.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled)',
+        ) ?? [],
       );
       const primeiro = elementos[0];
       const ultimo = elementos.at(-1);

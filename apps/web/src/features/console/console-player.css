@@ -1389,3 +1389,33 @@
     padding: 22px 30px;
   }
 }
+
+.ps1-setup {
+  display: grid;
+  gap: 0.8rem;
+  max-width: 38rem;
+  text-align: center;
+  padding: 1rem;
+}
+.ps1-setup p {
+  margin: 0;
+}
+.ps1-setup button {
+  padding: 0.8rem 1.2rem;
+  border: 1px solid currentColor;
+  border-radius: 0.75rem;
+}
+.ps1-setup button:focus {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+.cgp-loading:has(.ps1-setup) {
+  justify-content: safe center;
+  gap: 12px;
+}
+.cgp-loading:has(.ps1-setup) .cgp-boot-art {
+  display: none;
+}
+.cgp-loading:has(.ps1-setup) > .cgp-system-brand {
+  position: static;
+}

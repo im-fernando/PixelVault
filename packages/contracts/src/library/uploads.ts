@@ -1,31 +1,8 @@
 import { z } from 'zod';
 import { sha256Schema, uuidSchema } from '../shared/primitives.js';
 
-/**
- * Teto de tamanho de uma ROM enviada: 64 MiB.
- *
- * O número sai do maior cartucho que os cinco sistemas suportados produzem, e
- * não de um palpite. O teto real é o GBA, com 32 MiB (256 Mbit) — Mother 3 e
- * boa parte dos jogos tardios ocupam o cartucho inteiro. Depois dele vem o
- * SNES com 6 MiB (48 Mbit, Tales of Phantasia e Star Ocean), o Mega Drive com
- * 4 MiB de catálogo comercial (e 8 MiB em homebrew como Pier Solar), o Game
- * Boy com até 8 MiB e o NES com pouco mais de 1 MiB nos mappers maiores.
- *
- * Dobrar o teto real é a folga: dumps de SNES chegam com 512 bytes de
- * cabeçalho de copiador, e tradução e romhack costumam crescer o arquivo
- * original ao expandir banco. Um limite de 8 ou 16 MiB — a intuição de quem
- * pensa só em SNES — recusaria metade da biblioteca de GBA, e a recusa
- * apareceria no primeiro upload de verdade, não aqui.
- *
- * O teto é por arquivo e entra na assinatura da URL (`Content-Length`), então
- * ninguém despeja mais que isto numa URL pedida para menos. Quanto uma conta
- * pode acumular no total é outra conversa, e é a cota da #76.
- *
- * Mora no contrato, e não só no servidor, porque o front precisa do mesmo
- * número para recusar o arquivo antes de pedir a URL — pela mesma razão que
- * `TAMANHO_MINIMO_SENHA` mora aqui.
- */
-export const TAMANHO_MAXIMO_DE_ROM_EM_BYTES = 64 * 1024 * 1024;
+/** Limite global de 1 GiB para CDs; a verificação aplica o teto de cada sistema. */
+export const TAMANHO_MAXIMO_DE_ROM_EM_BYTES = 1024 * 1024 * 1024;
 
 /**
  * O tipo de conteúdo com que toda ROM é gravada.

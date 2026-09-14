@@ -69,3 +69,13 @@ pnpm emulator:setup --verificar # só confere o que já está em disco
 
 Os SHA-256 esperados estão em `scripts/emulador/manifesto.mjs`. Hash divergente
 é tratado como adulteração: o script falha e não instala nada.
+
+## PCSX ReARMed — GPL-2.0
+
+O core de PS1 usa PCSX ReARMed, distribuído com RetroArch no build fixado pelo manifesto.
+
+- Fonte e licença: <https://github.com/libretro/pcsx_rearmed>
+- Build correspondente: <https://github.com/arianrhodsandlot/retroarch-emscripten-build/tree/v1.22.2>
+
+Nenhuma BIOS proprietária acompanha estes assets. A pessoa pode fornecer sua própria
+BIOS; sem ela, o core usa HLE, com compatibilidade menor.
