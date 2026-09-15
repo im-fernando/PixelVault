@@ -13,6 +13,7 @@ export function useAreaDeExibicao(
   container: RefObject<HTMLElement | null>,
   proporcao: ProporcaoDeTela,
   escalaInteira: boolean,
+  alturaNativa = 224,
 ): Dimensoes {
   const [area, setArea] = useState<Dimensoes>({ largura: 0, altura: 0 });
 
@@ -25,6 +26,7 @@ export function useAreaDeExibicao(
       setArea(
         calcularAreaDeExibicao({ largura: width, altura: height }, proporcao, {
           escalaInteira,
+          alturaNativa,
         }),
       );
     };
@@ -45,7 +47,7 @@ export function useAreaDeExibicao(
       observador.disconnect();
       document.removeEventListener('fullscreenchange', medir);
     };
-  }, [container, proporcao, escalaInteira]);
+  }, [container, proporcao, escalaInteira, alturaNativa]);
 
   return area;
 }
