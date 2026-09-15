@@ -470,6 +470,8 @@ export class RetroarchEmulatorAdapter<Rom extends ConteudoRetroarch> implements 
           // Miniatura de save state é trabalho e bytes que não usamos:
           // `captureFrame` já dá a imagem, quando alguém pedir.
           savestate_thumbnail_enable: false,
+          // A apresentação é escolhida no player; preserva a saída sem borrão prévio.
+          video_smooth: false,
           // Áudio (ADR 0015). Os três primeiros já são o padrão do RetroArch e
           // estão fixados aqui **por serem o que faz o áudio funcionar**: é o
           // reamostrador que casa os 32.040 Hz do SNES com o `AudioContext`, e

@@ -1,3 +1,4 @@
+import { FiltroDeImagem, type PropsDoFiltro } from '../player/FiltroDeImagem.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -35,7 +36,7 @@ export interface ModoConsoleDoPlayer {
   readonly progresso: ReactNode;
 }
 
-interface Props {
+interface Props extends PropsDoFiltro {
   titulo: string;
   sistema: string;
   modo: ModoConsoleDoPlayer;
@@ -428,6 +429,17 @@ function MenuDaPartida(props: Props) {
                     <h3>Imagem e som.</h3>
                     <div className="cgp-setting-row">
                       <div>
+                        <b>Filtro de imagem</b>
+                        <small>Pixels marcados, suavização ou aparência de TV de tubo.</small>
+                      </div>
+                      <FiltroDeImagem
+                        botoes
+                        filtro={props.filtro}
+                        aoTrocarFiltro={props.aoTrocarFiltro}
+                      />
+                    </div>
+                    <div className="cgp-setting-row">
+                      <div>
                         <b>Proporção da imagem</b>
                         <small>Escolha o formato de TV ou a proporção nativa.</small>
                       </div>
@@ -452,8 +464,8 @@ function MenuDaPartida(props: Props) {
                       onClick={props.aoAlternarEscala}
                     >
                       <span>
-                        <b>Pixels perfeitos</b>
-                        <small>Escala inteira, sem distorcer os pixels.</small>
+                        <b>Escala inteira</b>
+                        <small>Amplia em passos inteiros quando há espaço.</small>
                       </span>
                       <span className="cx-switch">
                         <i />

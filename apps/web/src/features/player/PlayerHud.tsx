@@ -1,3 +1,4 @@
+import { FiltroDeImagem, type PropsDoFiltro } from './FiltroDeImagem.js';
 import {
   Gamepad2,
   Maximize,
@@ -22,7 +23,7 @@ export interface AcoesDoHud {
   readonly carregarEstado: () => void;
 }
 
-interface Props {
+interface Props extends PropsDoFiltro {
   readonly atalhoReiniciar?: string;
   readonly status: EmulatorStatus;
   readonly capabilities: EmulatorCapabilities;
@@ -60,6 +61,8 @@ const COM_ROM: readonly EmulatorStatus[] = ['ready', 'running', 'paused'];
  * não ter que aprender duas interfaces.
  */
 export function PlayerHud({
+  filtro,
+  aoTrocarFiltro,
   atalhoReiniciar = 'R',
   status,
   capabilities,
@@ -134,6 +137,7 @@ export function PlayerHud({
 
         <Separador />
 
+        <FiltroDeImagem filtro={filtro} aoTrocarFiltro={aoTrocarFiltro} />
         <div className="flex items-center" role="group" aria-label="Proporção de tela">
           {PROPORCOES_DISPONIVEIS.map((valor) => (
             <button

@@ -45,6 +45,7 @@ async function assentar(): Promise<void> {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   // O relógio manual do adapter falso andaria a 60 Hz durante o teste,
   // atualizando estado fora do `act` e enchendo a saída de aviso.
   vi.stubGlobal('requestAnimationFrame', () => 0);
@@ -57,6 +58,33 @@ afterEach(() => {
 });
 
 describe('EmulatorPlayer', () => {
+  it('troca o filtro sem reiniciar o jogo e restaura a preferência ao reabrir', async () => {
+    const { registry, criados } = bancada();
+    const montar = () =>
+      render(
+        comQueryClient(
+          <EmulatorPlayer systemId="snes" rom={ROM} titulo="Sure Instinct" registry={registry} />,
+        ),
+      );
+    const tela = montar();
+    await screen.findByText('rodando');
+    const quantidade = criados.length;
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtro de imagem' }), {
+      target: { value: 'crt' },
+    });
+    expect(screen.getByLabelText('Tela do Sure Instinct').parentElement?.className).toContain(
+      'pv-imagem--crt',
+    );
+    expect(criados.length).toBe(quantidade);
+    expect(criados.at(-1)?.status).toBe('running');
+    tela.unmount();
+    montar();
+    await screen.findByText('rodando');
+    expect(
+      (screen.getByRole('combobox', { name: 'Filtro de imagem' }) as HTMLSelectElement).value,
+    ).toBe('crt');
+  });
+
   it('sobe até rodando com o adapter que veio do registry', async () => {
     const { registry, criados } = bancada();
     render(

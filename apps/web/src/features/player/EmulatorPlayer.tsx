@@ -1,3 +1,4 @@
+import { useFiltroDeImagem } from './FiltroDeImagem.js';
 import { Ps1Setup } from './Ps1Setup.js';
 import { Play } from 'lucide-react';
 import {
@@ -147,7 +148,9 @@ function PlayerPronto({
 
   const [proporcao, setProporcao] = useState<ProporcaoDeTela>('4:3');
   const [escalaInteira, setEscalaInteira] = useState(false);
-  const area = useAreaDeExibicao(areaRef, proporcao, escalaInteira);
+  const resolucao = systemId === 'ps1' ? { largura: 320, altura: 240 } : RESOLUCAO_NATIVA;
+  const area = useAreaDeExibicao(areaRef, proporcao, escalaInteira, resolucao.altura);
+  const { filtro, trocar: trocarFiltro } = useFiltroDeImagem(systemId);
 
   const [focado, setFocado] = useState(false);
   const [hudVisivel, setHudVisivel] = useState(true);
@@ -344,16 +347,15 @@ function PlayerPronto({
                   }`
             }
           >
-            <canvas
-              ref={emulador.canvasRef}
-              width={RESOLUCAO_NATIVA.largura}
-              height={RESOLUCAO_NATIVA.altura}
-              aria-label={`Tela do ${titulo}`}
-              style={estiloDaTela}
-              // `pixelated`: interpolação bilinear em arte feita pixel a pixel é
-              // o borrão que faz o jogo antigo parecer mal digitalizado.
-              className="block [image-rendering:pixelated]"
-            />
+            <div className={`pv-imagem pv-imagem--${filtro}`} style={estiloDaTela}>
+              <canvas
+                ref={emulador.canvasRef}
+                width={resolucao.largura}
+                height={resolucao.altura}
+                aria-label={`Tela do ${titulo}`}
+                className="block h-full w-full"
+              />
+            </div>
           </div>
 
           {!modoConsole && (
@@ -402,6 +404,8 @@ function PlayerPronto({
                   throw new Error('Falha ao concluir a gravação local.');
                 modoConsole.aoSair();
               }}
+              filtro={filtro}
+              aoTrocarFiltro={trocarFiltro}
               proporcao={proporcao}
               aoTrocarProporcao={setProporcao}
               escalaInteira={escalaInteira}
@@ -424,6 +428,8 @@ function PlayerPronto({
               visivel={hudVisivel || !rodando}
               acoes={acoes}
               temEstadoSalvo={saves.slots.some((slot) => slot.metadata !== null)}
+              filtro={filtro}
+              aoTrocarFiltro={trocarFiltro}
               proporcao={proporcao}
               aoTrocarProporcao={setProporcao}
               escalaInteira={escalaInteira}

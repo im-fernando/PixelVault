@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { RESOLUCAO_NATIVA, calcularAreaDeExibicao } from './aspect-ratio.js';
 
 describe('calcularAreaDeExibicao', () => {
+  it('usa a altura base de PS1 quando informada', () => {
+    expect(
+      calcularAreaDeExibicao({ largura: 1000, altura: 700 }, '4:3', {
+        escalaInteira: true,
+        alturaNativa: 240,
+      }),
+    ).toEqual({ largura: 640, altura: 480 });
+  });
   it('respeita 4:3 quando a altura é o limite', () => {
     expect(calcularAreaDeExibicao({ largura: 1000, altura: 300 }, '4:3')).toEqual({
       largura: 400,
@@ -37,10 +45,11 @@ describe('calcularAreaDeExibicao', () => {
     expect(area.altura).toBe(RESOLUCAO_NATIVA.altura * 3);
   });
 
-  it('com escala inteira, nunca desce abaixo de 1×', () => {
+  it('com escala inteira, cabe mesmo em telas menores que 1×', () => {
     const area = calcularAreaDeExibicao({ largura: 100, altura: 90 }, '8:7', {
       escalaInteira: true,
     });
-    expect(area.altura).toBe(RESOLUCAO_NATIVA.altura);
+    expect(area.altura).toBeLessThanOrEqual(90);
+    expect(area.largura).toBeLessThanOrEqual(100);
   });
 });

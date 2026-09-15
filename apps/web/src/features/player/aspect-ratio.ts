@@ -66,10 +66,9 @@ export function calcularAreaDeExibicao(
 
   if (opcoes.escalaInteira === true) {
     const alturaNativa = opcoes.alturaNativa ?? RESOLUCAO_NATIVA.altura;
-    // Mínimo de 1×: em tela pequena, uma imagem um pouco maior que o espaço é
-    // pior que uma imagem sem escala inteira, mas imagem nenhuma é pior ainda.
-    const escala = Math.max(1, Math.floor(altura / alturaNativa));
-    altura = escala * alturaNativa;
+    const escala = Math.floor(altura / alturaNativa);
+    // Em telas menores que 1×, caber na área disponível tem prioridade.
+    if (escala >= 1) altura = escala * alturaNativa;
   }
 
   return { largura: Math.round(altura * razao), altura: Math.round(altura) };
